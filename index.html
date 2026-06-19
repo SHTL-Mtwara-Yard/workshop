@@ -2026,7 +2026,7 @@ function showPage(id,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet};
+  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage};
   if(map[id])map[id]();
   checkCompletionAlertQueue();
 }
