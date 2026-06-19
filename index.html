@@ -401,6 +401,7 @@ tr:hover td { background: var(--surface2); }
 .apt-status-overdue { background:#fee2e2;color:#dc2626; }
 .apt-status-closed { background:#f1f5f9;color:#64748b; }
 .odo-diff { font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#1d4ed8; }
+.tsub { font-size:10px;color:var(--text2);margin-top:1px; }
 
 .inv-item-iconchip { width: 30px; height: 30px; border-radius: 6px; display:flex; align-items:center; justify-content:center; font-size: 15px; flex-shrink:0; }
 
@@ -554,6 +555,13 @@ tr:hover td { background: var(--surface2); }
             <label>📏 Last Visit ODO (km)</label>
             <input type="number" id="iat_lastOdo" placeholder="Auto-filled" readonly style="background:#f8fafc;color:var(--text2)">
           </div>
+        </div>
+
+        <!-- Pending parts banner — auto-shows if this truck has unresolved pending parts from last visit -->
+        <div id="iat_pendingPartsBanner" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⚠️ Last visit — incomplete jobs (spare parts not available)</div>
+          <div id="iat_pendingPartsList" style="font-size:12px;color:#78350f"></div>
+          <div style="font-size:11px;color:#92400e;margin-top:6px">These have been pre-filled in the complaints below. Please verify with driver.</div>
         </div>
 
         <div style="margin-bottom:14px">
@@ -1202,7 +1210,7 @@ tr:hover td { background: var(--surface2); }
         <table>
           <thead><tr>
             <th>JC#</th><th>Date</th><th>Truck</th><th>Bay</th><th>Job Type</th><th>Dept</th><th>Mechanic</th><th>Fault</th><th>Source</th>
-            <th>T0 In</th><th>T1 ETD Set</th><th>T2 Start</th><th>T4 QC</th><th>Status</th>
+            <th>T0 In</th><th>T1 ETD Set</th><th>T2 Start</th><th>T4 QC</th><th>Status</th><th>Part</th>
           </tr></thead>
           <tbody id="mgrJobCardsTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No job cards yet</td></tr></tbody>
         </table>
@@ -1576,8 +1584,15 @@ tr:hover td { background: var(--surface2); }
 
 <!-- ════════════════ FLEET (multi-truck quick overview) ════════════════ -->
 <div class="page" id="page-fleet">
-  <div class="page-title">🚚 Fleet — All Trucks in Yard</div>
-  <div class="page-sub">Quick glance across every truck currently in the yard — sorted by most urgent first. Tap a row to jump to its job checklist.</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <div>
+      <div class="page-title">🚚 Fleet — All Trucks in Yard</div>
+      <div class="page-sub">Live status · sorted most urgent first · tap row to jump to bay work</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="etdAnnounceBtn" onclick="toggleETDAnnouncements()" style="gap:6px">
+      🔊 Enable ETD Announcements
+    </button>
+  </div>
 
   <div class="grid-4 mb-16">
     <div class="stat-box stat-blue"><div class="stat-label">In Yard</div><div class="stat-val" id="fl-total" style="color:var(--blue)">0</div></div>
@@ -1586,16 +1601,57 @@ tr:hover td { background: var(--surface2); }
     <div class="stat-box stat-green"><div class="stat-label">On Track</div><div class="stat-val" id="fl-ontrack" style="color:var(--green)">0</div></div>
   </div>
 
-  <div class="card">
-    <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Live Fleet Table — Most Urgent First</div>
+  <!-- T-STEP LEGEND -->
+  <div class="card" style="padding:10px 14px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text2)">
+      <span style="font-weight:600;color:var(--text)">Stage key:</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:#1a1f2e;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">T0</span> Gate In</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:#1a1f2e;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">T1</span> Bay Allocated</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:#1a1f2e;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">T2</span> ETD Set</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:#1a1f2e;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">T4</span> Work Done</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:#1a1f2e;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">T5</span> Gate Out</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="background:var(--accent);color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:500">Active</span> Current stage</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+      <div class="card-title" style="margin-bottom:0"><span class="dot" style="background:var(--accent)"></span>Live Fleet Table — Most Urgent First</div>
+    </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>Truck No</th><th>Bay</th><th>Gate In</th><th>Expected Delivery</th><th>Work Status</th><th>Gate Out</th><th>Time Left</th><th>Responsible</th>
+          <th>Bay</th><th>Truck No</th><th>Driver</th><th>Origin</th><th>Dept</th>
+          <th>Gate In</th><th>ETD</th><th>T0→T1→T2→T4→T5</th><th>Time Left</th><th>Responsible</th>
         </tr></thead>
-        <tbody id="fleetTable"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">No trucks in yard</td></tr></tbody>
+        <tbody id="fleetTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in yard</td></tr></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- ════════════════ SPARE PARTS PENDING MODAL ════════════════ -->
+<div class="modal-overlay" id="sparePartModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">🔩 Spare Part Not Available <button class="modal-close" onclick="closeModal('sparePartModal')">✕</button></div>
+    <input type="hidden" id="sparePartInsId">
+    <input type="hidden" id="sparePartDept">
+    <input type="hidden" id="sparePartJobIdx">
+    <p class="text2 text-sm mb-12">Job: <strong id="sparePartJobDesc"></strong></p>
+    <div class="form-row">
+      <div>
+        <label>Part Name / Description</label>
+        <input type="text" id="sparePartName" placeholder="e.g. Front brake pad set — MAN TGS 18.440" oninput="this.value=this.value.toUpperCase()">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Additional Notes (optional)</label>
+        <input type="text" id="sparePartNotes" placeholder="e.g. Ordered from Dar, expected 3 days">
+      </div>
+    </div>
+    <div class="alert alert-info mb-12" style="font-size:12px">When this truck next arrives, a warning banner will automatically appear in the Incharge tab showing this pending part — so it's included in the next job request.</div>
+    <button class="btn btn-primary btn-block" onclick="saveSparePartPending()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save — Mark Part Pending</button>
   </div>
 </div>
 
@@ -1772,7 +1828,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -1828,7 +1884,8 @@ fbRoot.on('value', snapshot=>{
       assistingWorkers: data.assistingWorkers || {},
       workerLog: data.workerLog || [],
       etdRevisionLog: data.etdRevisionLog || [],
-      appointments: data.appointments || []
+      appointments: data.appointments || [],
+      pendingParts: data.pendingParts || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -2175,6 +2232,29 @@ function checkAptLastVisit(){
   const tn=(document.getElementById('iat_truckNo').value||'').toUpperCase().trim();
   const banner=document.getElementById('iat_lastVisitBanner');
   const lastOdoEl=document.getElementById('iat_lastOdo');
+
+  // Check for pending parts from last visit
+  const pendingBanner=document.getElementById('iat_pendingPartsBanner');
+  const pendingList=document.getElementById('iat_pendingPartsList');
+  const complaintsEl=document.getElementById('iat_complaints');
+  if(tn && S.pendingParts){
+    const pending=(S.pendingParts||[]).filter(p=>p.truckNo===tn && !p.resolved);
+    if(pending.length){
+      pendingBanner.style.display='block';
+      pendingList.innerHTML=pending.map(p=>`<div style="padding:3px 0;border-bottom:0.5px solid #fde68a">🔩 <strong>${p.partName}</strong> — ${p.jobDesc}${p.notes?' ('+p.notes+')':''}</div>`).join('');
+      // Auto-fill complaints with pending parts
+      const existingComplaints=complaintsEl.value.trim();
+      const pendingText='[PENDING FROM LAST VISIT]: '+pending.map(p=>p.partName+' — '+p.jobDesc).join('; ');
+      if(!existingComplaints.includes('PENDING FROM LAST VISIT')){
+        complaintsEl.value=(existingComplaints?existingComplaints+'\n':'')+pendingText;
+      }
+    } else {
+      pendingBanner.style.display='none';
+    }
+  } else {
+    pendingBanner.style.display='none';
+  }
+
   if(!tn){ banner.style.display='none'; lastOdoEl.value=''; return; }
   const last=getLastVisitForTruck(tn);
   if(last && last.odoOnArrival){
@@ -2182,7 +2262,6 @@ function checkAptLastVisit(){
     document.getElementById('iat_lastVisitText').textContent=`Last entry: ${last.odoOnArrival.toLocaleString()} km on ${d}`;
     lastOdoEl.value=last.odoOnArrival;
     banner.style.display='block';
-    // Auto calculate diff if current ODO already entered
     const cur=parseInt(document.getElementById('iat_odo').value);
     if(cur && cur>last.odoOnArrival){
       document.getElementById('iat_lastVisitText').textContent+=` · Diff: ${(cur-last.odoOnArrival).toLocaleString()} km`;
@@ -3809,6 +3888,7 @@ function refreshMgrJobCards(){
       <td class="text-xs">${t2}</td>
       <td class="text-xs">${t4}</td>
       <td>${r.isDone?'<span class="tag tag-green">COMPLETE</span>':'<span class="tag tag-red">PENDING</span>'}</td>
+      <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${r.ins.jobs[r.d].indexOf(r.j)})">🔩 Part N/A</button>`:'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -4025,99 +4105,169 @@ function refreshFleet(){
     const ins=S.inspections.find(i=>i.entryId===e.id);
     let bay='—', etd=null, doneCount=0, totalCount=0, minsLeft=null, hasInspection=false;
     if(ins){
-      hasInspection=true;
-      bay=ins.bayNo;
-      etd=new Date(ins.etd);
+      hasInspection=true; bay=ins.bayNo; etd=new Date(ins.etd);
       minsLeft=Math.round((etd-now)/60000);
       ['mech','elec','tyre','weld'].forEach(d=>{
-        (ins.jobs[d]||[]).forEach((j,i)=>{
-          totalCount++;
-          if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++;
-        });
+        (ins.jobs[d]||[]).forEach((j,i)=>{ totalCount++; if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++; });
       });
     }
-    const isParked = ins && ins.parked;
-    return {entry:e, ins, bay, etd, minsLeft, doneCount, totalCount, hasInspection, isParked};
+    const isParked=ins&&ins.parked;
+    return {entry:e,ins,bay,etd,minsLeft,doneCount,totalCount,hasInspection,isParked};
   });
 
-  // Sort: not-yet-inspected trucks first (most urgent — nobody's looked at them),
-  // then active work sorted by minsLeft ascending (most overdue / soonest due),
-  // parked trucks last since they no longer need active attention from the workshop
   rows.sort((a,b)=>{
-    if(a.isParked && !b.isParked) return 1;
-    if(!a.isParked && b.isParked) return -1;
-    if(a.isParked && b.isParked) return new Date(a.ins.completedAt)-new Date(b.ins.completedAt);
-    if(!a.hasInspection && !b.hasInspection) return new Date(a.entry.entryTime)-new Date(b.entry.entryTime);
-    if(!a.hasInspection) return -1;
-    if(!b.hasInspection) return 1;
+    if(a.isParked&&!b.isParked)return 1; if(!a.isParked&&b.isParked)return -1;
+    if(a.isParked&&b.isParked)return new Date(a.ins.completedAt)-new Date(b.ins.completedAt);
+    if(!a.hasInspection&&!b.hasInspection)return new Date(a.entry.entryTime)-new Date(b.entry.entryTime);
+    if(!a.hasInspection)return -1; if(!b.hasInspection)return 1;
     return a.minsLeft-b.minsLeft;
   });
 
-  // Stats
   document.getElementById('fl-total').textContent=inYard.length;
-  document.getElementById('fl-delayed').textContent=rows.filter(r=>r.hasInspection && !r.isParked && r.minsLeft<0).length;
-  document.getElementById('fl-urgent').textContent=rows.filter(r=>r.hasInspection && !r.isParked && r.minsLeft>=0 && r.minsLeft<60).length;
-  document.getElementById('fl-ontrack').textContent=rows.filter(r=>r.hasInspection && !r.isParked && r.minsLeft>=60).length;
+  document.getElementById('fl-delayed').textContent=rows.filter(r=>r.hasInspection&&!r.isParked&&r.minsLeft<0).length;
+  document.getElementById('fl-urgent').textContent=rows.filter(r=>r.hasInspection&&!r.isParked&&r.minsLeft>=0&&r.minsLeft<60).length;
+  document.getElementById('fl-ontrack').textContent=rows.filter(r=>r.hasInspection&&!r.isParked&&r.minsLeft>=60).length;
 
   const tb=document.getElementById('fleetTable');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">No trucks in yard</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in yard</td></tr>';return;}
+
+  // T-step pill builder
+  function tSteps(r){
+    const t0=true;
+    const t1=r.hasInspection;
+    const t2=r.hasInspection && r.ins && S.deptETDs && Object.keys(S.deptETDs).some(k=>k.startsWith(r.ins.id+'_') && S.deptETDs[k]);
+    const t4=r.hasInspection && r.ins && r.ins.t4_qcDone;
+    const t5=r.entry.exitTime;
+    const steps=[{l:'T0',done:t0,active:!t1},{l:'T1',done:t1,active:t1&&!t2},{l:'T2',done:t2,active:t2&&!t4},{l:'T4',done:t4,active:t4&&!t5},{l:'T5',done:t5,active:false}];
+    return `<div style="display:flex;align-items:center;gap:2px">`+steps.map((s,i)=>{
+      const bg=s.done?'#1a1f2e':s.active?'var(--accent)':'var(--surface3)';
+      const col=s.done||s.active?'#fff':'var(--text3)';
+      const bdr=(!s.done&&!s.active)?';border:1px solid var(--border)':'';
+      return (i>0?`<span style="color:var(--border2);font-size:9px">›</span>`:'')
+        +`<span style="background:${bg};color:${col};padding:2px 6px;border-radius:4px;font-size:9.5px;font-weight:600${bdr}">${s.l}</span>`;
+    }).join('')+'</div>';
+  }
 
   tb.innerHTML=rows.map(r=>{
     const e=r.entry;
     const gateIn=new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    const gateOut=e.exitTime?new Date(e.exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'<span class="text2 text-xs">—</span>';
     const resp=getTruckResponsibility(e);
-    const respHtml=`<span class="tag tag-${resp.color}">${resp.who}</span><div class="text-xs text2 mt-8">${resp.label} · ${fmtSince(resp.sinceMins)}</div>`;
+    const depts=e.depts&&e.depts.length?e.depts.map(d=>({mech:'⚙️ Mech',elec:'⚡ Elec',tyre:'🔵 Tyre',weld:'🔥 Weld'})[d]||d).join(' · '):'—';
+    const driver=r.ins?(r.ins.driverName||'—')+(r.ins.driverMobile?'<br><span class="text2 text-xs">'+r.ins.driverMobile+'</span>':''):'—';
+    const rowBg=r.isParked?'':'';
 
     if(r.isParked){
-      const remark=r.ins.supervisorRemark;
-      const cleared=e.parkStatus==='cleared';
-      return `<tr style="cursor:pointer" onclick="showPage('supervisor',document.querySelectorAll('.nav-tab')[1])">
-        <td class="fw-700">${e.truckNo}</td>
-        <td class="text2 text-xs">Parked</td>
-        <td>${gateIn}</td>
-        <td class="text2 text-xs">—</td>
-        <td><span class="tag tag-${cleared?'green':'orange'}">${cleared?'✅ Cleared':remark?'🅿️ '+remark.reason:'🅿️ Awaiting remark'}</span></td>
-        <td>${gateOut}</td>
-        <td><span class="text2 text-xs">${cleared?'Ready for gate':'Awaiting driver'}</span></td>
-        <td>${respHtml}</td>
+      const remark=r.ins.supervisorRemark; const cleared=e.parkStatus==='cleared';
+      return `<tr style="cursor:pointer;background:${cleared?'rgba(22,163,74,.05)':'rgba(240,136,62,.05)'}" onclick="showPage('supervisor',document.querySelectorAll('.nav-tab')[2])">
+        <td><span style="background:#1a1f2e;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">Parked</span></td>
+        <td><div class="fw-700">${e.truckNo}</div><div class="tsub">${r.ins?r.ins.jobType||'—':'—'}</div></td>
+        <td style="font-size:11px">${driver}</td>
+        <td><span class="tag tag-blue" style="font-size:10px">${e.origin||'—'}</span></td>
+        <td style="font-size:10px">${depts}</td>
+        <td style="font-size:11px">${gateIn}</td>
+        <td style="font-size:10px;color:var(--text2)">—</td>
+        <td>${tSteps(r)}</td>
+        <td><span class="tag tag-${cleared?'green':'orange'}" style="font-size:10px">${cleared?'Ready — exit':'Awaiting driver'}</span></td>
+        <td style="font-size:10px"><span class="tag tag-${resp.color}">${resp.who}</span></td>
       </tr>`;
     }
 
     if(!r.hasInspection){
-      return `<tr style="cursor:pointer" onclick="showPage('supervisor',document.querySelector('.nav-tab'))">
-        <td class="fw-700">${e.truckNo}</td>
-        <td class="text2 text-xs">Not allocated</td>
-        <td>${gateIn}</td>
-        <td class="text2 text-xs">—</td>
-        <td><span class="tag tag-yellow">⏳ Awaiting inspection</span></td>
-        <td>${gateOut}</td>
-        <td><span class="tag tag-red">Needs supervisor</span></td>
-        <td>${respHtml}</td>
+      return `<tr style="cursor:pointer;background:rgba(227,179,65,.05)" onclick="showPage('supervisor',document.querySelectorAll('.nav-tab')[2])">
+        <td><span style="background:var(--yellow);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">No bay</span></td>
+        <td><div class="fw-700">${e.truckNo}</div><div class="tsub">Awaiting inspection</div></td>
+        <td style="font-size:11px">—</td>
+        <td><span class="tag tag-blue" style="font-size:10px">${e.origin||'—'}</span></td>
+        <td style="font-size:10px">${depts}</td>
+        <td style="font-size:11px">${gateIn}</td>
+        <td style="font-size:10px;color:var(--text2)">—</td>
+        <td>${tSteps(r)}</td>
+        <td><span class="tag tag-yellow" style="font-size:10px">⏳ Needs insp.</span></td>
+        <td style="font-size:10px"><span class="tag tag-${resp.color}">${resp.who}</span></td>
       </tr>`;
     }
 
     const etdStr=r.etd.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    const isDelayed=r.minsLeft<0;
-    const isUrgent=!isDelayed && r.minsLeft<60;
-    const rowStyle=isDelayed?'background:rgba(248,81,73,.08)':'';
-    const statusPct=r.totalCount?Math.round(r.doneCount/r.totalCount*100):0;
-    const statusColor=statusPct>=100?'green':statusPct>=50?'yellow':'blue';
-    const timeLeftHtml=isDelayed
-      ?`<span class="tag tag-red">⚠️ +${Math.abs(Math.round(r.minsLeft/60))}h ${Math.abs(r.minsLeft%60)}m late</span>`
-      :`<span style="color:${isUrgent?'var(--yellow)':'var(--green)'};font-weight:700">${Math.floor(r.minsLeft/60)}h ${r.minsLeft%60}m</span>`;
+    const isDelayed=r.minsLeft<0; const isUrgent=!isDelayed&&r.minsLeft<60;
+    const timeTag=isDelayed
+      ?`<span class="tag tag-red" style="font-size:10px">+${Math.abs(Math.round(r.minsLeft/60))}h late</span>`
+      :isUrgent
+        ?`<span class="tag tag-yellow" style="font-size:10px">${Math.floor(r.minsLeft/60)}h ${r.minsLeft%60}m</span>`
+        :`<span class="tag tag-green" style="font-size:10px">${Math.floor(r.minsLeft/60)}h ${r.minsLeft%60}m</span>`;
+    const bayBg=isDelayed?'#dc2626':r.isParked?'#15803d':'#1a1f2e';
+    const etdColor=isDelayed?'var(--red)':'var(--green)';
 
-    return `<tr style="cursor:pointer;${rowStyle}" onclick="jumpToGroundTeam('${r.bay}')">
-      <td class="fw-700">${e.truckNo}</td>
-      <td><span class="tag tag-blue">${r.bay}</span></td>
-      <td>${gateIn}</td>
-      <td>${etdStr}</td>
-      <td><span class="tag tag-${statusColor}">${r.doneCount}/${r.totalCount} done</span></td>
-      <td>${gateOut}</td>
-      <td>${timeLeftHtml}</td>
-      <td>${respHtml}</td>
+    return `<tr style="cursor:pointer${isDelayed?';background:rgba(220,38,38,.05)':''}" onclick="jumpToGroundTeam('${r.bay}')">
+      <td><span style="background:${bayBg};color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">${r.bay.replace('Bay ','B')}</span></td>
+      <td><div class="fw-700" style="font-size:13px">${e.truckNo}</div><div class="tsub">${r.ins.jobType||'—'} · ${r.ins.priority||'Normal'}</div></td>
+      <td style="font-size:11px">${driver}</td>
+      <td><span class="tag tag-blue" style="font-size:10px">${e.origin||'—'}</span></td>
+      <td style="font-size:10px">${depts}</td>
+      <td style="font-size:11px">${gateIn}</td>
+      <td style="font-size:11px;color:${etdColor};font-weight:600">${etdStr}${isDelayed?' ⚠️':''}</td>
+      <td>${tSteps(r)}</td>
+      <td>${timeTag}</td>
+      <td style="font-size:10px"><span class="tag tag-${resp.color}">${resp.who}</span><div class="text-xs text2 mt-8">${fmtSince(resp.sinceMins)}</div></td>
     </tr>`;
   }).join('');
+}
+
+// ─── ETD ANNOUNCEMENT SYSTEM ───
+// Speaks aloud every 15 min when a truck's ETD is within 1 hour, naming the mechanic and jobs
+let _etdAnnouncementsEnabled=false;
+let _etdAnnounceInterval=null;
+let _lastAnnounced={}; // {insId_dept: lastAnnouncedMinute} prevents repeat within same 15-min window
+
+function toggleETDAnnouncements(){
+  if(_etdAnnouncementsEnabled){
+    _etdAnnouncementsEnabled=false;
+    if(_etdAnnounceInterval){ clearInterval(_etdAnnounceInterval); _etdAnnounceInterval=null; }
+    document.getElementById('etdAnnounceBtn').textContent='🔊 Enable ETD Announcements';
+    toast('🔇 Announcements disabled','info');
+  } else {
+    if(!window.speechSynthesis){ toast('⚠️ This browser does not support text-to-speech','warn'); return; }
+    _etdAnnouncementsEnabled=true;
+    document.getElementById('etdAnnounceBtn').textContent='🔇 Disable Announcements';
+    toast('🔊 Announcements enabled — will speak when ETD is within 1 hour','ok');
+    checkETDAnnouncements(); // run once immediately
+    _etdAnnounceInterval=setInterval(checkETDAnnouncements, 15*60*1000); // every 15 mins
+  }
+}
+
+function checkETDAnnouncements(){
+  if(!_etdAnnouncementsEnabled) return;
+  const now=new Date();
+  const currentMinuteBucket=Math.floor(now.getTime()/900000); // 15-min bucket
+  S.inspections.forEach(ins=>{
+    if(ins.parked) return;
+    const e=S.entries.find(x=>x.id===ins.entryId);
+    if(!e||e.exitTime) return;
+    const etd=new Date(ins.etd);
+    const minsLeft=Math.round((etd-now)/60000);
+    if(minsLeft<0||minsLeft>60) return; // only announce when within 1 hour
+    ['mech','elec','tyre','weld'].forEach(d=>{
+      const jobs=ins.jobs[d]||[];
+      const pending=jobs.filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
+      if(!pending.length) return;
+      const key=`${ins.id}_${d}`;
+      if(_lastAnnounced[key]===currentMinuteBucket) return; // already announced this 15-min window
+      _lastAnnounced[key]=currentMinuteBucket;
+      const mechanic=(ins.deptStaff||{})[d]||'Ground Team';
+      const deptName={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      const jobList=pending.slice(0,2).map(j=>j.desc).join(' and ');
+      const minsText=minsLeft<=5?'less than 5 minutes':minsLeft<=15?'15 minutes':minsLeft<=30?'30 minutes':'1 hour';
+      const msg=`Attention. ${mechanic}, please be informed. Truck ${ins.truckNo}, ${deptName} department. ETD in ${minsText}. Pending job${pending.length>1?'s':''}: ${jobList}${pending.length>2?'. And '+(pending.length-2)+' more':''}.`;
+      speakAnnouncement(msg);
+    });
+  });
+}
+
+function speakAnnouncement(text){
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt=new SpeechSynthesisUtterance(text);
+  utt.rate=0.88; utt.pitch=1; utt.volume=1;
+  window.speechSynthesis.speak(utt);
 }
 
 function refreshOverview(){
@@ -4491,6 +4641,53 @@ function saveMgrApt(id){
   save();
   refreshMgrIncharge();
   toast('✅ Record saved as Manager Verified — '+apt.truckNo,'ok');
+}
+
+// ─── SPARE PARTS PENDING ───
+function openSparePartModal(insId,dept,jobIdx){
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ins) return;
+  const job=(ins.jobs[dept]||[])[jobIdx];
+  if(!job) return;
+  document.getElementById('sparePartInsId').value=insId;
+  document.getElementById('sparePartDept').value=dept;
+  document.getElementById('sparePartJobIdx').value=jobIdx;
+  document.getElementById('sparePartJobDesc').textContent=job.desc;
+  document.getElementById('sparePartName').value='';
+  document.getElementById('sparePartNotes').value='';
+  document.getElementById('sparePartModal').classList.add('open');
+}
+
+function saveSparePartPending(){
+  const insId=document.getElementById('sparePartInsId').value;
+  const dept=document.getElementById('sparePartDept').value;
+  const jobIdx=parseInt(document.getElementById('sparePartJobIdx').value);
+  const partName=document.getElementById('sparePartName').value.trim();
+  const notes=document.getElementById('sparePartNotes').value.trim();
+  if(!partName) return toast('⚠️ Enter the part name','warn');
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ins) return;
+  const job=(ins.jobs[dept]||[])[jobIdx];
+  if(!job) return;
+  if(!S.pendingParts) S.pendingParts=[];
+  S.pendingParts.push({
+    id:Date.now(),
+    truckNo:ins.truckNo,
+    jobDesc:job.desc,
+    partName,
+    notes,
+    dept,
+    loggedAt:new Date().toISOString(),
+    resolved:false
+  });
+  // Also mark the job as part-pending so it's visible on the job card
+  job.partPending=true;
+  job.partName=partName;
+  job.partNotes=notes;
+  save();
+  closeModal('sparePartModal');
+  refreshMgrJobCards();
+  toast('🔩 Part pending saved for '+ins.truckNo+' — will show on next Incharge request','ok');
 }
 
 function refreshMechPerf(){
