@@ -1634,6 +1634,12 @@ tr:hover td { background: var(--surface2); }
     </div>
 
     <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Bay Assignments — Quick View</div>
+      <div class="text-xs text2 mb-12">Shows all mechanics with a fixed bay assigned. Use the dropdown next to each name below to assign or change bays. Workers with no bay assist others until assigned.</div>
+      <div id="bayAssignmentSummary"></div>
+    </div>
+
+    <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Current Roster by Section</div>
       <div class="text-xs text2 mb-12">Removing someone here takes effect immediately across all dropdowns (job assignment, breakdown mechanic, punch status) on every device. Existing job history with their name stays intact.</div>
       <div id="staffRosterList"></div>
@@ -1936,7 +1942,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{} };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -1994,7 +2000,8 @@ fbRoot.on('value', snapshot=>{
       etdRevisionLog: data.etdRevisionLog || [],
       appointments: data.appointments || [],
       pendingParts: data.pendingParts || [],
-      falseComplaintHistory: data.falseComplaintHistory || []
+      falseComplaintHistory: data.falseComplaintHistory || [],
+      bayAssignments: data.bayAssignments || {}
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -5893,7 +5900,22 @@ function onPunchWorkerSelected(){
   document.getElementById('punchStep2').style.display=name?'block':'none';
   if(name){
     refreshPunchBaySelect();
-    loadPunchJobs();
+    // Auto-select fixed bay if assigned
+    const fixedBay=getWorkerFixedBay(name);
+    if(fixedBay){
+      // Switch to correct team first
+      const teamA=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
+      const team=teamA.includes(fixedBay)?'A':'B';
+      if(curPunchTeam!==team) selectPunchTeam(team);
+      setTimeout(()=>{
+        const sel=document.getElementById('punchBaySelect');
+        if(sel) sel.value=fixedBay;
+        loadPunchJobs();
+        toast('📍 Auto-selected your fixed bay: '+fixedBay,'info');
+      },50);
+    } else {
+      loadPunchJobs();
+    }
   }
 }
 
@@ -6133,6 +6155,8 @@ function refreshWorkerBoard(){
 
   board.innerHTML=resolved.map(p=>{
     const sinceTime=new Date(p.since).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const fixedBay=getWorkerFixedBay(p.name);
+    const fixedBayTag=fixedBay?`<span class="tag tag-blue" style="font-size:10px">📍 ${fixedBay}</span> `:'';
     let statusHtml='';
     if(p.status==='working'){
       const lockDetails=p.locks.map(l=>`${l.truckNo} · ${l.bayNo} · ${dInfo[l.dept]} (${l.doneCount}/${l.total})`).join('<br>');
@@ -6143,7 +6167,7 @@ function refreshWorkerBoard(){
       statusHtml=`<span class="tag tag-green">✅ Available</span>`;
     }
     return `<div class="worker-card ${p.status}">
-      <div><span class="fw-700">${p.name}</span></div>
+      <div><span class="fw-700">${p.name}</span><div class="text-xs text2 mt-8">${fixedBayTag}</div></div>
       <div style="text-align:right">${statusHtml}<div class="text-xs text2 mt-8">since ${sinceTime}</div></div>
     </div>`;
   }).join('');
@@ -6188,25 +6212,65 @@ function confirmCloseWorkshop(){
 
 // ═══ MANAGER: STAFF ROSTER (add/remove employees, syncs live everywhere) ═══
 function refreshStaffRoster(){
-  // Populate the section dropdown for adding new staff
   const sectionSel=document.getElementById('staffNewSection');
   if(sectionSel.options.length===0){
     sectionSel.innerHTML=Object.entries(STAFF_SECTION_LABELS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
   }
 
-  const listDiv=document.getElementById('staffRosterList');
+  const allBays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10',
+    'Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21',
+    'Express Bay','Free Bay'];
+  const bayOpts='<option value="">No bay</option>'+allBays.map(b=>`<option value="${b}">${b}</option>`).join('');
+
+  // Bay Assignments summary
+  const baySum=document.getElementById('bayAssignmentSummary');
+  if(baySum){
+    const assigned=Object.entries(S.bayAssignments||{}).sort((a,b)=>a[1].localeCompare(b[1],undefined,{numeric:true}));
+    if(!assigned.length){
+      baySum.innerHTML='<div class="text2 text-xs">No bay assignments yet — use the dropdown next to each staff member below.</div>';
+    } else {
+      baySum.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">`+
+        assigned.map(([name,bay])=>`<div style="background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:12px;font-weight:600">${name}</div><div class="text-xs text2 mt-8">${bay}</div></div>
+          <span class="tag tag-blue" style="font-size:10px">${bay.replace('Bay ','B')}</span>
+        </div>`).join('')+
+      `</div><div class="text-xs text2 mt-12">${assigned.length} assigned · ${ALL_STAFF.length-assigned.length} unassigned</div>`;
+    }
+  }
   const sections=Object.keys(STAFF_SECTION_LABELS);
   listDiv.innerHTML=sections.map(key=>{
     const members=(S.staffRoster[key]||[]).slice().sort();
     const label=STAFF_SECTION_LABELS[key];
     return `<div class="roster-section-block">
       <div class="roster-section-head"><span>${label}</span><span class="text2 text-xs">${members.length} staff</span></div>
-      ${members.length?members.map(name=>`<div class="roster-member-row">
-        <span>${name}</span>
-        <button class="btn btn-danger btn-sm" onclick="removeStaffMember('${key}','${name.replace(/'/g,"\\'")}')">Remove</button>
-      </div>`).join('') : '<div class="roster-member-row text2 text-xs">No staff in this section yet.</div>'}
+      ${members.length?members.map(name=>{
+        const assignedBay=(S.bayAssignments||{})[name]||'';
+        const safeName=name.replace(/'/g,"\\'");
+        return `<div class="roster-member-row">
+          <span class="fw-700" style="flex:1">${name}</span>
+          <select style="min-width:110px;font-size:12px;padding:4px 6px;margin-right:8px" onchange="saveBayAssignment('${safeName}',this.value)">
+            ${allBays.reduce((acc,b)=>acc+`<option value="${b}" ${assignedBay===b?'selected':''}>${b}</option>`,'<option value="" '+(assignedBay?'':'selected')+'>— No bay —</option>')}
+          </select>
+          ${assignedBay?`<span class="tag tag-blue" style="margin-right:8px;font-size:10px">${assignedBay}</span>`:''}
+          <button class="btn btn-danger btn-sm" onclick="removeStaffMember('${key}','${safeName}')">Remove</button>
+        </div>`;
+      }).join('') : '<div class="roster-member-row text2 text-xs">No staff in this section yet.</div>'}
     </div>`;
   }).join('');
+}
+
+function saveBayAssignment(name, bay){
+  if(!S.bayAssignments) S.bayAssignments={};
+  if(bay){ S.bayAssignments[name]=bay; }
+  else { delete S.bayAssignments[name]; }
+  save();
+  refreshStaffRoster();
+  toast(bay?`✅ ${name} assigned to ${bay}`:`✅ Bay removed from ${name}`,'ok');
+}
+
+// Get the fixed bay for a worker (used in Punch Status auto-select)
+function getWorkerFixedBay(name){
+  return (S.bayAssignments||{})[name]||null;
 }
 
 function addStaffMember(){
