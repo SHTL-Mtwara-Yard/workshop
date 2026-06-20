@@ -1270,6 +1270,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSub('mgr-hours',this)">⏱️ Hours Worked</div>
     <div class="subtab" onclick="showSub('mgr-etd',this)">🎯 ETD Accuracy</div>
     <div class="subtab" onclick="showSub('mgr-incharge',this)">📋 Incharge Requests</div>
+    <div class="subtab" onclick="showSub('mgr-postpone',this)">⏸️ Postpone Jobs</div>
     <div class="subtab" onclick="showSub('mgr-false',this)">🚫 False Complaints</div>
     <div class="subtab" onclick="showSub('mgr-edit',this)">✏️ Edit Records</div>
     <div class="subtab" onclick="showSub('mgr-staff',this)">👥 Staff Roster</div>
@@ -1578,6 +1579,59 @@ tr:hover td { background: var(--surface2); }
       <div class="text-xs text2 mb-12">Trucks sent back by Supervisor with "No Work Required" finding — indicates driver gave false complaint to Incharge.</div>
       <div id="mgrFalseComplaintList">
         <div style="text-align:center;color:var(--text2);padding:16px;font-size:12px">No false complaints recorded yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB: POSTPONE PENDING TRUCKS -->
+  <div class="subpage" id="sub-mgr-postpone">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Postpone Pending Jobs — Manager Entry</div>
+      <div class="text-xs text2 mb-12">If a truck in the yard cannot be worked on today (parts unavailable, bay full, priority change), Manager records the reason and new target date here. This is saved permanently and visible in the job card history.</div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Select Truck</label>
+          <select id="postponeTruckSelect" onchange="loadPostponeDetails()">
+            <option value="">-- Select active truck --</option>
+          </select>
+        </div>
+        <div>
+          <label>New Target Date</label>
+          <input type="date" id="postponeTargetDate">
+        </div>
+      </div>
+      <div id="postponeTruckDetails" style="display:none;margin-bottom:10px">
+        <div class="alert alert-info text-xs" id="postponeTruckInfo"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Reason for Postpone</label>
+          <select id="postponeReasonSel">
+            <option value="">-- Select reason --</option>
+            <option>Spare parts not available</option>
+            <option>Bay capacity full</option>
+            <option>Priority changed — urgent truck arrived</option>
+            <option>Waiting for specialist</option>
+            <option>Driver requested delay</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Additional Notes</label>
+          <input type="text" id="postponeNotes" placeholder="e.g. Ordered brake pads from Dar, ETA 2 days">
+        </div>
+      </div>
+      <button class="btn btn-purple" onclick="savePostponeRecord()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save Postpone Record</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Postpone History</div>
+      <div class="flex gap-8 mb-12 items-center flex-wrap">
+        <input type="text" id="postponeSearch" placeholder="Search truck..." style="flex:1;min-width:160px" oninput="refreshPostponeHistory()">
+        <button class="btn btn-ghost btn-sm" onclick="exportPostponeCSV()">📥 Export CSV</button>
+      </div>
+      <div id="postponeHistoryList">
+        <div style="text-align:center;color:var(--text2);padding:20px">No postpone records yet</div>
       </div>
     </div>
   </div>
@@ -1942,7 +1996,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{} };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -2001,7 +2055,8 @@ fbRoot.on('value', snapshot=>{
       appointments: data.appointments || [],
       pendingParts: data.pendingParts || [],
       falseComplaintHistory: data.falseComplaintHistory || [],
-      bayAssignments: data.bayAssignments || {}
+      bayAssignments: data.bayAssignments || {},
+      postponeRecords: data.postponeRecords || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -2057,7 +2112,7 @@ function refreshCurrentPage(){
   if(activeSub){
     const subId=activeSub.id.replace('sub-','');
     const subMap={'mgr-jobcards':refreshMgrJobCards,'mgr-timestamp':refreshTimeStamping,
-      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory};
+      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory,'mgr-postpone':refreshPostponePage};
     if(subMap[subId])subMap[subId]();
   }
 
@@ -2162,6 +2217,7 @@ function showSub(id,el){
   if(id==='mgr-etd')refreshETDReport();
   if(id==='mgr-incharge')refreshMgrIncharge();
   if(id==='mgr-false')refreshFalseHistory();
+  if(id==='mgr-postpone')refreshPostponePage();
   if(id==='mgr-edit')refreshEditRecords();
   if(id==='mgr-staff')refreshStaffRoster();
 }
@@ -2176,7 +2232,7 @@ function showGroundSub(id,el){
   if(id==='ground-punch') refreshPunchTab();
 }
 
-function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); }
+function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); refreshPostponePage(); }
 
 // ═══ FUEL SLIDER ═══
 function updateFuelFromSlider(val){
@@ -4730,18 +4786,36 @@ function refreshSupNotify(){
   const list=document.getElementById('supNotifyList');
   const badge=document.getElementById('supUnreadBadge');
   if(!S.notifications.length){card.style.display='none';return;}
-  card.style.display='block';
-  const unread=S.notifications.filter(n=>!n.read).length;
-  if(unread){badge.style.display='inline';badge.textContent=unread+' new';}else{badge.style.display='none';}
 
-  list.innerHTML=[...S.notifications].reverse().map(n=>{
+  const unread=S.notifications.filter(n=>!n.read);
+  const read=S.notifications.filter(n=>n.read);
+  if(unread.length){badge.style.display='inline';badge.textContent=unread.length+' new';}
+  else{badge.style.display='none';}
+
+  // Only show card if there are unread — hides entirely when all read
+  card.style.display=unread.length?'block':'none';
+
+  const renderNotif=(n,dimmed)=>{
     const links=[];
     if(n.truckLink) links.push(`<span class="tag tag-blue">🚛 ${n.truckLink}</span>`);
     if(n.bayLink) links.push(`<span class="tag tag-purple">🅿️ ${n.bayLink}</span>`);
-    return `<div class="notify-item ${n.read?'':'unread'}" id="supnotify-${n.id}">
+    if(dimmed){
+      // Read item — compact collapsed row
+      return `<div class="notify-item" style="opacity:.65;background:var(--surface3);padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${links.join('')}
+            <span class="notify-msg" style="font-size:12px;margin:0">${n.message.length>60?n.message.slice(0,60)+'…':n.message}</span>
+          </div>
+          <span class="notify-time">${new Date(n.sentAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span>
+        </div>
+        ${n.reply?`<div class="notify-reply-shown" style="margin-top:6px;font-size:11px"><div class="rl">Reply</div>${n.reply}</div>`:''}
+      </div>`;
+    }
+    return `<div class="notify-item unread" id="supnotify-${n.id}">
       <div class="notify-head">
         <span class="notify-time">${new Date(n.sentAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span>
-        ${n.read?`<span class="notify-status read">✅ Marked read</span>`:`<button class="btn btn-primary btn-sm" onclick="markNotifyRead('${n.id}')">Mark as Read</button>`}
+        <button class="btn btn-primary btn-sm" onclick="markNotifyRead('${n.id}')">✅ Mark as Read</button>
       </div>
       ${links.length?`<div class="notify-links">${links.join('')}</div>`:''}
       <div class="notify-msg">${n.message}</div>
@@ -4749,7 +4823,24 @@ function refreshSupNotify(){
         ?`<div class="notify-reply-shown"><div class="rl">Your Reply</div>${n.reply}</div>`
         :`<div class="notify-reply-box"><input type="text" id="reply-${n.id}" placeholder="Quick reply / acknowledge..."><button class="btn btn-ghost btn-sm" onclick="sendReply('${n.id}')">Send</button></div>`}
     </div>`;
-  }).join('');
+  };
+
+  let html=unread.reverse().map(n=>renderNotif(n,false)).join('');
+
+  if(read.length){
+    const readId='supReadNotifCollapse';
+    html+=`<details id="${readId}" style="margin-top:6px">
+      <summary style="cursor:pointer;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2);list-style:none;display:flex;align-items:center;gap:6px">
+        <span style="font-size:13px">›</span> Show read notifications
+        <span style="background:var(--border2);color:var(--text2);padding:1px 7px;border-radius:20px;font-size:10px;font-weight:700;margin-left:4px">${read.length}</span>
+      </summary>
+      <div style="margin-top:4px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        ${[...read].reverse().map(n=>renderNotif(n,true)).join('')}
+      </div>
+    </details>`;
+  }
+
+  list.innerHTML=html;
 }
 
 function markNotifyRead(id){
@@ -4924,6 +5015,118 @@ function toggleBreakdownClosure(id){
     el.value = n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
   }
 })();
+
+// ─── POSTPONE PENDING JOBS (Manager) ───
+function refreshPostponePage(){
+  // Populate truck dropdown with active in-yard trucks
+  const sel=document.getElementById('postponeTruckSelect');
+  const cur=sel.value;
+  const inYard=S.entries.filter(e=>!e.exitTime);
+  sel.innerHTML='<option value="">-- Select active truck --</option>'+
+    inYard.map(e=>{
+      const ins=S.inspections.find(i=>i.entryId===e.id);
+      return `<option value="${e.id}">${e.truckNo}${ins?' — '+ins.bayNo:''}${e.noWorkRequired?' (No work)':''}</option>`;
+    }).join('');
+  if(cur) sel.value=cur;
+
+  // Set default target date to tomorrow
+  const td=document.getElementById('postponeTargetDate');
+  if(!td.value){
+    const t=new Date(); t.setDate(t.getDate()+1);
+    td.value=t.toISOString().slice(0,10);
+  }
+
+  refreshPostponeHistory();
+}
+
+function loadPostponeDetails(){
+  const id=document.getElementById('postponeTruckSelect').value;
+  const det=document.getElementById('postponeTruckDetails');
+  const info=document.getElementById('postponeTruckInfo');
+  if(!id){det.style.display='none';return;}
+  const e=S.entries.find(x=>x.id==id);
+  const ins=S.inspections.find(i=>i.entryId==id);
+  if(!e){det.style.display='none';return;}
+  det.style.display='block';
+  let txt=`Truck: <strong>${e.truckNo}</strong> · Gate In: ${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
+  if(ins) txt+=` · Bay: ${ins.bayNo} · ETD: ${new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;
+  const pending=ins?['mech','elec','tyre','weld'].reduce((acc,d)=>{
+    const p=(ins.jobs[d]||[]).filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
+    return acc+p.length;
+  },0):0;
+  if(pending) txt+=` · <strong style="color:var(--red)">${pending} jobs pending</strong>`;
+  info.innerHTML=txt;
+}
+
+function savePostponeRecord(){
+  const id=document.getElementById('postponeTruckSelect').value;
+  if(!id) return toast('⚠️ Select a truck','warn');
+  const reason=document.getElementById('postponeReasonSel').value;
+  if(!reason) return toast('⚠️ Select a reason','warn');
+  const targetDate=document.getElementById('postponeTargetDate').value;
+  if(!targetDate) return toast('⚠️ Set new target date','warn');
+  const notes=document.getElementById('postponeNotes').value.trim();
+  const e=S.entries.find(x=>x.id==id);
+  const ins=S.inspections.find(i=>i.entryId==id);
+  if(!e) return;
+
+  if(!S.postponeRecords) S.postponeRecords=[];
+  S.postponeRecords.push({
+    id:Date.now(),
+    truckNo:e.truckNo,
+    entryId:parseInt(id),
+    bayNo:ins?ins.bayNo:'—',
+    reason,
+    notes,
+    targetDate,
+    loggedAt:new Date().toISOString(),
+    loggedBy:'Manager'
+  });
+
+  // Also flag on the inspection so it shows in job cards
+  if(ins){
+    ins.managerPostponed=true;
+    ins.postponeReason=reason;
+    ins.postponeTargetDate=targetDate;
+    ins.postponeNotes=notes;
+    ins.postponedAt=new Date().toISOString();
+  }
+
+  save();
+  refreshPostponeHistory();
+  document.getElementById('postponeReasonSel').value='';
+  document.getElementById('postponeNotes').value='';
+  toast('⏸️ Postpone recorded for '+e.truckNo,'ok');
+}
+
+function refreshPostponeHistory(){
+  const search=(document.getElementById('postponeSearch')?.value||'').toUpperCase();
+  const records=(S.postponeRecords||[]).filter(r=>!search||r.truckNo.includes(search))
+    .sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt));
+  const list=document.getElementById('postponeHistoryList');
+  if(!records.length){list.innerHTML='<div style="text-align:center;color:var(--text2);padding:20px">No postpone records yet</div>';return;}
+  list.innerHTML=records.map(r=>`<div class="card" style="border-left:4px solid var(--purple);margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+      <div>
+        <span style="font-size:16px;font-weight:700">${r.truckNo}</span>
+        ${r.bayNo!=='—'?`<span class="tag tag-blue" style="font-size:10px;margin-left:6px">${r.bayNo}</span>`:''}
+      </div>
+      <span class="text-xs text2">${new Date(r.loggedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span>
+    </div>
+    <div style="font-size:12px;margin-bottom:4px"><span class="tag tag-purple" style="font-size:10px">⏸️ ${r.reason}</span></div>
+    ${r.notes?`<div style="font-size:12px;color:var(--text2);margin:4px 0">${r.notes}</div>`:''}
+    <div style="font-size:12px;color:var(--text2)">New target date: <strong style="color:var(--text)">${new Date(r.targetDate+'T00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</strong></div>
+  </div>`).join('');
+}
+
+function exportPostponeCSV(){
+  const headers=['Date Logged','Truck No','Bay','Reason','Notes','Target Date'];
+  const rows=(S.postponeRecords||[]).map(r=>[
+    new Date(r.loggedAt).toLocaleString('en-GB'),r.truckNo,r.bayNo,r.reason,r.notes||'',
+    new Date(r.targetDate+'T00:00').toLocaleDateString('en-GB')
+  ]);
+  exportCSV('SHTL_PostponeRecords_'+dateStamp()+'.csv',headers,rows);
+}
 
 function refreshFalseHistory(){
   const search=(document.getElementById('falseSearch')?.value||'').toUpperCase();
