@@ -385,7 +385,10 @@ tr:hover td { background: var(--surface2); }
 .isc-label { font-size:11px;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.5px; }
 .apt-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:14px;margin-bottom:10px;transition:all .15s; }
 .apt-card:hover { border-color:var(--border2); }
-.apt-card.status-reported { border-left:4px solid #16a34a;background:#f0fdf4; }
+.apt-card.status-postponed { border-left:4px solid #7c3aed;background:#f5f3ff; }
+.apt-card.status-rejected { border-left:4px solid #dc2626;background:#fff1f1; }
+.apt-status-postponed { background:#ede9fe;color:#6d28d9; }
+.apt-status-rejected { background:#fee2e2;color:#dc2626; }
 .apt-card.status-pending { border-left:4px solid #f59e0b;background:#fffbeb; }
 .apt-card.status-overdue { border-left:4px solid #dc2626;background:#fef2f2; }
 .apt-card.status-closed { border-left:4px solid #94a3b8;opacity:.75; }
@@ -400,6 +403,7 @@ tr:hover td { background: var(--surface2); }
 .apt-status-reported { background:#dcfce7;color:#15803d; }
 .apt-status-overdue { background:#fee2e2;color:#dc2626; }
 .apt-status-closed { background:#f1f5f9;color:#64748b; }
+.apt-status-postponed { background:#ede9fe;color:#6d28d9; }
 .odo-diff { font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#dbeafe;color:#1d4ed8; }
 .tsub { font-size:10px;color:var(--text2);margin-top:1px; }
 
@@ -615,6 +619,65 @@ tr:hover td { background: var(--surface2); }
           </div>
         </div>
       </details>
+      <!-- FALSE COMPLAINT HISTORY -->
+      <details style="margin-top:8px">
+        <summary class="card-title" style="cursor:pointer;padding:12px 16px;background:var(--surface);border:1px solid #fca5a5;border-radius:var(--radius2);list-style:none;color:#dc2626">
+          ❌ False Complaint History <span id="falseComplaintCount" style="font-weight:400;color:var(--text2)"></span>
+        </summary>
+        <div class="card" style="border-top:none;border-radius:0 0 var(--radius2) var(--radius2);margin-top:-4px">
+          <div id="falseComplaintList">
+            <div style="text-align:center;color:var(--text2);padding:16px 0;font-size:12px">No false complaints recorded</div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="postponeConfirmModal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title" style="color:var(--purple)">⏸️ Job Postponed — Confirm New Date <button class="modal-close" onclick="closeModal('postponeConfirmModal')">✕</button></div>
+    <input type="hidden" id="postponeConfirmAptId">
+    <div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#6d28d9;margin-bottom:4px">Supervisor's reason:</div>
+      <div id="postponeConfirmReason" style="font-size:13px;color:var(--text)"></div>
+      <div style="font-size:11px;color:#7c3aed;margin-top:6px">Suggested date: <strong id="postponeConfirmSuggestedDate"></strong></div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Confirmed Visit Date &amp; Time</label>
+        <input type="datetime-local" id="postponeConfirmDate">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-purple btn-block" onclick="confirmPostpone()"><i class="ti ti-check" aria-hidden="true"></i> Confirm &amp; Re-raise</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal('postponeConfirmModal')">Later</button>
+    </div>
+  </div>
+</div>
+
+<!-- RE-RAISE MODAL — forces new date selection, blocks same-day re-raise -->
+<div class="modal-overlay" id="reraiseModal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-title">🔁 Re-raise Request <button class="modal-close" onclick="closeModal('reraiseModal')">✕</button></div>
+    <input type="hidden" id="reraiseAptId">
+    <div style="background:var(--surface3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px">
+      <div class="fw-700" id="reraiseAptTruck" style="font-size:15px"></div>
+      <div class="text-xs text2 mt-8" id="reraiseAptDriver"></div>
+      <div class="text-xs mt-8" id="reraiseAptComplaints" style="color:var(--text)"></div>
+    </div>
+    <div class="form-row" style="margin-bottom:6px">
+      <div>
+        <label>📅 New Planned Visit Date &amp; Time</label>
+        <input type="datetime-local" id="reraiseNewDate">
+        <div class="text-xs text2 mt-8">⚠️ Must be a future date — past dates and today are not allowed.</div>
+      </div>
+    </div>
+    <div class="alert alert-info" style="font-size:12px;margin-bottom:14px">
+      The complaints and driver details will carry over. Only the visit date changes.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-block" onclick="confirmReraise()"><i class="ti ti-send" aria-hidden="true"></i> Confirm New Date &amp; Re-raise</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal('reraiseModal')">Cancel</button>
     </div>
   </div>
 </div>
@@ -840,6 +903,28 @@ tr:hover td { background: var(--surface2); }
           <div>
             <label>📍 Dept Logged</label>
             <input type="text" id="supDepts" readonly>
+          </div>
+        </div>
+
+        <!-- INCHARGE COMPLAINTS REFERENCE PANEL — shown when truck has a matched appointment -->
+        <div id="supInchargeComplaintsPanel" style="display:none;background:#fef9c3;border:1px solid #fde047;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700;color:#854d0e;margin-bottom:8px">📋 Incharge Complaints — Submitted by <span id="supAptSubmittedBy"></span></div>
+          <div id="supComplaintVerdicts"></div>
+          <div id="supSendBackSection" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde047">
+            <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:6px">⚠️ All complaints marked Not Found — no work required</div>
+            <textarea id="supSendBackRemark" placeholder="Supervisor remark — e.g. Physically inspected entire truck. No issues found. Driver complaint appears false." rows="2" style="margin-bottom:8px;font-size:12px"></textarea>
+            <button class="btn btn-danger btn-sm" onclick="sendTruckBackNoWork()">🚫 Send Back — No Work Required</button>
+          </div>
+          <div id="supPostponeSection" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde047">
+            <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px">⏸️ Postpone this truck</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div><label style="font-size:10px">Reason</label><input type="text" id="supPostponeReason" placeholder="e.g. Brake pads not in stock"></div>
+              <div><label style="font-size:10px">Suggested new date</label><input type="datetime-local" id="supPostponeDate"></div>
+            </div>
+            <button class="btn btn-purple btn-sm" onclick="postponeTruck()">⏸️ Postpone &amp; Notify Incharge</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="toggleSupPostpone()" id="supPostponeToggleBtn">⏸️ Postpone this truck</button>
           </div>
         </div>
 
@@ -1185,6 +1270,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSub('mgr-hours',this)">⏱️ Hours Worked</div>
     <div class="subtab" onclick="showSub('mgr-etd',this)">🎯 ETD Accuracy</div>
     <div class="subtab" onclick="showSub('mgr-incharge',this)">📋 Incharge Requests</div>
+    <div class="subtab" onclick="showSub('mgr-false',this)">🚫 False Complaints</div>
     <div class="subtab" onclick="showSub('mgr-edit',this)">✏️ Edit Records</div>
     <div class="subtab" onclick="showSub('mgr-staff',this)">👥 Staff Roster</div>
   </div>
@@ -1460,7 +1546,6 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
-  <!-- SUB: INCHARGE REQUESTS (Manager view) -->
   <div class="subpage" id="sub-mgr-incharge">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:#e8600a"></span>Incharge Arrival Requests</div>
@@ -1472,8 +1557,10 @@ tr:hover td { background: var(--surface2); }
             <option value="all">All</option>
             <option value="pending">Pending</option>
             <option value="reported">Reported today</option>
+            <option value="postponed">Postponed</option>
             <option value="overdue">Overdue</option>
             <option value="closed">Closed</option>
+            <option value="rejected">Rejected (False Complaint)</option>
           </select>
         </div>
         <div>
@@ -1485,6 +1572,27 @@ tr:hover td { background: var(--surface2); }
     <div id="mgrInchargeList">
       <div style="text-align:center;color:var(--text2);padding:24px">No appointment records yet</div>
     </div>
+
+    <div class="card" style="border-top:3px solid #dc2626;margin-top:8px">
+      <div class="card-title"><span class="dot" style="background:#dc2626"></span>❌ False Complaint History — All Incharges</div>
+      <div class="text-xs text2 mb-12">Trucks sent back by Supervisor with "No Work Required" finding — indicates driver gave false complaint to Incharge.</div>
+      <div id="mgrFalseComplaintList">
+        <div style="text-align:center;color:var(--text2);padding:16px;font-size:12px">No false complaints recorded yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB: FALSE COMPLAINT HISTORY -->
+  <div class="subpage" id="sub-mgr-false">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>False Complaint History — Supervisor Rejected</div>
+      <div class="text-xs text2 mb-12">Trucks where Supervisor physically inspected and found no issues — driver complaint was false. Visible to Manager and Incharge for accountability.</div>
+      <div class="form-row cols-2">
+        <div><label>Search Truck / Driver</label><input type="text" id="falseSearch" placeholder="e.g. T241" oninput="refreshFalseHistory()"></div>
+        <div style="display:flex;align-items:end"><button class="btn btn-ghost" style="width:100%" onclick="exportFalseHistoryCSV()">📥 Export CSV</button></div>
+      </div>
+    </div>
+    <div id="falseHistoryList"><div style="text-align:center;color:var(--text2);padding:24px">No false complaints recorded yet</div></div>
   </div>
 
   <!-- SUB: EDIT RECORDS -->
@@ -1828,7 +1936,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -1885,7 +1993,8 @@ fbRoot.on('value', snapshot=>{
       workerLog: data.workerLog || [],
       etdRevisionLog: data.etdRevisionLog || [],
       appointments: data.appointments || [],
-      pendingParts: data.pendingParts || []
+      pendingParts: data.pendingParts || [],
+      falseComplaintHistory: data.falseComplaintHistory || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -1941,7 +2050,7 @@ function refreshCurrentPage(){
   if(activeSub){
     const subId=activeSub.id.replace('sub-','');
     const subMap={'mgr-jobcards':refreshMgrJobCards,'mgr-timestamp':refreshTimeStamping,
-      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge};
+      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory};
     if(subMap[subId])subMap[subId]();
   }
 
@@ -2045,6 +2154,7 @@ function showSub(id,el){
   if(id==='mgr-hours')refreshHoursReport();
   if(id==='mgr-etd')refreshETDReport();
   if(id==='mgr-incharge')refreshMgrIncharge();
+  if(id==='mgr-false')refreshFalseHistory();
   if(id==='mgr-edit')refreshEditRecords();
   if(id==='mgr-staff')refreshStaffRoster();
 }
@@ -2287,18 +2397,16 @@ function submitAppointment(){
   const lastOdo=document.getElementById('iat_lastOdo').value ? parseInt(document.getElementById('iat_lastOdo').value) : null;
   const complaints=document.getElementById('iat_complaints').value.trim();
 
-  // ── Duplicate check: same truck already requested by this Incharge today ──
-  const todayStr=new Date().toDateString();
+  // ── Duplicate check: block if same truck already has ANY pending appointment ──
   if(!S.appointments) S.appointments=[];
   const duplicate=S.appointments.find(a=>
     a.truckNo===tn &&
-    a.submittedBy===who &&
-    new Date(a.submittedAt).toDateString()===todayStr &&
     a.status==='pending'
   );
   if(duplicate){
     const visitStr=new Date(duplicate.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
-    if(!confirm(`⚠️ ${tn} was already requested by you today (planned: ${visitStr}).\n\nAre you sure you want to submit again?`)) return;
+    const submitter=duplicate.submittedBy===who?'you':(duplicate.submittedBy||'another Incharge');
+    return toast(`⚠️ ${tn} already has a pending request (planned: ${visitStr}, submitted by ${submitter}). Close or Re-raise that one first.`,'warn');
   }
 
   const apt={
@@ -2362,14 +2470,17 @@ function aptStatusClass(apt){
   const diffDays=(now-planned)/86400000;
   if(apt.status==='reported') return 'reported';
   if(apt.status==='closed') return 'closed';
+  if(apt.status==='postponed') return 'postponed';
+  if(apt.supVerdict==='rejected') return 'closed';
   if(diffDays>3) return 'overdue';
   return 'pending';
 }
 
 function aptStatusBadge(apt){
   const sc=aptStatusClass(apt);
-  const labels={reported:'✅ Reported',pending:'⏳ Pending',overdue:'🚨 Overdue',closed:'🔒 Closed'};
-  return `<span class="apt-status-badge apt-status-${sc}">${labels[sc]||sc}</span>`;
+  const labels={reported:'✅ Reported',pending:'⏳ Pending',overdue:'🚨 Overdue',closed:'🔒 Closed',postponed:'⏸️ Postponed',rejected:'🚫 No Work — Rejected'};
+  const colors={reported:'apt-status-reported',pending:'apt-status-pending',overdue:'apt-status-overdue',closed:'apt-status-closed',postponed:'apt-status-postponed',rejected:'apt-status-rejected'};
+  return `<span class="apt-status-badge ${colors[sc]||'apt-status-pending'}">${labels[sc]||sc}</span>`;
 }
 
 function renderAptCard(apt, showHistory){
@@ -2385,11 +2496,21 @@ function renderAptCard(apt, showHistory){
       <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="openCloseApt(${apt.id})"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
       <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise</button>
       <a class="btn btn-ghost btn-sm" href="${buildAptMailto(apt)}" style="text-decoration:none"><i class="ti ti-mail" aria-hidden="true"></i> Email</a>`;
+  } else if(sc==='postponed'){
+    actionsHtml=`
+      <div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px;font-size:12px;color:#6d28d9;margin-bottom:6px;width:100%">
+        <strong>⏸️ Postponed by Supervisor:</strong> ${apt.postponeReason||'—'}<br>
+        <span style="font-size:11px">Suggested: ${apt.postponeSuggestedDate?new Date(apt.postponeSuggestedDate).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'}</span>
+      </div>
+      <button class="btn btn-purple btn-sm" onclick="openPostponeConfirm(${apt.id})">✅ Confirm New Date</button>
+      <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise manually</button>`;
   } else if(sc==='reported'){
     const reportedTime=apt.reportedAt?new Date(apt.reportedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
     actionsHtml=`<span class="text-xs text2">Arrived at gate: ${reportedTime}</span>`;
   } else if(sc==='closed'){
-    actionsHtml=`<span class="text-xs" style="color:#64748b"><i class="ti ti-message" aria-hidden="true"></i> ${apt.closedReason||''} ${apt.closedRemark?'— '+apt.closedRemark:''}</span>
+    const isRejected=apt.supVerdict==='rejected';
+    actionsHtml=`${isRejected?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;font-size:12px;color:#dc2626;margin-bottom:6px;width:100%"><strong>❌ Supervisor found no issues:</strong> ${apt.supRemark||'—'}</div>`:''}
+    <span class="text-xs" style="color:#64748b"><i class="ti ti-message" aria-hidden="true"></i> ${apt.closedReason||''} ${apt.closedRemark?'— '+apt.closedRemark:''}</span>
     <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise</button>`;
   }
 
@@ -2463,6 +2584,24 @@ function renderInchargeQueue(){
   document.getElementById('inchargeHistoryCount').textContent='('+history.length+')';
   hl.innerHTML=history.length ? history.map(a=>renderAptCard(a,true)).join('') :
     '<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:12px">No history yet</div>';
+
+  // False complaint history — visible to Incharge
+  const who=document.getElementById('inchargeName').value;
+  const falseList=document.getElementById('falseComplaintList');
+  const falseCount=document.getElementById('falseComplaintCount');
+  if(falseList && S.falseComplaintHistory){
+    const myFalse=S.falseComplaintHistory.filter(f=>f.submittedBy===who);
+    falseCount.textContent='('+myFalse.length+')';
+    falseList.innerHTML=myFalse.length?myFalse.map(f=>`<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <span class="fw-700">${f.truckNo}</span>
+        <span class="text-xs text2">${new Date(f.date).toLocaleDateString('en-GB')}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">Driver: ${f.driverName} · ${f.driverMobile}</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--text)"><strong>Complaint:</strong> ${f.complaints}</div>
+      <div style="font-size:11px;margin-top:4px;color:#dc2626"><strong>Supervisor finding:</strong> ${f.supRemark}</div>
+    </div>`).join(''):'<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:12px">No false complaints recorded</div>';
+  }
 }
 
 function renderInchargeStats(){
@@ -2536,17 +2675,43 @@ function saveEditApt(){
 function reraiseApt(id){
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  // Copy to a new appointment with tomorrow 08:00 as default planned visit
-  const t=new Date(); t.setDate(t.getDate()+1); t.setHours(8,0,0,0);
-  const pad=n=>String(n).padStart(2,'0');
-  const newVisit=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}T08:00`;
-  const newApt={...apt, id:Date.now(), submittedAt:new Date().toISOString(), plannedVisit:newVisit,
-    status:'pending', closedRemark:null, closedReason:null, closedAt:null, reportedEntryId:null, reportedAt:null};
+  document.getElementById('reraiseAptId').value=id;
+  document.getElementById('reraiseAptTruck').textContent=apt.truckNo;
+  document.getElementById('reraiseAptDriver').textContent=apt.driverName||(apt.driverMobile?'· '+apt.driverMobile:'');
+  document.getElementById('reraiseAptComplaints').textContent=apt.complaints?'Complaints: '+apt.complaints:'';
+  // Leave date blank — Incharge must actively choose a new date, cannot just tap confirm
+  document.getElementById('reraiseNewDate').value='';
+  document.getElementById('reraiseModal').classList.add('open');
+}
+
+function confirmReraise(){
+  const id=parseInt(document.getElementById('reraiseAptId').value);
+  const newDate=document.getElementById('reraiseNewDate').value;
+  if(!newDate) return toast('⚠️ Select a new visit date first','warn');
+  // Prevent re-raising to today or a past date
+  if(new Date(newDate)<new Date()){
+    return toast('⚠️ New visit date must be in the future','warn');
+  }
+  const apt=S.appointments.find(a=>a.id===id);
+  if(!apt) return;
+  // Block if this truck already has another pending request
+  const existingPending=S.appointments.find(a=>a.truckNo===apt.truckNo && a.status==='pending' && a.id!==id);
+  if(existingPending){
+    const visitStr=new Date(existingPending.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+    return toast(`⚠️ ${apt.truckNo} already has a pending request for ${visitStr} — close that one first`,'warn');
+  }
+  const newApt={...apt, id:Date.now(), submittedAt:new Date().toISOString(), plannedVisit:newDate,
+    status:'pending', closedRemark:null, closedReason:null, closedAt:null,
+    reportedEntryId:null, reportedAt:null, supVerdict:null, supRemark:null,
+    supVerdictAt:null, complaintVerdicts:null, postponeReason:null,
+    postponeSuggestedDate:null, postponedAt:null, managerVerified:false, managerNotes:null};
   S.appointments.push(newApt);
   save();
   renderInchargeQueue();
   renderInchargeStats();
-  toast('🔁 Re-raised as new request for '+apt.truckNo,'ok');
+  refreshMgrIncharge();
+  closeModal('reraiseModal');
+  toast('🔁 Re-raised for '+new Date(newDate).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),'ok');
 }
 
 // ═══ END INCHARGE ═══
@@ -2644,7 +2809,7 @@ function refreshSecurityLog(){
 
 function refreshDropdowns(){
   const inYard=S.entries.filter(e=>!e.exitTime);
-  const opts='<option value="">-- Select --</option>'+inYard.map(e=>`<option value="${e.id}">${e.truckNo}${e.readyToLeave?' ✓ READY':''}</option>`).join('');
+  const opts='<option value="">-- Select --</option>'+inYard.map(e=>`<option value="${e.id}">${e.truckNo}${e.readyToLeave?' ✓ READY':''}${e.noWorkRequired?' 🚫 NO WORK':''}</option>`).join('');
   const exitSel=document.getElementById('exitTruckSelect');
   const curExit=exitSel.value;
   exitSel.innerHTML=opts;
@@ -2790,6 +2955,185 @@ function loadTruckForSup(){
   document.getElementById('supFuel').value=e.fuel+' L';
   document.getElementById('supDepts').value=e.depts.map(d=>dL(d)).join(', ')||'—';
   e.depts.forEach(d=>{if(!document.getElementById('rows-'+d).children.length)addJobRow(d);});
+
+  // Check if this truck has a matched Incharge appointment — show complaint reference panel
+  const apt=S.appointments&&S.appointments.find(a=>
+    a.truckNo.toUpperCase()===e.truckNo.toUpperCase() &&
+    (a.status==='reported'||a.status==='pending') &&
+    !a.supVerdict
+  );
+  const panel=document.getElementById('supInchargeComplaintsPanel');
+  if(apt && apt.complaints){
+    panel.style.display='block';
+    document.getElementById('supAptSubmittedBy').textContent=apt.submittedBy||'Incharge';
+    renderComplaintVerdicts(apt);
+  } else {
+    panel.style.display='none';
+  }
+  document.getElementById('supSendBackSection').style.display='none';
+  document.getElementById('supPostponeSection').style.display='none';
+}
+
+// Render each complaint line with Confirmed / Not Found / Different Issue verdict buttons
+function renderComplaintVerdicts(apt){
+  const lines=(apt.complaints||'').split('\n').filter(l=>l.trim());
+  if(!apt.complaintVerdicts) apt.complaintVerdicts={};
+  const div=document.getElementById('supComplaintVerdicts');
+  div.innerHTML=lines.map((line,i)=>{
+    const v=apt.complaintVerdicts[i]||'';
+    const btnStyle=(val,col)=>`padding:4px 10px;border-radius:4px;font-size:10px;font-weight:600;border:1px solid ${col};background:${v===val?col:'transparent'};color:${v===val?'#fff':col};cursor:pointer;margin-left:4px`;
+    return `<div style="padding:6px 0;border-bottom:0.5px solid #fde047;display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;font-size:12px;color:var(--text)">${line}</div>
+      <div style="display:flex;gap:2px;flex-shrink:0">
+        <button style="${btnStyle('confirmed','#16a34a')}" onclick="setVerdict(${apt.id},${i},'confirmed')">✅ Confirmed</button>
+        <button style="${btnStyle('notfound','#dc2626')}" onclick="setVerdict(${apt.id},${i},'notfound')">❌ Not Found</button>
+        <button style="${btnStyle('different','#ca8a04')}" onclick="setVerdict(${apt.id},${i},'different')">⚠️ Different</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setVerdict(aptId,lineIdx,verdict){
+  const apt=S.appointments.find(a=>a.id==aptId);
+  if(!apt) return;
+  if(!apt.complaintVerdicts) apt.complaintVerdicts={};
+  apt.complaintVerdicts[lineIdx]=verdict;
+  renderComplaintVerdicts(apt);
+  checkAllVerdictsSet(apt);
+}
+
+function checkAllVerdictsSet(apt){
+  const lines=(apt.complaints||'').split('\n').filter(l=>l.trim());
+  const verdicts=apt.complaintVerdicts||{};
+  const allSet=lines.every((_,i)=>verdicts[i]);
+  const allNotFound=lines.every((_,i)=>verdicts[i]==='notfound');
+  document.getElementById('supSendBackSection').style.display=allNotFound?'block':'none';
+  // Save verdicts to Firebase as they're set
+  save();
+}
+
+function sendTruckBackNoWork(){
+  const id=document.getElementById('supTruckSelect').value;
+  const e=S.entries.find(x=>x.id==id);
+  if(!e) return;
+  const remark=document.getElementById('supSendBackRemark').value.trim();
+  if(!remark) return toast('⚠️ Enter a supervisor remark explaining why no work is needed','warn');
+
+  // Mark entry as no-work-required — eligible for gate-out immediately
+  e.noWorkRequired=true;
+  e.noWorkRemark=remark;
+  e.noWorkAt=new Date().toISOString();
+  e.readyToLeave=true;
+  e.clearedBy='Supervisor';
+  e.clearedAt=new Date().toISOString();
+
+  // Update appointment with supervisor verdict
+  const apt=S.appointments&&S.appointments.find(a=>
+    a.truckNo.toUpperCase()===e.truckNo.toUpperCase()&&(a.status==='reported'||a.status==='pending')
+  );
+  if(apt){
+    apt.supVerdict='rejected';
+    apt.supRemark=remark;
+    apt.supVerdictAt=new Date().toISOString();
+    apt.status='closed';
+    apt.closedReason='No work required — Supervisor found no issues';
+    apt.closedAt=new Date().toISOString();
+    // Log to false complaint history
+    if(!S.falseComplaintHistory) S.falseComplaintHistory=[];
+    S.falseComplaintHistory.push({
+      id:Date.now(),
+      truckNo:e.truckNo,
+      driverName:apt.driverName||'—',
+      driverMobile:apt.driverMobile||'—',
+      submittedBy:apt.submittedBy||'—',
+      complaints:apt.complaints||'—',
+      supRemark:remark,
+      date:new Date().toISOString()
+    });
+  }
+
+  save();
+  refreshDropdowns();
+  refreshSupervisorPage();
+  document.getElementById('supInchargeComplaintsPanel').style.display='none';
+  toast('🚫 Truck marked No Work Required — Security can now punch gate-out','ok');
+}
+
+function toggleSupPostpone(){
+  const sec=document.getElementById('supPostponeSection');
+  const isVisible=sec.style.display!=='none';
+  sec.style.display=isVisible?'none':'block';
+  if(!isVisible){
+    // Default suggested date = tomorrow 08:00
+    const t=new Date(); t.setDate(t.getDate()+1); t.setHours(8,0,0,0);
+    const pad=n=>String(n).padStart(2,'0');
+    document.getElementById('supPostponeDate').value=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}T08:00`;
+  }
+}
+
+function postponeTruck(){
+  const id=document.getElementById('supTruckSelect').value;
+  const e=S.entries.find(x=>x.id==id);
+  if(!e) return;
+  const reason=document.getElementById('supPostponeReason').value.trim();
+  const suggestedDate=document.getElementById('supPostponeDate').value;
+  if(!reason) return toast('⚠️ Enter a reason for postponing','warn');
+  if(!suggestedDate) return toast('⚠️ Set a suggested new date','warn');
+
+  const apt=S.appointments&&S.appointments.find(a=>
+    a.truckNo.toUpperCase()===e.truckNo.toUpperCase()&&(a.status==='reported'||a.status==='pending')
+  );
+  if(apt){
+    apt.status='postponed';
+    apt.postponeReason=reason;
+    apt.postponeSuggestedDate=suggestedDate;
+    apt.postponedAt=new Date().toISOString();
+    apt.postponedBy='Supervisor';
+    apt.supVerdict='postponed';
+  }
+  save();
+  refreshSupervisorPage();
+  document.getElementById('supPostponeSection').style.display='none';
+  toast('⏸️ '+e.truckNo+' postponed — Incharge notified to confirm new date','ok');
+}
+
+// Called from Incharge tab when they see a postponed appointment
+function openPostponeConfirm(aptId){
+  const apt=S.appointments.find(a=>a.id==aptId);
+  if(!apt) return;
+  document.getElementById('postponeConfirmAptId').value=aptId;
+  document.getElementById('postponeConfirmReason').textContent=apt.postponeReason||'—';
+  const sug=apt.postponeSuggestedDate?new Date(apt.postponeSuggestedDate).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
+  document.getElementById('postponeConfirmSuggestedDate').textContent=sug;
+  document.getElementById('postponeConfirmDate').value=apt.postponeSuggestedDate||'';
+  document.getElementById('postponeConfirmModal').classList.add('open');
+}
+
+function confirmPostpone(){
+  const aptId=parseInt(document.getElementById('postponeConfirmAptId').value);
+  const newDate=document.getElementById('postponeConfirmDate').value;
+  if(!newDate) return toast('⚠️ Set a confirmed date','warn');
+  const apt=S.appointments.find(a=>a.id==aptId);
+  if(!apt) return;
+  // Create a fresh re-raised appointment with the confirmed date
+  const newApt={...apt, id:Date.now(), submittedAt:new Date().toISOString(),
+    plannedVisit:newDate, status:'pending',
+    closedRemark:null, closedReason:null, closedAt:null,
+    reportedEntryId:null, reportedAt:null,
+    postponeReason:null, postponeSuggestedDate:null, postponedAt:null, postponedBy:null,
+    supVerdict:null, supRemark:null, supVerdictAt:null, complaintVerdicts:null,
+    inchargeConfirmedPostpone:true, originalPostponeReason:apt.postponeReason
+  };
+  // Close the original
+  apt.status='closed';
+  apt.closedReason='Postponed — re-raised with new date';
+  apt.closedAt=new Date().toISOString();
+  S.appointments.push(newApt);
+  save();
+  renderInchargeQueue();
+  renderInchargeStats();
+  closeModal('postponeConfirmModal');
+  toast('✅ Re-raised for '+new Date(newDate).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),'ok');
 }
 
 function saveSupervisorEntry(){
@@ -4574,6 +4918,37 @@ function toggleBreakdownClosure(id){
   }
 })();
 
+function refreshFalseHistory(){
+  const search=(document.getElementById('falseSearch')?.value||'').toUpperCase();
+  const list=document.getElementById('falseHistoryList');
+  const records=(S.falseComplaintHistory||[]).filter(f=>{
+    if(!search) return true;
+    return (f.truckNo+f.driverName+f.submittedBy).toUpperCase().includes(search);
+  }).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!records.length){list.innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No false complaints recorded yet</div>';return;}
+  list.innerHTML=records.map(f=>`<div class="card" style="border-left:4px solid var(--red);margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div><span style="font-size:16px;font-weight:700">${f.truckNo}</span> <span class="tag tag-red" style="font-size:10px">🚫 No Work Found</span></div>
+      <span class="text-xs text2">${new Date(f.date).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span>
+    </div>
+    <div class="text-xs text2 mb-8">Driver: <strong>${f.driverName||'—'}</strong> · ${f.driverMobile||'—'} · Submitted by: <strong>${f.submittedBy||'—'}</strong></div>
+    <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:6px">
+      <div class="text-xs text2 mb-4">Driver Complaints:</div>${f.complaints||'—'}
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:12px">
+      <div class="text-xs text2 mb-4">Supervisor Finding:</div>${f.supRemark||'—'}
+    </div>
+  </div>`).join('');
+}
+
+function exportFalseHistoryCSV(){
+  const headers=['Date','Truck No','Driver Name','Driver Mobile','Submitted By','Driver Complaints','Supervisor Finding'];
+  const rows=(S.falseComplaintHistory||[]).map(f=>[
+    new Date(f.date).toLocaleString('en-GB'),f.truckNo,f.driverName||'',f.driverMobile||'',f.submittedBy||'',f.complaints||'',f.supRemark||''
+  ]);
+  exportCSV('SHTL_FalseComplaints_'+dateStamp()+'.csv',headers,rows);
+}
+
 function refreshMgrIncharge(){
   if(!S.appointments){ document.getElementById('mgrInchargeList').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No records yet</div>'; return; }
   const filter=document.getElementById('mgrAptFilter').value;
@@ -4587,42 +4962,119 @@ function refreshMgrIncharge(){
     if(filter==='all') return true;
     if(filter==='pending') return sc==='pending';
     if(filter==='reported') return a.status==='reported';
+    if(filter==='postponed') return a.status==='postponed';
     if(filter==='overdue') return sc==='overdue';
     if(filter==='closed') return a.status==='closed';
+    if(filter==='rejected') return a.supVerdict==='rejected';
     return true;
   }).sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
 
-  if(!list.length){ document.getElementById('mgrInchargeList').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No records match this filter</div>'; return; }
-
+  if(!list.length){ document.getElementById('mgrInchargeList').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No records match this filter</div>'; }
+  else {
   document.getElementById('mgrInchargeList').innerHTML=list.map(apt=>{
     const sc=aptStatusClass(apt);
-    const badgeColors={pending:'#f59e0b',reported:'#16a34a',overdue:'#dc2626',closed:'#94a3b8'};
-    const verifiedBadge=apt.managerVerified?'<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px">✅ Verified</span>':'';
-    return `<div class="card" style="border-left:4px solid ${badgeColors[sc]||'#ccc'};margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    const badgeColors={pending:'#f59e0b',reported:'#16a34a',overdue:'#dc2626',closed:'#94a3b8',postponed:'#7c3aed',rejected:'#dc2626'};
+    const verifiedBadge=apt.managerVerified?'<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px">✅ Manager Verified</span>':'';
+    const rejectedBanner=apt.supVerdict==='rejected'?`<div class="alert alert-warn text-xs" style="margin-bottom:8px">❌ Supervisor: No issues found — "${apt.supRemark||'—'}"</div>`:'';
+    const postponedBanner=apt.status==='postponed'?`<div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:6px;padding:8px;margin-bottom:8px;font-size:12px;color:#6d28d9">⏸️ Postponed: ${apt.postponeReason||'—'} · Suggested: ${apt.postponeSuggestedDate?new Date(apt.postponeSuggestedDate).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'}</div>`:'';
+    const visitStr=apt.plannedVisit?new Date(apt.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
+    const managerNotesHtml=apt.managerNotes?`<div class="text-xs" style="margin-top:6px;padding:5px 8px;background:#dbeafe;border-radius:4px;color:#1d4ed8">📝 Manager note: ${apt.managerNotes}</div>`:'';
+    return `<div class="card" style="border-left:4px solid ${badgeColors[sc]||'#ccc'};margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div>
-          <span style="font-size:18px;font-weight:700">${apt.truckNo}</span>${verifiedBadge}
-          <div class="text-xs text2">Submitted by ${apt.submittedBy} · ${new Date(apt.submittedAt).toLocaleString('en-GB')}</div>
+          <span style="font-size:17px;font-weight:700">${apt.truckNo}</span>${verifiedBadge}
+          <div class="text-xs text2 mt-8">By ${apt.submittedBy} · ${new Date(apt.submittedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</div>
         </div>
-        <span style="background:${badgeColors[sc]||'#eee'};color:#fff;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700">${sc.toUpperCase()}</span>
+        <span style="background:${badgeColors[sc]||'#eee'};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">${sc.toUpperCase()}</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div><label>Truck No</label><input type="text" id="mgr_tn_${apt.id}" value="${apt.truckNo}" oninput="this.value=this.value.toUpperCase()"></div>
-        <div><label>Planned Visit</label><input type="datetime-local" id="mgr_visit_${apt.id}" value="${apt.plannedVisit||''}"></div>
-        <div><label>Driver Name</label><input type="text" id="mgr_dn_${apt.id}" value="${apt.driverName||''}"></div>
-        <div><label>Driver Mobile</label><input type="tel" id="mgr_dm_${apt.id}" value="${apt.driverMobile||''}"></div>
-        <div><label>Current ODO (km)</label><input type="number" id="mgr_odo_${apt.id}" value="${apt.currentOdo||''}" min="0"></div>
-        <div><label>Last Visit ODO (km)</label><input type="number" id="mgr_lodo_${apt.id}" value="${apt.lastVisitOdo||''}" min="0"></div>
+      ${rejectedBanner}${postponedBanner}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:8px">
+        <div><span class="text2">👤 Driver:</span> <strong>${apt.driverName||'—'}</strong></div>
+        <div><span class="text2">📞 Mobile:</span> ${apt.driverMobile||'—'}</div>
+        <div><span class="text2">📅 Visit:</span> ${visitStr}</div>
+        <div><span class="text2">🔢 ODO:</span> ${apt.currentOdo?apt.currentOdo.toLocaleString()+' km':'—'}</div>
       </div>
-      <div style="margin-bottom:10px"><label>Complaints</label><textarea id="mgr_cmp_${apt.id}" rows="2" style="resize:vertical">${apt.complaints||''}</textarea></div>
-      <div style="margin-bottom:8px"><label>Manager Notes</label><input type="text" id="mgr_notes_${apt.id}" value="${apt.managerNotes||''}" placeholder="Internal notes for record"></div>
-      ${apt.closedReason?`<div class="alert alert-warn text-xs" style="margin-bottom:8px">🔒 Closed: ${apt.closedReason}${apt.closedRemark?' — '+apt.closedRemark:''}</div>`:''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="saveMgrApt(${apt.id})"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save as Final ✅</button>
+      ${apt.complaints?`<div style="background:var(--surface3);border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px">${apt.complaints}</div>`:''}
+      ${managerNotesHtml}
+      ${apt.closedReason?`<div class="text-xs text2 mt-8">🔒 ${apt.closedReason}${apt.closedRemark?' — '+apt.closedRemark:''}</div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="openMgrEditApt(${apt.id})"><i class="ti ti-edit" aria-hidden="true"></i> Edit / Correct</button>
         <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteMgrApt(${apt.id})"><i class="ti ti-trash" aria-hidden="true"></i> Delete</button>
       </div>
     </div>`;
   }).join('');
+  }
+
+  // False complaint history — all Incharges visible to Manager
+  const mgrFalseList=document.getElementById('mgrFalseComplaintList');
+  if(mgrFalseList && S.falseComplaintHistory && S.falseComplaintHistory.length){
+    mgrFalseList.innerHTML=[...S.falseComplaintHistory].reverse().map(f=>`<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span class="fw-700">${f.truckNo}</span>
+        <span class="text-xs text2">${new Date(f.date).toLocaleDateString('en-GB')} · Submitted by ${f.submittedBy}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">Driver: ${f.driverName} · ${f.driverMobile}</div>
+      <div style="font-size:11px;margin-top:4px"><strong>Complaint given:</strong> ${f.complaints}</div>
+      <div style="font-size:11px;margin-top:4px;color:#dc2626"><strong>Supervisor finding:</strong> ${f.supRemark}</div>
+    </div>`).join('');
+  }
+}
+
+// Opens the edit appointment modal from Manager side — same modal, saves as Manager Verified
+function openMgrEditApt(id){
+  const apt=S.appointments.find(a=>a.id===id);
+  if(!apt) return;
+  document.getElementById('editAptId').value=id;
+  document.getElementById('ea_truckNo').value=apt.truckNo;
+  document.getElementById('ea_visit').value=apt.plannedVisit||'';
+  document.getElementById('ea_driverName').value=apt.driverName||'';
+  document.getElementById('ea_driverMobile').value=apt.driverMobile||'';
+  document.getElementById('ea_odo').value=apt.currentOdo||'';
+  document.getElementById('ea_lastOdo').value=apt.lastVisitOdo||'';
+  document.getElementById('ea_complaints').value=apt.complaints||'';
+  // Change modal title and save button to indicate Manager is editing
+  document.querySelector('#editAptModal .modal-title').firstChild.textContent='Manager Edit — '+apt.truckNo+' ';
+  document.querySelector('#editAptModal .btn-primary').textContent='💾 Save & Mark Verified';
+  document.querySelector('#editAptModal .btn-primary').setAttribute('onclick','saveMgrAptFromModal()');
+  document.getElementById('editAptModal').classList.add('open');
+}
+
+function saveMgrAptFromModal(){
+  const id=parseInt(document.getElementById('editAptId').value);
+  const apt=S.appointments.find(a=>a.id===id);
+  if(!apt) return;
+  apt.truckNo=(document.getElementById('ea_truckNo').value||'').toUpperCase().trim();
+  apt.plannedVisit=document.getElementById('ea_visit').value;
+  apt.driverName=document.getElementById('ea_driverName').value.trim();
+  apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
+  apt.currentOdo=document.getElementById('ea_odo').value?parseInt(document.getElementById('ea_odo').value):null;
+  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseInt(document.getElementById('ea_lastOdo').value):null;
+  apt.complaints=document.getElementById('ea_complaints').value.trim();
+  apt.managerVerified=true;
+  apt.managerVerifiedAt=new Date().toISOString();
+  save();
+  renderInchargeQueue();
+  renderInchargeStats();
+  refreshMgrIncharge();
+  closeModal('editAptModal');
+  // Reset modal title/button back to Incharge edit defaults
+  document.querySelector('#editAptModal .modal-title').firstChild.textContent='Edit Request ';
+  document.querySelector('#editAptModal .btn-primary').textContent='💾 Save';
+  document.querySelector('#editAptModal .btn-primary').setAttribute('onclick','saveEditApt()');
+  toast('✅ Corrected & verified — '+apt.truckNo,'ok');
+}
+
+function deleteMgrApt(id){
+  const apt=S.appointments.find(a=>a.id===id);
+  if(!apt) return;
+  if(!confirm(`Delete this appointment for ${apt.truckNo} (${apt.driverName||'—'}, planned ${apt.plannedVisit?new Date(apt.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'})?\n\nThis cannot be undone.`)) return;
+  S.appointments=S.appointments.filter(a=>a.id!==id);
+  save();
+  refreshMgrIncharge();
+  renderInchargeQueue();
+  renderInchargeStats();
+  toast('🗑️ Appointment deleted','ok');
 }
 
 function saveMgrApt(id){
