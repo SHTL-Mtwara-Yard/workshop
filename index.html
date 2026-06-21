@@ -530,7 +530,23 @@ tr:hover td { background: var(--surface2); }
           </div>
           <div>
             <label>📅 Planned Visit</label>
-            <input type="datetime-local" id="iat_visit">
+            <input type="hidden" id="iat_visit">
+            <div id="iat_visit_display" style="font-size:18px;font-weight:700;color:#e8600a;font-family:monospace;margin-bottom:4px"></div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <div style="flex:1">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Hour (00–23)</div>
+                <input type="number" id="iat_visit_hh" min="0" max="23" placeholder="HH" style="padding:7px 8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center;width:100%" oninput="syncInchargeVisit()">
+              </div>
+              <div style="font-size:18px;color:var(--text2);margin-top:14px">:</div>
+              <div style="flex:1">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Min (00–59)</div>
+                <input type="number" id="iat_visit_mm" min="0" max="59" step="5" placeholder="MM" style="padding:7px 8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center;width:100%" oninput="syncInchargeVisit()">
+              </div>
+              <div style="flex:1.4">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Date</div>
+                <input type="date" id="iat_visit_dd" style="padding:7px 5px;font-size:11px;width:100%" oninput="syncInchargeVisit()">
+              </div>
+            </div>
           </div>
         </div>
 
@@ -552,13 +568,20 @@ tr:hover td { background: var(--surface2); }
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div>
-            <label>🔢 Current ODO (km)</label>
-            <input type="number" id="iat_odo" placeholder="e.g. 94500" min="0" step="1" oninput="checkAptLastVisit()">
+            <label>🔢 Base / Main ODO (km)</label>
+            <input type="number" id="iat_odo" placeholder="e.g. 89678" min="0" step="1" oninput="checkAptLastVisit();calcInchargeOdo()">
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">Last known ODO reading</div>
           </div>
           <div>
-            <label>📏 Last Visit ODO (km)</label>
-            <input type="number" id="iat_lastOdo" placeholder="Auto-filled" readonly style="background:#f8fafc;color:var(--text2)">
+            <label>🚗 Trip KMs since last visit</label>
+            <input type="number" id="iat_tripKms" placeholder="e.g. 567" min="0" step="1" oninput="calcInchargeOdo()">
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">KMs run since workshop</div>
           </div>
+        </div>
+        <div id="iat_odoCalcBanner" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:2px">Estimated current ODO</div>
+          <div style="font-size:20px;font-weight:700;color:#15803d;font-family:monospace" id="iat_odoCalcResult">—</div>
+          <div style="font-size:11px;color:#15803d;margin-top:2px" id="iat_odoCalcFormula"></div>
         </div>
 
         <!-- Pending parts banner — auto-shows if this truck has unresolved pending parts from last visit -->
@@ -682,6 +705,40 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- DRIVER VERIFICATION MODAL -->
+<div class="modal-overlay" id="driverVerifyModal">
+  <div class="modal" style="max-width:460px;border-top:4px solid var(--accent)">
+    <div class="modal-title">🪪 Driver Verification — Gate Out <button class="modal-close" onclick="closeModal('driverVerifyModal')">✕</button></div>
+    <input type="hidden" id="dv_entryId">
+    <div id="dv_arrivalInfo" style="background:var(--surface3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
+    <div class="form-row cols-2" style="margin-bottom:10px">
+      <div><label>Collecting Driver Name</label><input type="text" id="dv_driverName" placeholder="Full name" oninput="checkDriverMatch()"></div>
+      <div><label>Driver Mobile</label><input type="tel" id="dv_driverMobile" placeholder="07XX XXX XXX"></div>
+    </div>
+    <div id="dv_matchResult" style="margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-success btn-block" onclick="confirmVerifiedExit('same')"><i class="ti ti-check" aria-hidden="true"></i> Same Driver — Verified, Exit</button>
+      <button class="btn btn-primary btn-block" onclick="confirmVerifiedExit('different')" style="background:var(--yellow)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Different Driver — Record & Exit</button>
+      <button class="btn btn-danger btn-block" onclick="confirmVerifiedExit('hold')"><i class="ti ti-ban" aria-hidden="true"></i> Hold — Inform Manager</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFY SECURITY MODAL (Supervisor side) -->
+<div class="modal-overlay" id="notifySecurityModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">🔔 Notify Security — Driver at Gate <button class="modal-close" onclick="closeModal('notifySecurityModal')">✕</button></div>
+    <input type="hidden" id="ns_insId">
+    <div id="ns_truckInfo" style="background:var(--surface3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
+    <div class="form-row cols-2">
+      <div><label>Collecting Driver Name</label><input type="text" id="ns_driverName" placeholder="Full name"></div>
+      <div><label>Driver Mobile</label><input type="tel" id="ns_driverMobile" placeholder="07XX XXX XXX"></div>
+    </div>
+    <div class="form-row"><div><label>Note (optional)</label><input type="text" id="ns_note" placeholder="e.g. Driver at main gate, ready to go"></div></div>
+    <button class="btn btn-primary btn-block" onclick="sendSecurityAlert()"><i class="ti ti-bell" aria-hidden="true"></i> Send Alert to Security</button>
+  </div>
+</div>
+
 <!-- CLOSE APPOINTMENT MODAL -->
 <div class="modal-overlay" id="closeAptModal">
   <div class="modal-box" style="max-width:400px">
@@ -736,6 +793,57 @@ tr:hover td { background: var(--surface2); }
 <div class="page active" id="page-security">
   <div class="page-title">🔒 Security Gate</div>
   <div class="page-sub">Truck entry &amp; exit — Mtwara Yard</div>
+
+  <!-- SECURITY OFFICER PICKER -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:12px 16px">
+    <span style="font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap">👮 On duty:</span>
+    <select id="securityOfficerName" onchange="saveSecurityOfficerName()" style="flex:1;max-width:260px;font-weight:600">
+      <option value="">— Select your name —</option>
+    </select>
+    <span id="securityOfficerGreeting" style="font-size:12px;color:var(--text2)"></span>
+    <div id="secAudioToggle" style="margin-left:auto">
+      <button class="btn btn-ghost btn-sm" onclick="enableSecurityAudio()" id="secAudioBtn" style="font-size:11px">🔊 Enable sound alerts</button>
+    </div>
+  </div>
+
+  <!-- YARD STATUS STRIP -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+    <div class="stat-box" style="border-top:3px solid var(--blue);text-align:center;padding:12px">
+      <div class="stat-val" id="secYardInBay" style="color:var(--blue);font-size:28px">0</div>
+      <div class="stat-label">🔧 In Bay</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid var(--accent);text-align:center;padding:12px">
+      <div class="stat-val" id="secYardParking" style="color:var(--accent);font-size:28px">0</div>
+      <div class="stat-label">🅿️ Parking</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid var(--green);text-align:center;padding:12px">
+      <div class="stat-val" id="secYardReady" style="color:var(--green);font-size:28px">0</div>
+      <div class="stat-label">✅ Ready Exit</div>
+    </div>
+    <div class="stat-box" style="border-top:3px solid var(--red);text-align:center;padding:12px">
+      <div class="stat-val" id="secYardTotal" style="color:var(--red);font-size:28px">0</div>
+      <div class="stat-label">Total in Yard</div>
+    </div>
+  </div>
+
+  <!-- ALERTS STRIP -->
+  <div id="secAlertsStrip" style="display:none;margin-bottom:14px"></div>
+
+  <!-- PARKING SECTION -->
+  <div id="secParkingSection" style="display:none;margin-bottom:14px">
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🅿️ Parking Area — Awaiting Exit <span id="secParkingCount" class="badge-pill" style="background:var(--accent);margin-left:6px"></span></div>
+      <div id="secParkingList"></div>
+    </div>
+  </div>
+
+  <!-- IN BAY LIST -->
+  <div id="secBaySection" style="display:none;margin-bottom:14px">
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>🔧 Active Work in Bays <span class="text-xs text2" style="font-weight:400;text-transform:none">(read only — for awareness)</span></div>
+      <div id="secBayList"></div>
+    </div>
+  </div>
 
   <div class="grid-2">
     <div>
@@ -993,12 +1101,33 @@ tr:hover td { background: var(--surface2); }
             </select>
           </div>
           <div>
-            <label>ETD (Date &amp; Time)</label>
-            <input type="datetime-local" id="supETD">
+            <label>ETD — Hour (00–23)</label>
+            <input type="hidden" id="supETD">
+            <div style="display:flex;gap:6px;align-items:center">
+              <input type="number" id="supETD_hh" min="0" max="23" placeholder="HH" style="flex:1;padding:8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+              <span style="font-size:18px;color:var(--text2)">:</span>
+              <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="flex:1;padding:8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+            </div>
+            <input type="date" id="supETD_dd" style="margin-top:4px;font-size:12px;width:100%" oninput="syncSupETD()">
           </div>
           <div>
             <label>Priority</label>
             <select id="supPriority"><option>Normal</option><option>Urgent</option><option>Critical</option></select>
+          </div>
+        </div>
+
+        <div class="form-row cols-2" style="margin-bottom:10px">
+          <div>
+            <label>🔢 Trip KMs since last visit</label>
+            <input type="number" id="supTripKms" placeholder="e.g. 567" min="0" step="1" oninput="calcSupOdo()">
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">Supervisor reads dashboard odometer</div>
+          </div>
+          <div id="supOdoCalcBlock" style="display:none">
+            <label>Calculated ODO (locked on save)</label>
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px">
+              <div style="font-size:18px;font-weight:700;color:#15803d;font-family:monospace" id="supOdoCalcResult">—</div>
+              <div style="font-size:10px;color:#15803d;margin-top:2px" id="supOdoCalcFormula"></div>
+            </div>
           </div>
         </div>
 
@@ -1274,6 +1403,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSub('mgr-false',this)">🚫 False Complaints</div>
     <div class="subtab" onclick="showSub('mgr-edit',this)">✏️ Edit Records</div>
     <div class="subtab" onclick="showSub('mgr-staff',this)">👥 Staff Roster</div>
+    <div class="subtab" onclick="showSub('mgr-datacontrol',this)" style="color:var(--red);border-color:var(--red)">🗄️ Data Control</div>
   </div>
 
   <!-- SUB: ALL JOB CARDS REGISTER -->
@@ -1636,7 +1766,115 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
-  <!-- SUB: FALSE COMPLAINT HISTORY -->
+  <!-- SUB: DATA CONTROL -->
+  <div class="subpage" id="sub-mgr-datacontrol">
+    <!-- PIN GATE -->
+    <div id="dcPinGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--red)">
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>🔐 Data Control — Manager PIN Required</div>
+      <div class="text-xs text2 mb-12">Enter your 4-digit PIN to access data management. All deletions are logged permanently.</div>
+      <div id="dcPinSetupMsg" style="display:none;background:#fff3cd;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px;margin-bottom:10px;font-size:12px;color:#92400e">
+        No PIN set yet. Enter a 4-digit PIN to set it now. This will be stored securely in Firebase.
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <div>
+          <label>4-Digit PIN</label>
+          <input type="password" id="dcPinInput" maxlength="4" placeholder="••••" style="font-size:24px;letter-spacing:8px;text-align:center;font-family:monospace" onkeydown="if(event.key==='Enter')verifyDataPin()">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="verifyDataPin()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Data Control</button>
+    </div>
+
+    <!-- DATA CONTROL PANEL (shown after PIN verified) -->
+    <div id="dcPanel" style="display:none">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:16px;font-weight:500">🗄️ Data Control</div>
+          <div class="text-xs text2">PIN verified — session active. Locked automatically after 10 minutes.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="lockDataControl()">🔒 Lock</button>
+      </div>
+
+      <!-- TABS within Data Control -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="dc-tab-truck" onclick="showDcTab('truck',this)" style="font-weight:600">🚛 By Truck</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-date" onclick="showDcTab('date',this)">📅 By Date Range</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-type" onclick="showDcTab('type',this)">📋 By Type</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-audit" onclick="showDcTab('audit',this)">📜 Audit Trail</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-pin" onclick="showDcTab('pin',this)">🔑 Change PIN</button>
+      </div>
+
+      <!-- BY TRUCK -->
+      <div id="dc-section-truck" class="card">
+        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Delete All Records for a Truck</div>
+        <div class="form-row cols-2" style="margin-bottom:10px">
+          <div><label>Truck Number</label><input type="text" id="dcTruckSearch" placeholder="e.g. T241 ECZ" oninput="this.value=this.value.toUpperCase();loadDcTruckRecords()"></div>
+        </div>
+        <div id="dcTruckRecords"></div>
+      </div>
+
+      <!-- BY DATE RANGE -->
+      <div id="dc-section-date" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Delete Records by Date Range</div>
+        <div class="form-row cols-2" style="margin-bottom:10px">
+          <div><label>From Date</label><input type="date" id="dcDateFrom"></div>
+          <div><label>To Date</label><input type="date" id="dcDateTo"></div>
+        </div>
+        <div class="form-row" style="margin-bottom:10px">
+          <div>
+            <label>Record Type</label>
+            <select id="dcDateType">
+              <option value="entries">Gate Entries</option>
+              <option value="inspections">Inspections / Job Cards</option>
+              <option value="appointments">Incharge Appointments</option>
+              <option value="breakdowns">Breakdown Logs</option>
+              <option value="notifications">Notifications</option>
+              <option value="workerLog">Worker Punch Logs</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="previewDcDateRange()"><i class="ti ti-search" aria-hidden="true"></i> Preview Records</button>
+        <div id="dcDatePreview" style="margin-top:12px"></div>
+      </div>
+
+      <!-- BY TYPE -->
+      <div id="dc-section-type" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Clear Entire Record Type</div>
+        <div class="text-xs text2 mb-12">⚠️ This moves ALL records of the selected type to Recycle Bin. Restorable within 7 days.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+          ${['entries','inspections','appointments','breakdowns','notifications','workerLog','etdRevisionLog','falseComplaintHistory','postponeRecords','securityAlerts'].map(t=>`
+          <div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;font-weight:500">${dcTypeLabel(t)}</span>
+            <button class="btn btn-danger btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearByType('${t}')">Clear</button>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- RECYCLE BIN -->
+      <div id="dc-section-recycle" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>♻️ Recycle Bin — Restore Deleted Records</div>
+        <div class="text-xs text2 mb-12">Deleted records are kept for 7 days then permanently removed. Restore any item before expiry.</div>
+        <div id="dcRecycleBin"><div class="text2 text-xs" style="padding:12px">Recycle bin is empty.</div></div>
+      </div>
+
+      <!-- AUDIT TRAIL -->
+      <div id="dc-section-audit" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--text2)"></span>📜 Deletion Audit Trail</div>
+        <div class="text-xs text2 mb-12">Every deletion is logged permanently — cannot be deleted.</div>
+        <div id="dcAuditList"><div class="text2 text-xs" style="padding:12px">No deletions recorded yet.</div></div>
+      </div>
+
+      <!-- CHANGE PIN -->
+      <div id="dc-section-pin" class="card" style="display:none;max-width:380px">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🔑 Change PIN</div>
+        <div class="form-row" style="margin-bottom:8px"><div><label>New 4-Digit PIN</label><input type="password" id="dcNewPin" maxlength="4" placeholder="••••" style="font-size:20px;letter-spacing:6px;text-align:center;font-family:monospace"></div></div>
+        <div class="form-row" style="margin-bottom:10px"><div><label>Confirm New PIN</label><input type="password" id="dcNewPinConfirm" maxlength="4" placeholder="••••" style="font-size:20px;letter-spacing:6px;text-align:center;font-family:monospace"></div></div>
+        <button class="btn btn-primary btn-block" onclick="saveNewDataPin()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save New PIN</button>
+      </div>
+
+    </div>
+  </div>
   <div class="subpage" id="sub-mgr-false">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--red)"></span>False Complaint History — Supervisor Rejected</div>
@@ -1735,6 +1973,13 @@ tr:hover td { background: var(--surface2); }
         <span class="tag tag-purple">Welding</span>
         <span class="tag tag-red">Delayed</span>
         <span class="tag" style="background:rgba(57,211,83,.15);color:var(--teal);border:1px solid rgba(57,211,83,.3)">Ready to Leave</span>
+      </div>
+      <div id="ovParkingSection" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">🅿️ Parking Area</div>
+        <div id="ovParkingGrid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+        <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:6px">🚫 No Work Required — Ready for Gate Out</div>
+        <div id="noWorkList" style="font-size:12px;color:#dc2626"></div>
       </div>
     </div>
     <div>
@@ -1996,7 +2241,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -2056,7 +2301,10 @@ fbRoot.on('value', snapshot=>{
       pendingParts: data.pendingParts || [],
       falseComplaintHistory: data.falseComplaintHistory || [],
       bayAssignments: data.bayAssignments || {},
-      postponeRecords: data.postponeRecords || []
+      postponeRecords: data.postponeRecords || [],
+      securityAlerts: data.securityAlerts || [],
+      recycleBin: data.recycleBin || [],
+      deletionLog: data.deletionLog || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -2076,6 +2324,9 @@ fbRoot.on('value', snapshot=>{
     _fbReady=true;
     runInitialRender();
   } else {
+    // Check for new unread security alerts and beep
+    const newAlerts=(S.securityAlerts||[]).filter(a=>!a.acknowledgedAt);
+    if(newAlerts.length>0) playSecurityBeep();
     refreshCurrentPage();
   }
 }, err=>{
@@ -2102,7 +2353,7 @@ function refreshCurrentPage(){
   const activePage=document.querySelector('.page.active');
   if(!activePage)return;
   const id=activePage.id.replace('page-','');
-  const map={security:()=>{refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();},
+  const map={security:()=>{refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();refreshSecurityPanel();},
     supervisor:refreshSupervisorPage, ground:refreshGroundPage, jobcards:refreshJobCards,
     revisit:refreshRevisit, manager:refreshManager, overview:refreshOverview, fleet:refreshFleet,
     incharge:refreshInchargePage};
@@ -2146,7 +2397,8 @@ const DEFAULT_STAFF_SEED = {
   sandblasting: ["COSMOS MASANA"],
   suspension: [],
   floorsupervisor: ["SAIDI MBESSI"],
-  incharge: []
+  incharge: [],
+  security: []
 };
 // Human-readable labels for each section key, used in the Staff Roster UI
 const STAFF_SECTION_LABELS = {
@@ -2154,7 +2406,8 @@ const STAFF_SECTION_LABELS = {
   boom:'Boom Repair', brakes:'Brakes Bonding', fuel:'Fuel System', greasing:'Greasing',
   inspection:'Inspection', painter:'Painter', panelbeater:'Panel Beater', pneumatic:'Pneumatic',
   radiator:'Radiator', refurbish:'Refurbish / Wheel Alignment', sandblasting:'Sand Blasting',
-  suspension:'Suspension', floorsupervisor:'Floor Supervisor', incharge:'Floor Incharge'
+  suspension:'Suspension', floorsupervisor:'Floor Supervisor', incharge:'Floor Incharge',
+  security:'Security Staff'
 };
 // STAFF and ALL_STAFF are now LIVE references that always point at the current S.staffRoster.
 // They get reassigned every time Firebase data loads (see fbRoot.on('value', ...) below),
@@ -2218,6 +2471,7 @@ function showSub(id,el){
   if(id==='mgr-incharge')refreshMgrIncharge();
   if(id==='mgr-false')refreshFalseHistory();
   if(id==='mgr-postpone')refreshPostponePage();
+  if(id==='mgr-datacontrol')refreshDataControl();
   if(id==='mgr-edit')refreshEditRecords();
   if(id==='mgr-staff')refreshStaffRoster();
 }
@@ -2365,12 +2619,16 @@ function refreshInchargePage(){
   if(cur && names.includes(cur)) sel.value=cur;
   document.getElementById('inchargeGreeting').textContent = cur ? 'Welcome, '+cur.replace(/^Mr\.\s*/,'').split(' ')[0] : '';
 
-  // Set default visit datetime to tomorrow 08:00
-  const visitEl=document.getElementById('iat_visit');
-  if(!visitEl.value){
-    const t=new Date(); t.setDate(t.getDate()+1); t.setHours(8,0,0,0);
+  // Set default visit to tomorrow 08:00 in the 24h fields
+  const hhEl=document.getElementById('iat_visit_hh');
+  const ddEl=document.getElementById('iat_visit_dd');
+  if(hhEl && !hhEl.value){
+    const t=new Date(); t.setDate(t.getDate()+1);
     const pad=n=>String(n).padStart(2,'0');
-    visitEl.value=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}T08:00`;
+    hhEl.value='08';
+    document.getElementById('iat_visit_mm').value='00';
+    ddEl.value=`${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    syncInchargeVisit();
   }
 
   renderInchargeQueue();
@@ -2457,7 +2715,8 @@ function submitAppointment(){
   if(!driverName) return toast('⚠️ Enter driver name','warn');
   const driverMobile=document.getElementById('iat_driverMobile').value.trim();
   const odo=document.getElementById('iat_odo').value ? parseInt(document.getElementById('iat_odo').value) : null;
-  const lastOdo=document.getElementById('iat_lastOdo').value ? parseInt(document.getElementById('iat_lastOdo').value) : null;
+  const tripKms=document.getElementById('iat_tripKms').value ? parseInt(document.getElementById('iat_tripKms').value) : null;
+  const estimatedOdo=(odo&&tripKms)?odo+tripKms:odo||null;
   const complaints=document.getElementById('iat_complaints').value.trim();
 
   // ── Duplicate check: block if same truck already has ANY pending appointment ──
@@ -2481,8 +2740,9 @@ function submitAppointment(){
     driverMobile,
     plannedVisit:visit,
     complaints,
-    currentOdo:odo,
-    lastVisitOdo:lastOdo,
+    currentOdo:estimatedOdo,
+    lastVisitOdo:odo,
+    tripKms,
     status:'pending',
     closedRemark:null,
     closedReason:null,
@@ -2519,9 +2779,9 @@ function submitAppointment(){
   document.getElementById('iat_driverName').value='';
   document.getElementById('iat_driverMobile').value='';
   document.getElementById('iat_odo').value='';
-  document.getElementById('iat_lastOdo').value='';
-  document.getElementById('iat_complaints').value='';
-  document.getElementById('iat_lastVisitBanner').style.display='none';
+  document.getElementById('iat_tripKms').value='';
+  document.getElementById('iat_odoCalcBanner').style.display='none';
+  document.getElementById('iat_lastVisitBanner').style.display='';
 
   toast('✅ Request submitted for '+tn,'ok');
   updateInchargeCounter();
@@ -2844,6 +3104,307 @@ function resetSecForm(){
   resetInventory();
 }
 
+// ═══════════════════════════════════════════════
+// SECURITY PAGE — Yard Status, Parking, Alerts
+// ═══════════════════════════════════════════════
+
+let _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
+let _secAudioEnabled = false;
+let _secAudioCtx = null;
+
+function saveSecurityOfficerName(){
+  const v = document.getElementById('securityOfficerName').value;
+  _securityOfficerName = v;
+  localStorage.setItem('shtl_security_name', v);
+  document.getElementById('securityOfficerGreeting').textContent = v ? 'On duty: ' + v : '';
+}
+
+function enableSecurityAudio(){
+  try {
+    _secAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _secAudioEnabled = true;
+    document.getElementById('secAudioBtn').textContent = '🔊 Sound enabled';
+    document.getElementById('secAudioBtn').style.color = 'var(--green)';
+    playSecurityBeep(); // play once to confirm
+    toast('🔊 Sound alerts enabled','ok');
+  } catch(e) {
+    toast('⚠️ Could not enable audio on this device','warn');
+  }
+}
+
+function playSecurityBeep(){
+  if(!_secAudioEnabled || !_secAudioCtx) return;
+  try {
+    const osc = _secAudioCtx.createOscillator();
+    const gain = _secAudioCtx.createGain();
+    osc.connect(gain); gain.connect(_secAudioCtx.destination);
+    osc.frequency.setValueAtTime(880, _secAudioCtx.currentTime);
+    osc.frequency.setValueAtTime(660, _secAudioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.4, _secAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, _secAudioCtx.currentTime + 0.5);
+    osc.start(_secAudioCtx.currentTime);
+    osc.stop(_secAudioCtx.currentTime + 0.5);
+  } catch(e){}
+}
+
+function refreshSecurityPanel(){
+  // Populate officer name picker
+  const sel = document.getElementById('securityOfficerName');
+  if(sel.options.length <= 1){
+    const secStaff = (STAFF['security'] || []).sort();
+    sel.innerHTML = '<option value="">— Select your name —</option>' +
+      secStaff.map(n => `<option value="${n}" ${n===_securityOfficerName?'selected':''}>${n}</option>`).join('');
+    if(_securityOfficerName) sel.value = _securityOfficerName;
+    document.getElementById('securityOfficerGreeting').textContent = _securityOfficerName ? 'On duty: ' + _securityOfficerName : '';
+  }
+
+  const now = new Date();
+  const inYard = S.entries.filter(e => !e.exitTime);
+  const parked = S.inspections.filter(i => i.parked && inYard.find(e => e.id === i.entryId));
+  const inBay = S.inspections.filter(i => !i.parked && inYard.find(e => e.id === i.entryId));
+  const ready = inYard.filter(e => e.readyToLeave);
+  const uninsp = inYard.filter(e => !S.inspections.some(i => i.entryId === e.id));
+
+  // Stats strip
+  document.getElementById('secYardInBay').textContent = inBay.length + uninsp.length;
+  document.getElementById('secYardParking').textContent = parked.length;
+  document.getElementById('secYardReady').textContent = ready.length;
+  document.getElementById('secYardTotal').textContent = inYard.length;
+
+  // Alerts strip — unread security alerts
+  const unreadAlerts = (S.securityAlerts||[]).filter(a => !a.acknowledgedAt);
+  const alertsStrip = document.getElementById('secAlertsStrip');
+  if(unreadAlerts.length){
+    alertsStrip.style.display = 'block';
+    alertsStrip.innerHTML = unreadAlerts.map(a => {
+      const ins = S.inspections.find(i => i.id == a.insId);
+      const e = ins ? S.entries.find(x => x.id === ins.entryId) : null;
+      const arrivalDriver = ins ? ins.driverName : '—';
+      return `<div style="background:#fff3cd;border:2px solid #e8600a;border-radius:var(--radius2);padding:14px;margin-bottom:10px;animation:pulse 2s infinite">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:20px">🔔</span>
+          <span style="font-size:16px;font-weight:700;color:#e8600a">${a.truckNo}</span>
+          <span class="tag tag-orange">Driver at Gate</span>
+          <span style="font-size:11px;color:var(--text2);margin-left:auto">${new Date(a.sentAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
+          <div><span class="text2">Arrival driver:</span> <strong>${arrivalDriver}</strong></div>
+          <div><span class="text2">Collecting driver:</span> <strong>${a.collectingDriver||'—'}</strong></div>
+          <div><span class="text2">Mobile:</span> ${a.collectingMobile||'—'}</div>
+          <div><span class="text2">Notified by:</span> ${a.sentBy||'Supervisor'}</div>
+        </div>
+        ${a.note?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Note: ${a.note}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-success btn-sm" onclick="openDriverVerify('${a.insId}','${a.id}')"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
+          <button class="btn btn-ghost btn-sm" onclick="acknowledgeAlert('${a.id}')">Dismiss</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    alertsStrip.style.display = 'none';
+  }
+
+  // Parking section
+  const parkingSection = document.getElementById('secParkingSection');
+  const parkingList = document.getElementById('secParkingList');
+  const parkingCount = document.getElementById('secParkingCount');
+  if(parked.length){
+    parkingSection.style.display = 'block';
+    parkingCount.textContent = parked.length;
+    parkingList.innerHTML = parked.map(ins => {
+      const e = S.entries.find(x => x.id === ins.entryId);
+      const remark = ins.supervisorRemark;
+      const cleared = e && e.parkStatus === 'cleared';
+      const hasAlert = (S.securityAlerts||[]).some(a => a.insId == ins.id && !a.acknowledgedAt);
+      const bg = hasAlert ? 'background:#fff3cd;border-color:#e8600a' : cleared ? 'background:#f0fdf4' : '';
+      const sinceParked = ins.completedAt ? Math.round((now - new Date(ins.completedAt))/60000) : 0;
+      return `<div style="border:1px solid var(--border);border-radius:var(--radius2);padding:12px 14px;margin-bottom:8px;${bg}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <div>
+            <span style="font-size:16px;font-weight:700">${ins.truckNo}</span>
+            <span class="tag tag-orange" style="margin-left:6px;font-size:10px">🅿️ Parking</span>
+            ${cleared?'<span class="tag tag-green" style="margin-left:4px;font-size:10px">✅ Ready</span>':''}
+          </div>
+          <span style="font-size:11px;color:var(--text2)">In parking ${sinceParked}m</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
+          Driver on arrival: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
+          ${remark?`<br>Supervisor: ${remark.reason}${remark.note?' — '+remark.note:''}` : ''}
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
+      </div>`;
+    }).join('');
+  } else {
+    parkingSection.style.display = 'none';
+  }
+
+  // In Bay list (read only)
+  const baySection = document.getElementById('secBaySection');
+  const bayList = document.getElementById('secBayList');
+  const allActive = [...inBay, ...uninsp.map(e=>({entryId:e.id, truckNo:e.truckNo, bayNo:'—', etd:null, jobs:{}, depts:e.depts}))];
+  if(allActive.length){
+    baySection.style.display = 'block';
+    bayList.innerHTML = allActive.map(ins => {
+      const e = S.entries.find(x => x.id === ins.entryId);
+      const etdDate = ins.etd ? new Date(ins.etd) : null;
+      const mLeft = etdDate ? Math.round((etdDate - now)/60000) : null;
+      const timeTag = mLeft===null ? '<span class="tag tag-yellow" style="font-size:10px">⏳ Awaiting inspection</span>' :
+        mLeft < 0 ? `<span class="tag tag-red" style="font-size:10px">⚠️ +${Math.abs(Math.round(mLeft/60))}h late</span>` :
+        mLeft < 60 ? `<span class="tag tag-yellow" style="font-size:10px">${mLeft}m left</span>` :
+        `<span class="tag tag-green" style="font-size:10px">${Math.floor(mLeft/60)}h ${mLeft%60}m</span>`;
+      const depts = ins.jobs ? Object.entries(ins.jobs).filter(([d,j])=>j.length).map(([d])=>dL(d)).join('+') : (e&&e.depts?e.depts.map(d=>dL(d)).join('+'):'—');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="font-weight:700;min-width:90px">${ins.truckNo}</span>
+        ${ins.bayNo!=='—'?`<span class="tag tag-blue" style="font-size:10px">${ins.bayNo}</span>`:''}
+        <span style="font-size:12px;color:var(--text2)">${depts}</span>
+        ${etdDate?`<span style="font-size:12px;font-family:monospace;font-weight:600">${formatETD24h(ins.etd)}</span>`:''}
+        <span style="margin-left:auto">${timeTag}</span>
+      </div>`;
+    }).join('') || '<div class="text2 text-xs">No active trucks in bays</div>';
+  } else {
+    baySection.style.display = 'none';
+  }
+}
+
+// Open driver verification modal
+let _dvAlertId = null;
+function openDriverVerify(insId, alertId){
+  _dvAlertId = alertId;
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  document.getElementById('dv_entryId').value = ins.entryId;
+  document.getElementById('dv_driverName').value = '';
+  document.getElementById('dv_driverMobile').value = '';
+  document.getElementById('dv_matchResult').innerHTML = '';
+  // Pre-fill with alert's collecting driver if came from alert
+  if(alertId){
+    const alert = (S.securityAlerts||[]).find(a => a.id == alertId);
+    if(alert){
+      document.getElementById('dv_driverName').value = alert.collectingDriver || '';
+      document.getElementById('dv_driverMobile').value = alert.collectingMobile || '';
+    }
+  }
+  document.getElementById('dv_arrivalInfo').innerHTML =
+    `<strong>${ins.truckNo}</strong> · Arrival driver: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
+    <br><span class="text-xs text2">Security: check driver license matches the arrival name</span>`;
+  checkDriverMatch();
+  document.getElementById('driverVerifyModal').classList.add('open');
+}
+
+function checkDriverMatch(){
+  const entryId = document.getElementById('dv_entryId').value;
+  const ins = S.inspections.find(i => i.entryId == entryId);
+  const enteredName = (document.getElementById('dv_driverName').value||'').trim().toUpperCase();
+  const arrivalName = (ins?.driverName||'').toUpperCase();
+  const result = document.getElementById('dv_matchResult');
+  if(!enteredName){ result.innerHTML=''; return; }
+  const match = arrivalName && enteredName && (enteredName===arrivalName || arrivalName.includes(enteredName) || enteredName.includes(arrivalName));
+  result.innerHTML = match
+    ? `<div class="alert alert-ok text-xs"><i class="ti ti-check" aria-hidden="true"></i> Name matches arrival record ✅</div>`
+    : `<div class="alert alert-warn text-xs"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Name does NOT match arrival record (${ins?.driverName||'—'}). Verify carefully.</div>`;
+}
+
+function confirmVerifiedExit(outcome){
+  const entryId = parseInt(document.getElementById('dv_entryId').value);
+  const collectingName = document.getElementById('dv_driverName').value.trim();
+  const collectingMobile = document.getElementById('dv_driverMobile').value.trim();
+  const e = S.entries.find(x => x.id === entryId);
+  if(!e) return;
+  const ins = S.inspections.find(i => i.entryId === entryId);
+
+  if(outcome === 'hold'){
+    // Send manager alert, don't exit
+    if(!S.notifications) S.notifications = [];
+    S.notifications.push({
+      id: Date.now(),
+      message: `🚫 HOLD — ${e.truckNo}: Security stopped exit. Driver name mismatch. Arrival: ${ins?.driverName||'—'}. Presented: ${collectingName||'—'}. Mobile: ${collectingMobile||'—'}. Verified by: ${_securityOfficerName||'Security'}.`,
+      truckLink: e.truckNo,
+      bayLink: ins?.bayNo||'',
+      sentAt: new Date().toISOString(),
+      read: false, readAt: null, reply: null
+    });
+    save();
+    closeModal('driverVerifyModal');
+    if(_dvAlertId) acknowledgeAlert(_dvAlertId);
+    toast('⚠️ Manager has been informed — truck on hold','warn');
+    return;
+  }
+
+  // Different driver — record and flag
+  e.exitTime = new Date().toISOString();
+  e.status = 'exited';
+  e.collectingDriverName = collectingName;
+  e.collectingDriverMobile = collectingMobile;
+  e.verifiedBy = _securityOfficerName || 'Security';
+  e.verifiedAt = new Date().toISOString();
+  e.driverOutcome = outcome; // 'same' or 'different'
+
+  if(outcome === 'different'){
+    // Flag to Manager
+    if(!S.notifications) S.notifications = [];
+    S.notifications.push({
+      id: Date.now(),
+      message: `⚠️ Different driver collected ${e.truckNo}. Arrival: ${ins?.driverName||'—'} (${ins?.driverMobile||'—'}). Collected by: ${collectingName} (${collectingMobile}). Verified by: ${_securityOfficerName||'Security'}.`,
+      truckLink: e.truckNo,
+      sentAt: new Date().toISOString(),
+      read: false, readAt: null, reply: null
+    });
+  }
+
+  save();
+  closeModal('driverVerifyModal');
+  if(_dvAlertId) acknowledgeAlert(_dvAlertId);
+  refreshSecurityPanel();
+  refreshSecurityLog();
+  refreshDropdowns();
+  updateBadge();
+  toast(`🚪 ${e.truckNo} exited — ${outcome==='different'?'⚠️ different driver recorded, Manager notified':'same driver verified'}`, outcome==='different'?'warn':'ok');
+}
+
+function acknowledgeAlert(alertId){
+  const alert = (S.securityAlerts||[]).find(a => a.id == alertId);
+  if(alert){ alert.acknowledgedAt = new Date().toISOString(); alert.acknowledgedBy = _securityOfficerName||'Security'; }
+  save();
+  refreshSecurityPanel();
+}
+
+// Supervisor — open notify security modal
+function openNotifySecurityModal(insId){
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  document.getElementById('ns_insId').value = insId;
+  document.getElementById('ns_truckInfo').innerHTML = `<strong>${ins.truckNo}</strong> · ${ins.bayNo} → Parking<br><span class="text-xs text2">Arrival driver: ${ins.driverName||'—'} · ${ins.driverMobile||'—'}</span>`;
+  document.getElementById('ns_driverName').value = ins.driverName||'';
+  document.getElementById('ns_driverMobile').value = ins.driverMobile||'';
+  document.getElementById('ns_note').value = '';
+  document.getElementById('notifySecurityModal').classList.add('open');
+}
+
+function sendSecurityAlert(){
+  const insId = document.getElementById('ns_insId').value;
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  const collectingDriver = document.getElementById('ns_driverName').value.trim();
+  const collectingMobile = document.getElementById('ns_driverMobile').value.trim();
+  const note = document.getElementById('ns_note').value.trim();
+  if(!S.securityAlerts) S.securityAlerts = [];
+  S.securityAlerts.push({
+    id: Date.now(),
+    insId,
+    truckNo: ins.truckNo,
+    collectingDriver,
+    collectingMobile,
+    note,
+    sentAt: new Date().toISOString(),
+    sentBy: 'Supervisor',
+    acknowledgedAt: null,
+    acknowledgedBy: null
+  });
+  save();
+  closeModal('notifySecurityModal');
+  toast('🔔 Security notified for ' + ins.truckNo,'ok');
+}
+
 function refreshSecurityLog(){
   const today=new Date().toDateString();
   const rows=S.entries.filter(e=>new Date(e.entryTime).toDateString()===today);
@@ -2885,15 +3446,20 @@ function refreshDropdowns(){
 
   // Show alert strip listing all trucks flagged ready, plus parked trucks still awaiting clearance
   const ready=inYard.filter(e=>e.readyToLeave);
+  const noWork=inYard.filter(e=>e.noWorkRequired);
   const parkedAwaiting=inYard.filter(e=>!e.readyToLeave && S.inspections.some(i=>i.entryId===e.id && i.parked));
   const alertEl=document.getElementById('readyToLeaveAlert');
   let alertHtml='';
-  if(ready.length){
-    alertHtml+='🏁 Cleared for exit: '+ready.map(e=>'<strong>'+e.truckNo+'</strong> (by '+(e.clearedBy||'Ground Team')+')').join(', ');
+  if(noWork.length){
+    alertHtml+='🚫 <strong>No work done — exit now:</strong> '+noWork.map(e=>'<strong>'+e.truckNo+'</strong> (Supervisor rejected — '+( e.noWorkRemark||'no issues found')+')<br>').join('');
+  }
+  if(ready.filter(e=>!e.noWorkRequired).length){
+    if(alertHtml) alertHtml+='';
+    alertHtml+='🏁 Cleared for exit: '+ready.filter(e=>!e.noWorkRequired).map(e=>'<strong>'+e.truckNo+'</strong> (by '+(e.clearedBy||'Ground Team')+')').join(', ');
   }
   if(parkedAwaiting.length){
     if(alertHtml) alertHtml+='<br>';
-    alertHtml+='🅿️ Parked, awaiting driver: '+parkedAwaiting.map(e=>'<strong>'+e.truckNo+'</strong>').join(', ')+' — select and punch exit once driver arrives to clear directly.';
+    alertHtml+='🅿️ Parked, awaiting driver: '+parkedAwaiting.map(e=>'<strong>'+e.truckNo+'</strong>').join(', ')+' — select and punch exit once driver arrives.';
   }
   if(alertHtml){
     alertEl.style.display='block';
@@ -3225,6 +3791,10 @@ function saveSupervisorEntry(){
     })).filter(j=>j.desc.trim());
   });
 
+  const tripKms=document.getElementById('supTripKms').value?parseInt(document.getElementById('supTripKms').value):null;
+  const lastOdoRecord=getLastLockedOdo(S.entries.find(e=>e.id==id)?.truckNo);
+  const lockedOdo=tripKms?(lastOdoRecord?lastOdoRecord.odo+tripKms:tripKms):null;
+
   const now=new Date().toISOString();
   const ins={
     id:Date.now(),
@@ -3246,7 +3816,10 @@ function saveSupervisorEntry(){
     delayed:false,
     delayReason:null,
     deptStaff:{},
-    deptCompletedAt:{}
+    deptCompletedAt:{},
+    deptETDLocked:{},
+    tripKms,
+    lockedOdo
   };
   S.inspections=S.inspections.filter(i=>i.entryId!==parseInt(id));
   S.inspections.push(ins);
@@ -3260,7 +3833,7 @@ function saveSupervisorEntry(){
   toast('✅ Inspection saved — '+bay+' allocated','ok');
 
   ['mech','elec','tyre','weld'].forEach(d=>{document.getElementById('rows-'+d).innerHTML='';jobCounts[d]=0;});
-  ['supTruckSelect','supOrigin','supGateIn','supFuel','supDepts','supTrailerNo','supJobType','supDriverName','supDriverMobile'].forEach(id=>document.getElementById(id).value='');
+  ['supTruckSelect','supOrigin','supGateIn','supFuel','supDepts','supTrailerNo','supJobType','supDriverName','supDriverMobile','supETD','supETD_hh','supETD_mm','supETD_dd','supTripKms'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   resetPhotoSlots();
 }
 
@@ -3347,7 +3920,10 @@ function refreshSupParking(){
     }
 
     if(hasRemark && !cleared){
-      html+=`<button class="btn btn-success btn-sm mt-12" onclick="clearForExit('${ins.id}')">✅ Driver Arrived — Clear for Exit</button>`;
+      html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-success btn-sm" onclick="clearForExit('${ins.id}')">✅ Driver Arrived — Clear for Exit</button>
+        <button class="btn btn-primary btn-sm" style="background:var(--accent)" onclick="openNotifySecurityModal('${ins.id}')"><i class="ti ti-bell" aria-hidden="true"></i> 🔔 Notify Security</button>
+      </div>`;
     }
     html+='</div>';
     return html;
@@ -3566,16 +4142,46 @@ function loadBayJobs(){
       <div class="staff-select-row">
         ${staffControlHtml}
       </div>
-      <div class="flex gap-8 items-center mt-8">
-        <input type="datetime-local" id="detd_${d}" value="${dEtd}" style="flex:1;font-size:12px" onchange="saveDeptETD('${ins.id}','${d}')">
-        ${mLeft!==null?`<span style="color:${mLeft<0?'var(--red)':mLeft<60?'var(--yellow)':'var(--green)'};font-weight:700;white-space:nowrap">${mLeft<0?'⚠️ +'+Math.abs(Math.round(mLeft/60))+'h delayed':Math.floor(mLeft/60)+'h '+mLeft%60+'m left'}</span>`:''}
-      </div>
-      <div class="etd-quickpicks mt-8">
-        <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',1)">+1h</button>
-        <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',2)">+2h</button>
-        <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',4)">+4h</button>
-        <button class="btn btn-ghost btn-sm" onclick="quickSetETDToday6PM('${ins.id}','${d}')">Today 6PM</button>
-        <button class="btn btn-ghost btn-sm" onclick="quickSetETDTomorrow8AM('${ins.id}','${d}')">Tomorrow 8AM</button>
+      <div class="mt-8">
+        <input type="hidden" id="detd_${d}" value="${dEtd}">
+        ${dEtd?`<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+          <span style="font-size:26px;font-weight:700;color:var(--accent);font-family:monospace;letter-spacing:1px">${formatETD24h(dEtd)}</span>
+          <span class="text-xs text2">${formatETDDate(dEtd)}</span>
+          ${mLeft!==null?`<span style="color:${mLeft<0?'var(--red)':mLeft<60?'var(--yellow)':'var(--green)'};font-weight:700;font-size:12px;white-space:nowrap">${mLeft<0?'⚠️ +'+Math.abs(Math.round(mLeft/60))+'h delayed':Math.floor(mLeft/60)+'h '+mLeft%60+'m left'}</span>`:''}
+        </div>`:''}
+        ${(ins.deptETDLocked||{})[d]?
+          `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#15803d">
+            <i class="ti ti-lock" aria-hidden="true" style="font-size:13px"></i> ETD locked — <strong>${formatETD24h(dEtd)} ${formatETDDate(dEtd)}</strong>. Cannot be changed.
+          </div>`:
+          `<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">
+            <div style="flex:1">
+              <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;display:block">Hour (00–23)</label>
+              <input type="number" id="detd_hh_${d}" min="0" max="23" value="${dEtd?getETDHour(dEtd):''}" placeholder="HH"
+                style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center;border:1px solid ${dEtd?'var(--accent)':'var(--border)'};border-radius:var(--radius);background:var(--surface);color:var(--text)"
+                oninput="syncETDFromParts('${ins.id}','${d}')">
+            </div>
+            <div style="font-size:22px;color:var(--text2);padding-bottom:6px;font-weight:300">:</div>
+            <div style="flex:1">
+              <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;display:block">Min (00–59)</label>
+              <input type="number" id="detd_mm_${d}" min="0" max="59" step="5" value="${dEtd?getETDMin(dEtd):''}" placeholder="MM"
+                style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)"
+                oninput="syncETDFromParts('${ins.id}','${d}')">
+            </div>
+            <div style="flex:1.5">
+              <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;display:block">Date</label>
+              <input type="date" id="detd_dd_${d}" value="${dEtd?dEtd.slice(0,10):todayDateValue()}"
+                style="width:100%;padding:9px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)"
+                oninput="syncETDFromParts('${ins.id}','${d}')">
+            </div>
+          </div>
+          <div class="etd-quickpicks mt-8">
+            <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',1)">+1h</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',2)">+2h</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickSetETD('${ins.id}','${d}',4)">+4h</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickSetETDToday6PM('${ins.id}','${d}')">18:00 today</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickSetETDTomorrow8AM('${ins.id}','${d}')">08:00 tmrw</button>
+          </div>`
+        }
       </div>
     </div>`;
   });
@@ -3961,15 +4567,99 @@ function saveDeptETD(insId,dept){
   const v=document.getElementById('detd_'+dept).value;
   const key=`${insId}_${dept}`;
   const oldVal=S.deptETDs[key]||null;
+  // Hard lock — once set, cannot be changed
+  if(oldVal){
+    toast('🔒 ETD is locked once set — cannot be changed','warn');
+    return;
+  }
   S.deptETDs[key]=v;
   const ins=S.inspections.find(i=>i.id==insId);
-  if(oldVal!==v){
-    if(!S.etdRevisionLog) S.etdRevisionLog=[];
-    S.etdRevisionLog.push({insId, truckNo: ins?ins.truckNo:'', dept, oldValue:oldVal, newValue:v, time:new Date().toISOString()});
-    if(S.etdRevisionLog.length>6000) S.etdRevisionLog=S.etdRevisionLog.slice(-6000);
+  if(!S.etdRevisionLog) S.etdRevisionLog=[];
+  S.etdRevisionLog.push({insId, truckNo: ins?ins.truckNo:'', dept, oldValue:oldVal, newValue:v, time:new Date().toISOString()});
+  if(S.etdRevisionLog.length>6000) S.etdRevisionLog=S.etdRevisionLog.slice(-6000);
+  if(ins){
+    if(!ins.t2_etdSet) ins.t2_etdSet=new Date().toISOString();
+    if(!ins.deptETDLocked) ins.deptETDLocked={};
+    ins.deptETDLocked[dept]=true;
   }
-  if(ins && !ins.t2_etdSet) ins.t2_etdSet=new Date().toISOString();
   save();loadBayJobs();
+  toast('✅ ETD set and locked — '+formatETD24h(v)+' '+formatETDDate(v),'ok');
+}
+
+// ─── INCHARGE VISIT 24H SYNC ───
+function syncInchargeVisit(){
+  const hh=document.getElementById('iat_visit_hh')?.value;
+  const mm=document.getElementById('iat_visit_mm')?.value;
+  const dd=document.getElementById('iat_visit_dd')?.value;
+  if(!dd) return;
+  const h=parseInt(hh)||0; const m=parseInt(mm)||0;
+  if(h<0||h>23||m<0||m>59) return;
+  const pad=n=>String(n).padStart(2,'0');
+  const val=`${dd}T${pad(h)}:${pad(m)}`;
+  document.getElementById('iat_visit').value=val;
+  const disp=document.getElementById('iat_visit_display');
+  if(disp) disp.textContent=`${pad(h)}:${pad(m)} · ${new Date(val).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}`;
+}
+
+// ─── SUPERVISOR ETD 24H SYNC ───
+function syncSupETD(){
+  const hh=document.getElementById('supETD_hh')?.value;
+  const mm=document.getElementById('supETD_mm')?.value;
+  const dd=document.getElementById('supETD_dd')?.value;
+  if(!dd) return;
+  const h=parseInt(hh)||0; const m=parseInt(mm)||0;
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('supETD').value=`${dd}T${pad(h)}:${pad(m)}`;
+}
+
+// ─── INCHARGE ODO CALC ───
+function calcInchargeOdo(){
+  const base=parseInt(document.getElementById('iat_odo').value)||0;
+  const trip=parseInt(document.getElementById('iat_tripKms').value)||0;
+  const banner=document.getElementById('iat_odoCalcBanner');
+  const result=document.getElementById('iat_odoCalcResult');
+  const formula=document.getElementById('iat_odoCalcFormula');
+  if(base>0 && trip>0){
+    const total=base+trip;
+    banner.style.display='block';
+    result.textContent=total.toLocaleString()+' km';
+    formula.textContent=base.toLocaleString()+' + '+trip.toLocaleString()+' km trip = '+total.toLocaleString()+' km';
+  } else {
+    banner.style.display='none';
+  }
+}
+
+// ─── SUPERVISOR ODO CALC ───
+function calcSupOdo(){
+  const trip=parseInt(document.getElementById('supTripKms').value)||0;
+  const block=document.getElementById('supOdoCalcBlock');
+  const result=document.getElementById('supOdoCalcResult');
+  const formula=document.getElementById('supOdoCalcFormula');
+  const tn=(document.getElementById('supTruckSelect').value);
+  const entry=S.entries.find(e=>e.id==tn);
+  const truckNo=entry?entry.truckNo:'';
+  const lastOdo=getLastLockedOdo(truckNo);
+  if(trip>0){
+    block.style.display='block';
+    if(lastOdo){
+      const total=lastOdo.odo+trip;
+      result.textContent=total.toLocaleString()+' km';
+      formula.textContent=lastOdo.odo.toLocaleString()+' (last locked) + '+trip.toLocaleString()+' km = '+total.toLocaleString()+' km';
+    } else {
+      result.textContent=trip.toLocaleString()+' km (no previous record)';
+      formula.textContent='First visit — trip KMs used as base ODO';
+    }
+  } else {
+    block.style.display='none';
+  }
+}
+
+// Get last locked ODO for a truck from inspection records
+function getLastLockedOdo(truckNo){
+  if(!truckNo) return null;
+  const records=S.inspections.filter(i=>i.truckNo===truckNo && i.lockedOdo)
+    .sort((a,b)=>new Date(b.inspectedAt)-new Date(a.inspectedAt));
+  return records.length?{odo:records[0].lockedOdo, date:records[0].inspectedAt}:null;
 }
 
 // Converts a JS Date into the value format <input type="datetime-local"> expects (local time, no seconds)
@@ -3979,28 +4669,87 @@ function dateToLocalInputValue(d){
 }
 
 // Quick-pick ETD buttons — fast touchscreen alternative to scrolling the native minute picker
+// ─── 24H ETD HELPERS (Ground Team) ───
+function formatETD24h(isoOrLocal){
+  if(!isoOrLocal) return '';
+  const d=new Date(isoOrLocal);
+  if(isNaN(d)) return '';
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function formatETDDate(isoOrLocal){
+  if(!isoOrLocal) return '';
+  const d=new Date(isoOrLocal);
+  if(isNaN(d)) return '';
+  return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+function getETDHour(isoOrLocal){
+  if(!isoOrLocal) return '';
+  const d=new Date(isoOrLocal);
+  return isNaN(d)?'':String(d.getHours()).padStart(2,'0');
+}
+function getETDMin(isoOrLocal){
+  if(!isoOrLocal) return '';
+  const d=new Date(isoOrLocal);
+  return isNaN(d)?'':String(d.getMinutes()).padStart(2,'0');
+}
+function todayDateValue(){
+  const n=new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+
+// Combines the three separate HH / MM / date fields into a datetime-local value and saves
+function syncETDFromParts(insId,dept){
+  const hh=document.getElementById('detd_hh_'+dept)?.value;
+  const mm=document.getElementById('detd_mm_'+dept)?.value;
+  const dd=document.getElementById('detd_dd_'+dept)?.value;
+  if(hh===''||mm===''||!dd) return; // wait until all three are filled
+  const hhN=parseInt(hh); const mmN=parseInt(mm);
+  if(isNaN(hhN)||hhN<0||hhN>23) return toast('⚠️ Hour must be 00–23','warn');
+  if(isNaN(mmN)||mmN<0||mmN>59) return toast('⚠️ Minutes must be 00–59','warn');
+  const pad=n=>String(n).padStart(2,'0');
+  const combined=`${dd}T${pad(hhN)}:${pad(mmN)}`;
+  document.getElementById('detd_'+dept).value=combined;
+  saveDeptETD(insId,dept);
+}
+
+// After quickSet, also update the HH/MM/date fields so they stay in sync with the display
+function syncPartsFromETD(dept, isoVal){
+  const hhEl=document.getElementById('detd_hh_'+dept);
+  const mmEl=document.getElementById('detd_mm_'+dept);
+  const ddEl=document.getElementById('detd_dd_'+dept);
+  if(!hhEl||!mmEl||!ddEl) return;
+  const d=new Date(isoVal);
+  if(isNaN(d)) return;
+  hhEl.value=String(d.getHours()).padStart(2,'0');
+  mmEl.value=String(d.getMinutes()).padStart(2,'0');
+  ddEl.value=isoVal.slice(0,10);
+}
+
 function quickSetETD(insId,dept,hoursFromNow){
   const target=new Date(Date.now()+hoursFromNow*3600000);
-  document.getElementById('detd_'+dept).value=dateToLocalInputValue(target);
+  const v=dateToLocalInputValue(target);
+  document.getElementById('detd_'+dept).value=v;
+  syncPartsFromETD(dept,v);
   saveDeptETD(insId,dept);
   toast('✅ ETD set to +'+hoursFromNow+'h from now','ok');
 }
 
 function quickSetETDToday6PM(insId,dept){
-  const target=new Date();
-  target.setHours(18,0,0,0);
-  document.getElementById('detd_'+dept).value=dateToLocalInputValue(target);
+  const target=new Date(); target.setHours(18,0,0,0);
+  const v=dateToLocalInputValue(target);
+  document.getElementById('detd_'+dept).value=v;
+  syncPartsFromETD(dept,v);
   saveDeptETD(insId,dept);
-  toast('✅ ETD set to today 6:00 PM','ok');
+  toast('✅ ETD set to 18:00 today','ok');
 }
 
 function quickSetETDTomorrow8AM(insId,dept){
-  const target=new Date();
-  target.setDate(target.getDate()+1);
-  target.setHours(8,0,0,0);
-  document.getElementById('detd_'+dept).value=dateToLocalInputValue(target);
+  const target=new Date(); target.setDate(target.getDate()+1); target.setHours(8,0,0,0);
+  const v=dateToLocalInputValue(target);
+  document.getElementById('detd_'+dept).value=v;
+  syncPartsFromETD(dept,v);
   saveDeptETD(insId,dept);
-  toast('✅ ETD set to tomorrow 8:00 AM','ok');
+  toast('✅ ETD set to 08:00 tomorrow','ok');
 }
 
 function saveDeptStaff(insId,dept){
@@ -4580,6 +5329,21 @@ function refreshFleet(){
     }
 
     if(!r.hasInspection){
+      // Special case: truck was sent back by Supervisor — no work required
+      if(e.noWorkRequired){
+        return `<tr style="background:#fef2f2">
+          <td><span style="background:#dc2626;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">No Work</span></td>
+          <td><div class="fw-700" style="font-size:13px">${e.truckNo}</div><div class="tsub" style="color:#dc2626">🚫 Supervisor: No issues found</div></td>
+          <td style="font-size:11px">${driver}</td>
+          <td><span class="tag tag-blue" style="font-size:10px">${e.origin||'—'}</span></td>
+          <td style="font-size:10px">${depts}</td>
+          <td style="font-size:11px">${gateIn}</td>
+          <td style="font-size:10px;color:var(--text2)">—</td>
+          <td>${tSteps(r)}</td>
+          <td><span class="tag tag-red" style="font-size:10px">🚪 Ready — Gate Out</span></td>
+          <td style="font-size:10px"><span class="tag tag-green">Security</span><div class="text-xs text2 mt-8">${e.noWorkRemark||'—'}</div></td>
+        </tr>`;
+      }
       return `<tr style="cursor:pointer;background:rgba(227,179,65,.05)" onclick="showPage('supervisor',document.querySelectorAll('.nav-tab')[2])">
         <td><span style="background:var(--yellow);color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">No bay</span></td>
         <td><div class="fw-700">${e.truckNo}</div><div class="tsub">Awaiting inspection</div></td>
@@ -4681,9 +5445,13 @@ function refreshOverview(){
   const now=new Date();
   document.getElementById('overviewDate').textContent=now.toLocaleDateString('en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const today=now.toDateString();
+
+  // inYard = ALL trucks currently in yard regardless of when they entered (overnight trucks included)
+  const inYard=S.entries.filter(e=>!e.exitTime);
+  // todayE = today's entries only — for "completed today" and origin breakdown
   const todayE=S.entries.filter(e=>new Date(e.entryTime).toDateString()===today);
-  const inYard=todayE.filter(e=>!e.exitTime);
   const exited=todayE.filter(e=>e.exitTime);
+
   const actIns=S.inspections.filter(i=>!i.parked && inYard.find(e=>e.id===i.entryId));
   const delayed=actIns.filter(i=>new Date(i.etd)<now);
   const uninsp=inYard.filter(e=>!S.inspections.some(i=>i.entryId===e.id));
@@ -4707,6 +5475,46 @@ function refreshOverview(){
     const isReady = e && e.readyToLeave;
     return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
   }).join('');
+
+  // No-work-required trucks
+  const noWorkTrucks=inYard.filter(e=>e.noWorkRequired);
+  const noWorkStrip=document.getElementById('noWorkStrip');
+  if(noWorkTrucks.length){
+    noWorkStrip.style.display='block';
+    document.getElementById('noWorkList').innerHTML=noWorkTrucks.map(e=>
+      `<span style="background:#fff;border:1px solid #fca5a5;padding:2px 10px;border-radius:20px;margin-right:6px;display:inline-block;margin-bottom:4px">
+        ${e.truckNo} <span style="color:#94a3b8;font-size:10px">— ${e.noWorkRemark||'Supervisor: no issues found'}</span>
+       </span>`
+    ).join('');
+  } else {
+    noWorkStrip.style.display='none';
+  }
+
+  // Parking area in Overview
+  const parkedTrucks = S.inspections.filter(i => i.parked && inYard.find(e => e.id === i.entryId));
+  const ovParkSec = document.getElementById('ovParkingSection');
+  const ovParkGrid = document.getElementById('ovParkingGrid');
+  if(ovParkSec && ovParkGrid){
+    if(parkedTrucks.length){
+      ovParkSec.style.display = 'block';
+      ovParkGrid.innerHTML = parkedTrucks.map(ins => {
+        const e = S.entries.find(x => x.id === ins.entryId);
+        const cleared = e && e.parkStatus === 'cleared';
+        const remark = ins.supervisorRemark;
+        const hasAlert = (S.securityAlerts||[]).some(a => a.insId == ins.id && !a.acknowledgedAt);
+        const bg = hasAlert ? '#fff3cd' : cleared ? '#f0fdf4' : '#fff';
+        const border = hasAlert ? '#e8600a' : cleared ? '#86efac' : 'var(--border)';
+        return `<div style="background:${bg};border:1px solid ${border};border-radius:var(--radius);padding:10px 12px;min-width:140px">
+          <div style="font-size:13px;font-weight:700">${ins.truckNo}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">${remark?remark.reason:'Parked'}</div>
+          ${hasAlert?'<span class="tag tag-orange" style="font-size:9px;margin-top:4px">🔔 Driver at gate</span>':''}
+          ${cleared?'<span class="tag tag-green" style="font-size:9px;margin-top:4px">✅ Ready</span>':''}
+        </div>`;
+      }).join('');
+    } else {
+      ovParkSec.style.display = 'none';
+    }
+  }
 
   const orgs={};todayE.forEach(e=>{orgs[e.origin]=(orgs[e.origin]||0)+1;});
   const tot=todayE.length||1;
@@ -5128,6 +5936,266 @@ function exportPostponeCSV(){
   exportCSV('SHTL_PostponeRecords_'+dateStamp()+'.csv',headers,rows);
 }
 
+// ═══════════════════════════════════════════════
+// DATA CONTROL — PIN, Delete, Recycle Bin, Audit
+// ═══════════════════════════════════════════════
+
+const DC_PIN_HASH_KEY = 'shtl_dc_pin';
+let _dcUnlocked = false;
+let _dcLockTimer = null;
+
+function hashPin(pin){ 
+  // Simple deterministic hash — not cryptographic but not plain text in Firebase
+  let h=0; for(let i=0;i<pin.length;i++){h=((h<<5)-h)+pin.charCodeAt(i);h|=0;}
+  return 'dc_'+Math.abs(h).toString(16).padStart(8,'0');
+}
+
+function dcTypeLabel(t){
+  return {entries:'Gate Entries',inspections:'Job Cards',appointments:'Appointments',
+    breakdowns:'Breakdowns',notifications:'Notifications',workerLog:'Punch Logs',
+    etdRevisionLog:'ETD Revision Log',falseComplaintHistory:'False Complaints',
+    postponeRecords:'Postpone Records',securityAlerts:'Security Alerts'}[t]||t;
+}
+
+async function verifyDataPin(){
+  const pin=document.getElementById('dcPinInput').value;
+  if(pin.length!==4||!/^\d{4}$/.test(pin)) return toast('⚠️ PIN must be exactly 4 digits','warn');
+  const hashed=hashPin(pin);
+  // Check if PIN is set in Firebase
+  const snap=await fbRoot.child('_settings/dcPinHash').once('value');
+  const stored=snap.val();
+  if(!stored){
+    // First time — set the PIN
+    await fbRoot.child('_settings/dcPinHash').set(hashed);
+    toast('✅ PIN set successfully','ok');
+    unlockDataControl();
+  } else if(stored===hashed){
+    unlockDataControl();
+  } else {
+    toast('❌ Incorrect PIN','warn');
+    document.getElementById('dcPinInput').value='';
+  }
+}
+
+function unlockDataControl(){
+  _dcUnlocked=true;
+  document.getElementById('dcPinGate').style.display='none';
+  document.getElementById('dcPanel').style.display='block';
+  document.getElementById('dcPinInput').value='';
+  // Auto-lock after 10 minutes
+  if(_dcLockTimer) clearTimeout(_dcLockTimer);
+  _dcLockTimer=setTimeout(lockDataControl, 10*60*1000);
+  showDcTab('truck',document.getElementById('dc-tab-truck'));
+  refreshRecycleBin();
+  refreshAuditTrail();
+  toast('🔓 Data Control unlocked — auto-locks in 10 minutes','ok');
+}
+
+function lockDataControl(){
+  _dcUnlocked=false;
+  document.getElementById('dcPinGate').style.display='block';
+  document.getElementById('dcPanel').style.display='none';
+  if(_dcLockTimer){clearTimeout(_dcLockTimer);_dcLockTimer=null;}
+  toast('🔒 Data Control locked','info');
+}
+
+function showDcTab(tab,btn){
+  ['truck','date','type','recycle','audit','pin'].forEach(t=>{
+    document.getElementById('dc-section-'+t).style.display=t===tab?'block':'none';
+    const b=document.getElementById('dc-tab-'+t);
+    if(b){b.style.background=t===tab?'var(--accent)':'';b.style.color=t===tab?'#fff':'';}
+  });
+  if(tab==='recycle') refreshRecycleBin();
+  if(tab==='audit') refreshAuditTrail();
+}
+
+// ── MOVE TO RECYCLE BIN ──
+function moveToRecycleBin(type, items, label){
+  if(!S.recycleBin) S.recycleBin=[];
+  const record={
+    id:Date.now(),
+    type,
+    label,
+    items: JSON.parse(JSON.stringify(items)),
+    deletedAt:new Date().toISOString(),
+    expiresAt:new Date(Date.now()+7*24*3600*1000).toISOString()
+  };
+  S.recycleBin.push(record);
+  // Log to audit trail
+  if(!S.deletionLog) S.deletionLog=[];
+  S.deletionLog.push({
+    id:Date.now()+1,
+    type,
+    label,
+    count:Array.isArray(items)?items.length:1,
+    deletedAt:new Date().toISOString()
+  });
+  return record.id;
+}
+
+// Purge expired recycle bin items (>7 days)
+function purgeExpiredBin(){
+  if(!S.recycleBin) return;
+  const now=new Date();
+  S.recycleBin=S.recycleBin.filter(r=>new Date(r.expiresAt)>now);
+}
+
+// ── BY TRUCK ──
+function loadDcTruckRecords(){
+  const tn=(document.getElementById('dcTruckSearch').value||'').trim().toUpperCase();
+  const div=document.getElementById('dcTruckRecords');
+  if(!tn||tn.length<3){div.innerHTML='';return;}
+  const entries=S.entries.filter(e=>e.truckNo===tn);
+  const inspections=S.inspections.filter(i=>i.truckNo===tn);
+  const appointments=S.appointments.filter(a=>a.truckNo===tn);
+  const breakdowns=(S.breakdowns||[]).filter(b=>b.truckNo===tn);
+  const total=entries.length+inspections.length+appointments.length+breakdowns.length;
+  if(!total){div.innerHTML='<div class="text2 text-xs">No records found for '+tn+'</div>';return;}
+  div.innerHTML=`<div style="background:var(--surface3);border-radius:var(--radius);padding:12px;margin-bottom:10px">
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px">${tn} — ${total} records found</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-size:12px;margin-bottom:10px">
+      <div>Gate entries: <strong>${entries.length}</strong></div>
+      <div>Job cards: <strong>${inspections.length}</strong></div>
+      <div>Appointments: <strong>${appointments.length}</strong></div>
+      <div>Breakdowns: <strong>${breakdowns.length}</strong></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-danger btn-sm" onclick="deleteTruckRecords('${tn}','all')">🗑️ Move ALL to Recycle Bin</button>
+      ${entries.length?`<button class="btn btn-ghost btn-sm" onclick="deleteTruckRecords('${tn}','entries')">Gate entries only</button>`:''}
+      ${appointments.length?`<button class="btn btn-ghost btn-sm" onclick="deleteTruckRecords('${tn}','appointments')">Appointments only</button>`:''}
+    </div>
+  </div>`;
+}
+
+function deleteTruckRecords(tn,what){
+  if(!confirm(`Move ${what==='all'?'ALL':'selected'} records for ${tn} to Recycle Bin?\n\nRestored within 7 days if needed.`)) return;
+  if(what==='all'||what==='entries'){moveToRecycleBin('entries',S.entries.filter(e=>e.truckNo===tn),`Gate entries — ${tn}`);S.entries=S.entries.filter(e=>e.truckNo!==tn);}
+  if(what==='all'||what==='inspections'){moveToRecycleBin('inspections',S.inspections.filter(i=>i.truckNo===tn),`Job cards — ${tn}`);S.inspections=S.inspections.filter(i=>i.truckNo!==tn);}
+  if(what==='all'||what==='appointments'){moveToRecycleBin('appointments',S.appointments.filter(a=>a.truckNo===tn),`Appointments — ${tn}`);S.appointments=S.appointments.filter(a=>a.truckNo!==tn);}
+  if(what==='all'){moveToRecycleBin('breakdowns',(S.breakdowns||[]).filter(b=>b.truckNo===tn),`Breakdowns — ${tn}`);S.breakdowns=(S.breakdowns||[]).filter(b=>b.truckNo!==tn);}
+  save();loadDcTruckRecords();refreshAuditTrail();
+  toast(`🗑️ Records for ${tn} moved to Recycle Bin`,'ok');
+}
+
+// ── BY DATE RANGE ──
+function previewDcDateRange(){
+  const from=document.getElementById('dcDateFrom').value;
+  const to=document.getElementById('dcDateTo').value;
+  const type=document.getElementById('dcDateType').value;
+  if(!from||!to) return toast('⚠️ Select both dates','warn');
+  const fromD=new Date(from); const toD=new Date(to+'T23:59:59');
+  const getDate=r=>new Date(r.entryTime||r.inspectedAt||r.submittedAt||r.timestamp||r.time||0);
+  const records=(S[type]||[]).filter(r=>getDate(r)>=fromD&&getDate(r)<=toD);
+  const div=document.getElementById('dcDatePreview');
+  if(!records.length){div.innerHTML='<div class="text2 text-xs">No records found in this date range.</div>';return;}
+  div.innerHTML=`<div style="background:var(--surface3);border-radius:var(--radius);padding:12px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:6px">${records.length} ${dcTypeLabel(type)} found (${from} → ${to})</div>
+    <div style="max-height:160px;overflow-y:auto;font-size:11px;color:var(--text2);margin-bottom:10px">
+      ${records.slice(0,20).map(r=>`<div style="padding:3px 0;border-bottom:0.5px solid var(--border)">${r.truckNo||r.id||'—'} · ${new Date(getDate(r)).toLocaleDateString('en-GB')}</div>`).join('')}
+      ${records.length>20?`<div style="color:var(--text2);padding:4px 0">...and ${records.length-20} more</div>`:''}
+    </div>
+    <button class="btn btn-danger" onclick="deleteDateRange('${type}','${from}','${to}')">🗑️ Move ${records.length} records to Recycle Bin</button>
+  </div>`;
+}
+
+function deleteDateRange(type,from,to){
+  if(!confirm(`Move these records to Recycle Bin?\n\nRestorable within 7 days.`)) return;
+  const fromD=new Date(from); const toD=new Date(to+'T23:59:59');
+  const getDate=r=>new Date(r.entryTime||r.inspectedAt||r.submittedAt||r.timestamp||r.time||0);
+  const toDelete=(S[type]||[]).filter(r=>getDate(r)>=fromD&&getDate(r)<=toD);
+  moveToRecycleBin(type,toDelete,`${dcTypeLabel(type)} — ${from} to ${to}`);
+  S[type]=(S[type]||[]).filter(r=>!(getDate(r)>=fromD&&getDate(r)<=toD));
+  save();document.getElementById('dcDatePreview').innerHTML='';refreshAuditTrail();
+  toast(`🗑️ ${toDelete.length} records moved to Recycle Bin`,'ok');
+}
+
+// ── BY TYPE ──
+function clearByType(type){
+  const items=S[type]||[];
+  if(!items.length) return toast('No records of this type','info');
+  if(!confirm(`Move ALL ${items.length} ${dcTypeLabel(type)} records to Recycle Bin?\n\nRestorable within 7 days.`)) return;
+  moveToRecycleBin(type,[...items],`All ${dcTypeLabel(type)}`);
+  S[type]=[];
+  save();refreshAuditTrail();
+  toast(`🗑️ All ${dcTypeLabel(type)} moved to Recycle Bin`,'ok');
+}
+
+// ── RECYCLE BIN ──
+function refreshRecycleBin(){
+  purgeExpiredBin();
+  const bin=S.recycleBin||[];
+  const div=document.getElementById('dcRecycleBin');
+  if(!div) return;
+  if(!bin.length){div.innerHTML='<div class="text2 text-xs" style="padding:12px">Recycle bin is empty.</div>';return;}
+  div.innerHTML=bin.map(r=>{
+    const expires=new Date(r.expiresAt);
+    const daysLeft=Math.ceil((expires-new Date())/86400000);
+    const count=Array.isArray(r.items)?r.items.length:1;
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:13px;font-weight:600">${r.label}</div>
+        <div class="text-xs text2">${count} records · Deleted ${new Date(r.deletedAt).toLocaleDateString('en-GB')} · <span style="color:${daysLeft<=2?'var(--red)':'var(--text2)'}">Expires in ${daysLeft} day${daysLeft!==1?'s':''}</span></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-success btn-sm" onclick="restoreFromBin(${r.id})"><i class="ti ti-restore" aria-hidden="true"></i> Restore</button>
+        <button class="btn btn-danger btn-sm" onclick="permanentDelete(${r.id})">🗑️ Delete Forever</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function restoreFromBin(binId){
+  const rec=S.recycleBin.find(r=>r.id===binId);
+  if(!rec) return;
+  if(!confirm(`Restore ${rec.items.length||1} records back to ${dcTypeLabel(rec.type)}?`)) return;
+  if(!S[rec.type]) S[rec.type]=[];
+  if(Array.isArray(rec.items)) S[rec.type]=[...S[rec.type],...rec.items];
+  S.recycleBin=S.recycleBin.filter(r=>r.id!==binId);
+  if(!S.deletionLog) S.deletionLog=[];
+  S.deletionLog.push({id:Date.now(),type:rec.type,label:'RESTORED: '+rec.label,count:Array.isArray(rec.items)?rec.items.length:1,deletedAt:new Date().toISOString()});
+  save();refreshRecycleBin();refreshAuditTrail();
+  toast('✅ Records restored successfully','ok');
+}
+
+function permanentDelete(binId){
+  const rec=S.recycleBin.find(r=>r.id===binId);
+  if(!rec) return;
+  if(!confirm(`PERMANENTLY delete ${rec.label}?\n\nThis CANNOT be undone.`)) return;
+  S.recycleBin=S.recycleBin.filter(r=>r.id!==binId);
+  if(!S.deletionLog) S.deletionLog=[];
+  S.deletionLog.push({id:Date.now(),type:rec.type,label:'PERMANENT DELETE: '+rec.label,count:Array.isArray(rec.items)?rec.items.length:1,deletedAt:new Date().toISOString()});
+  save();refreshRecycleBin();refreshAuditTrail();
+  toast('🗑️ Permanently deleted','ok');
+}
+
+// ── AUDIT TRAIL ──
+function refreshAuditTrail(){
+  const log=[...(S.deletionLog||[])].reverse();
+  const div=document.getElementById('dcAuditList');
+  if(!div) return;
+  if(!log.length){div.innerHTML='<div class="text2 text-xs" style="padding:12px">No deletions recorded yet.</div>';return;}
+  div.innerHTML=`<table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead><tr style="background:var(--surface3)"><th style="padding:6px 8px;text-align:left">Date</th><th style="padding:6px 8px;text-align:left">Action</th><th style="padding:6px 8px;text-align:left">Records</th></tr></thead>
+    <tbody>${log.map(l=>`<tr style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:6px 8px;white-space:nowrap">${new Date(l.deletedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td>
+      <td style="padding:6px 8px">${l.label}</td>
+      <td style="padding:6px 8px">${l.count}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── CHANGE PIN ──
+async function saveNewDataPin(){
+  const np=document.getElementById('dcNewPin').value;
+  const nc=document.getElementById('dcNewPinConfirm').value;
+  if(np.length!==4||!/^\d{4}$/.test(np)) return toast('⚠️ PIN must be 4 digits','warn');
+  if(np!==nc) return toast('⚠️ PINs do not match','warn');
+  await fbRoot.child('_settings/dcPinHash').set(hashPin(np));
+  document.getElementById('dcNewPin').value='';
+  document.getElementById('dcNewPinConfirm').value='';
+  toast('✅ PIN changed successfully','ok');
+}
+
 function refreshFalseHistory(){
   const search=(document.getElementById('falseSearch')?.value||'').toUpperCase();
   const list=document.getElementById('falseHistoryList');
@@ -5141,22 +6209,29 @@ function refreshFalseHistory(){
       <div><span style="font-size:16px;font-weight:700">${f.truckNo}</span> <span class="tag tag-red" style="font-size:10px">🚫 No Work Found</span></div>
       <span class="text-xs text2">${new Date(f.date).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</span>
     </div>
-    <div class="text-xs text2 mb-8">Driver: <strong>${f.driverName||'—'}</strong> · ${f.driverMobile||'—'} · Submitted by: <strong>${f.submittedBy||'—'}</strong></div>
-    <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:6px">
-      <div class="text-xs text2 mb-4">Driver Complaints:</div>${f.complaints||'—'}
-    </div>
-    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:12px">
-      <div class="text-xs text2 mb-4">Supervisor Finding:</div>${f.supRemark||'—'}
-    </div>
+    <div class="text-xs text2 mb-8">Driver: <strong>${f.driverName||'—'}</strong> · ${f.driverMobile||'—'} · By: <strong>${f.submittedBy||'—'}</strong></div>
+    <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:6px"><div class="text-xs text2 mb-4">Driver Complaints:</div>${f.complaints||'—'}</div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 10px;font-size:12px"><div class="text-xs text2 mb-4">Supervisor Finding:</div>${f.supRemark||'—'}</div>
   </div>`).join('');
 }
 
 function exportFalseHistoryCSV(){
   const headers=['Date','Truck No','Driver Name','Driver Mobile','Submitted By','Driver Complaints','Supervisor Finding'];
-  const rows=(S.falseComplaintHistory||[]).map(f=>[
-    new Date(f.date).toLocaleString('en-GB'),f.truckNo,f.driverName||'',f.driverMobile||'',f.submittedBy||'',f.complaints||'',f.supRemark||''
-  ]);
+  const rows=(S.falseComplaintHistory||[]).map(f=>[new Date(f.date).toLocaleString('en-GB'),f.truckNo,f.driverName||'',f.driverMobile||'',f.submittedBy||'',f.complaints||'',f.supRemark||'']);
   exportCSV('SHTL_FalseComplaints_'+dateStamp()+'.csv',headers,rows);
+}
+
+function refreshDataControl(){
+  // Check if PIN is set
+  fbRoot.child('_settings/dcPinHash').once('value').then(snap=>{
+    if(!snap.val()) document.getElementById('dcPinSetupMsg').style.display='block';
+    else document.getElementById('dcPinSetupMsg').style.display='none';
+  });
+  if(!_dcUnlocked){
+    document.getElementById('dcPinGate').style.display='block';
+    document.getElementById('dcPanel').style.display='none';
+  }
+  purgeExpiredBin();
 }
 
 function refreshMgrIncharge(){
