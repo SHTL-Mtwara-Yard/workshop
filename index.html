@@ -76,6 +76,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .trend-up { color:green; font-weight:bold; }
 .trend-down { color:red; font-weight:bold; }
 .trend-stable { color:#888; }
+.support-subpage { display:none; }
+.support-subpage.active { display:block; }
 .lb-dept { border:1px solid var(--border); border-radius:var(--radius2); overflow:hidden; }
 .lb-dept-head { padding:8px 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; }
 .lb-row { display:flex; align-items:center; gap:8px; padding:7px 12px; border-top:1px solid var(--border); font-size:12px; }
@@ -515,6 +517,7 @@ tr:hover td { background: var(--surface2); }
   <div class="nav-tab" onclick="showPage('revisit',this)">🔁 Revisit</div>
   <div class="nav-tab" onclick="showPage('manager',this)">🗂 Manager</div>
   <div class="nav-tab" onclick="showPage('overview',this)">📊 Overview</div>
+  <div class="nav-tab" onclick="showPage('support',this)">🛠️ Support</div>
   <div class="nav-tab" onclick="showPage('fleet',this)">🚚 Fleet</div>
   <div class="nav-right">
     <span class="conn-indicator" id="connIndicator">🟡 Connecting...</span>
@@ -2083,6 +2086,231 @@ tr:hover td { background: var(--surface2); }
 </div>
 
 <!-- ════════════════ FLEET (multi-truck quick overview) ════════════════ -->
+<!-- ════════════════ SUPPORT SERVICES PAGE ════════════════ -->
+<div class="page" id="page-support">
+  <div class="page-title">🛠️ Support Services</div>
+  <div class="page-sub">Greasing · Panel Beater · Refurbish · Sand Blasting · Washing · Drivers</div>
+
+  <div class="subnav">
+    <div class="subtab active" onclick="showSupportSub('greasing',this)">🟢 Greasing</div>
+    <div class="subtab" onclick="showSupportSub('panelbeater',this)">🔨 Panel Beater</div>
+    <div class="subtab" onclick="showSupportSub('refurbish',this)">♻️ Refurbish</div>
+    <div class="subtab" onclick="showSupportSub('sandblasting',this)">💨 Sand Blasting</div>
+    <div class="subtab" onclick="showSupportSub('washing',this)">🚿 Washing</div>
+    <div class="subtab" onclick="showSupportSub('drivers',this)">🚗 Drivers</div>
+  </div>
+
+  <!-- GREASING -->
+  <div class="support-subpage active" id="ssub-greasing">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <!-- Team 1 -->
+      <div class="card" style="border-top:3px solid var(--accent)" id="greasingTeam1Card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">Team 1</div>
+            <select id="greasingTeam1Name" style="font-size:12px;padding:4px 8px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+              <option value="">-- Select name --</option>
+            </select>
+          </div>
+          <div id="greasingTimer1" style="width:72px;height:72px;border-radius:50%;border:4px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--surface3)">
+            <div style="font-size:15px;font-weight:700;font-family:monospace;color:var(--text2)" id="greasingTimerDisplay1">40:00</div>
+            <div style="font-size:9px;color:var(--text3)">min</div>
+          </div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:8px">
+          <div>
+            <label>Select Truck</label>
+            <select id="greasingTruck1" style="font-size:12px">
+              <option value="">-- Select truck --</option>
+            </select>
+          </div>
+          <div>
+            <label>Start Time</label>
+            <input type="text" id="greasingStart1" placeholder="Auto" readonly style="background:var(--surface3);font-size:12px">
+          </div>
+        </div>
+        <div id="greasingProgress1" style="background:var(--surface3);border-radius:4px;height:6px;margin-bottom:10px;overflow:hidden">
+          <div id="greasingBar1" style="background:var(--accent);height:100%;width:0%;border-radius:4px;transition:width 1s linear"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-block" id="greasingStartBtn1" onclick="startGreasing(1)"><i class="ti ti-player-play" aria-hidden="true"></i> Start Timer</button>
+          <button class="btn btn-success btn-block" id="greasingDoneBtn1" onclick="doneGreasing(1)" style="display:none"><i class="ti ti-check" aria-hidden="true"></i> Mark Done</button>
+        </div>
+      </div>
+
+      <!-- Team 2 -->
+      <div class="card" style="border-top:3px solid var(--green)" id="greasingTeam2Card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">Team 2</div>
+            <select id="greasingTeam2Name" style="font-size:12px;padding:4px 8px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text)">
+              <option value="">-- Select name --</option>
+            </select>
+          </div>
+          <div id="greasingTimer2" style="width:72px;height:72px;border-radius:50%;border:4px solid var(--border);display:flex;align-items:center;justify-content:center;flex-direction:column;background:var(--surface3)">
+            <div style="font-size:15px;font-weight:700;font-family:monospace;color:var(--text2)" id="greasingTimerDisplay2">40:00</div>
+            <div style="font-size:9px;color:var(--text3)">min</div>
+          </div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:8px">
+          <div>
+            <label>Select Truck</label>
+            <select id="greasingTruck2" style="font-size:12px">
+              <option value="">-- Select truck --</option>
+            </select>
+          </div>
+          <div>
+            <label>Start Time</label>
+            <input type="text" id="greasingStart2" placeholder="Auto" readonly style="background:var(--surface3);font-size:12px">
+          </div>
+        </div>
+        <div id="greasingProgress2" style="background:var(--surface3);border-radius:4px;height:6px;margin-bottom:10px;overflow:hidden">
+          <div id="greasingBar2" style="background:var(--green);height:100%;width:0%;border-radius:4px;transition:width 1s linear"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-block" id="greasingStartBtn2" onclick="startGreasing(2)"><i class="ti ti-player-play" aria-hidden="true"></i> Start Timer</button>
+          <button class="btn btn-success btn-block" id="greasingDoneBtn2" onclick="doneGreasing(2)" style="display:none"><i class="ti ti-check" aria-hidden="true"></i> Mark Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Greasing Log -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>Today's Greasing Log</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Truck</th><th>Team Member</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+          <tbody id="greasingLog"><tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No greasing done today</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL BEATER -->
+  <div class="support-subpage" id="ssub-panelbeater">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Panel Beater Job</div>
+      <div class="form-row cols-2">
+        <div><label>Staff Name</label><select id="pbName"><option value="">-- Select --</option></select></div>
+        <div><label>Truck</label><select id="pbTruck"><option value="">-- Select truck --</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Job Description</label><input type="text" id="pbJob" placeholder="e.g. Left door dent repair"></div>
+        <div><label>Priority</label><select id="pbPriority"><option>Normal</option><option>Urgent</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Start Time (24h)</label><input type="time" id="pbStart"></div>
+        <div><label>End Time (24h)</label><input type="time" id="pbEnd"></div>
+      </div>
+      <button class="btn btn-primary" onclick="logSupportJob('panelbeater')"><i class="ti ti-plus" aria-hidden="true"></i> Log Job</button>
+    </div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Panel Beater Job Log</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+      <tbody id="supportLog-panelbeater"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- REFURBISH -->
+  <div class="support-subpage" id="ssub-refurbish">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Refurbish / Wheel Alignment Job</div>
+      <div class="form-row cols-2">
+        <div><label>Staff Name</label><select id="refName"><option value="">-- Select --</option></select></div>
+        <div><label>Truck</label><select id="refTruck"><option value="">-- Select truck --</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Job Description</label><input type="text" id="refJob" placeholder="e.g. Front wheel alignment"></div>
+        <div><label>Priority</label><select id="refPriority"><option>Normal</option><option>Urgent</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Start Time</label><input type="time" id="refStart"></div>
+        <div><label>End Time</label><input type="time" id="refEnd"></div>
+      </div>
+      <button class="btn btn-primary" onclick="logSupportJob('refurbish')"><i class="ti ti-plus" aria-hidden="true"></i> Log Job</button>
+    </div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Refurbish Job Log</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+      <tbody id="supportLog-refurbish"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- SAND BLASTING -->
+  <div class="support-subpage" id="ssub-sandblasting">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Sand Blasting Job</div>
+      <div class="form-row cols-2">
+        <div><label>Staff Name</label><select id="sbName"><option value="">-- Select --</option></select></div>
+        <div><label>Truck</label><select id="sbTruck"><option value="">-- Select truck --</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Job Description</label><input type="text" id="sbJob" placeholder="e.g. Chassis sand blast"></div>
+        <div><label>Priority</label><select id="sbPriority"><option>Normal</option><option>Urgent</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Start Time</label><input type="time" id="sbStart"></div>
+        <div><label>End Time</label><input type="time" id="sbEnd"></div>
+      </div>
+      <button class="btn btn-primary" onclick="logSupportJob('sandblasting')"><i class="ti ti-plus" aria-hidden="true"></i> Log Job</button>
+    </div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Sand Blasting Job Log</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+      <tbody id="supportLog-sandblasting"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- WASHING -->
+  <div class="support-subpage" id="ssub-washing">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Log Truck Wash</div>
+      <div class="form-row cols-2">
+        <div><label>Truck</label><select id="washTruck"><option value="">-- Select truck --</option></select></div>
+        <div><label>Washed By</label><input type="text" id="washName" placeholder="Staff name" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Wash Type</label><select id="washType"><option>Full Wash</option><option>Quick Rinse</option><option>Interior Only</option><option>Engine Bay</option></select></div>
+        <div><label>Time</label><input type="time" id="washTime"></div>
+      </div>
+      <button class="btn btn-primary" onclick="logWash()"><i class="ti ti-droplet" aria-hidden="true"></i> Log Wash</button>
+    </div>
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Wash Log — Today</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Truck</th><th>Type</th><th>Staff</th></tr></thead>
+      <tbody id="washLog"><tr><td colspan="4" style="text-align:center;color:var(--text2);padding:16px">No washes today</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- DRIVERS -->
+  <div class="support-subpage" id="ssub-drivers">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log New Trip</div>
+      <div class="form-row cols-2">
+        <div><label>Driver</label><select id="tripDriver"><option value="">-- Select driver --</option></select></div>
+        <div><label>Vehicle</label><select id="tripVehicle"><option>Staff Bus</option><option>Pickup / Company Car</option><option>Other</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Departure Time</label><input type="time" id="tripDepart"></div>
+        <div><label>Return Time</label><input type="time" id="tripReturn" placeholder="Leave blank if ongoing"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Destination / Purpose</label><input type="text" id="tripDest" placeholder="e.g. Airport — collect Manager"></div>
+        <div><label>KMs Travelled</label><input type="number" id="tripKm" placeholder="e.g. 42" min="0"></div>
+      </div>
+      <div class="form-row"><div><label>Passengers (optional)</label><input type="text" id="tripPass" placeholder="e.g. Mr. Jai Srimannarayana"></div></div>
+      <button class="btn btn-primary" onclick="logTrip()"><i class="ti ti-plus" aria-hidden="true"></i> Log Trip</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+      <div class="stat-box"><div class="stat-label">Trips Today</div><div class="stat-val" id="tripCountToday" style="color:var(--blue)">0</div></div>
+      <div class="stat-box"><div class="stat-label">KMs Today</div><div class="stat-val" id="tripKmToday" style="color:var(--accent)">0</div></div>
+      <div class="stat-box"><div class="stat-label">Trips This Month</div><div class="stat-val" id="tripCountMonth" style="color:var(--green)">0</div></div>
+    </div>
+
+    <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Trip Log</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>Passengers</th></tr></thead>
+      <tbody id="tripLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-fleet">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
     <div>
@@ -2328,7 +2556,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -2391,7 +2619,9 @@ fbRoot.on('value', snapshot=>{
       postponeRecords: data.postponeRecords || [],
       securityAlerts: data.securityAlerts || [],
       recycleBin: data.recycleBin || [],
-      deletionLog: data.deletionLog || []
+      deletionLog: data.deletionLog || [],
+      supportJobs: data.supportJobs || [],
+      tripLog: data.tripLog || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -2485,7 +2715,9 @@ const DEFAULT_STAFF_SEED = {
   suspension: [],
   floorsupervisor: ["SAIDI MBESSI"],
   incharge: [],
-  security: []
+  security: [],
+  busdriver: ['MAULID MASOUD'],
+  pickupdriver: ['RAMADAANI A. NACHOMA']
 };
 // Human-readable labels for each section key, used in the Staff Roster UI
 const STAFF_SECTION_LABELS = {
@@ -2494,7 +2726,9 @@ const STAFF_SECTION_LABELS = {
   inspection:'Inspection', painter:'Painter', panelbeater:'Panel Beater', pneumatic:'Pneumatic',
   radiator:'Radiator', refurbish:'Refurbish / Wheel Alignment', sandblasting:'Sand Blasting',
   suspension:'Suspension', floorsupervisor:'Floor Supervisor', incharge:'Floor Incharge',
-  security:'Security Staff'
+  security:'Security Staff',
+  busdriver:'Bus Driver',
+  pickupdriver:'Pickup Driver'
 };
 // STAFF and ALL_STAFF are now LIVE references that always point at the current S.staffRoster.
 // They get reassigned every time Firebase data loads (see fbRoot.on('value', ...) below),
@@ -2537,7 +2771,7 @@ function showPage(id,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage};
+  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage};
   if(map[id])map[id]();
   checkCompletionAlertQueue();
 }
@@ -6066,8 +6300,258 @@ function exportPostponeCSV(){
 }
 
 // ═══════════════════════════════════════════════
-// DEPARTMENT LEADERBOARD
+// SUPPORT SERVICES
 // ═══════════════════════════════════════════════
+
+function showSupportSub(id,btn){
+  document.querySelectorAll('.support-subpage').forEach(el=>el.classList.remove('active'));
+  document.getElementById('ssub-'+id).classList.add('active');
+  document.querySelectorAll('#page-support .subtab').forEach(el=>el.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  refreshSupportPage();
+}
+
+function refreshSupportPage(){
+  // Populate greasing team dropdowns
+  const gStaff=(STAFF['greasing']||[]);
+  ['1','2'].forEach(t=>{
+    const sel=document.getElementById('greasingTeam'+t+'Name');
+    if(sel && sel.options.length<=1){
+      sel.innerHTML='<option value="">-- Select name --</option>'+gStaff.map(n=>`<option>${n}</option>`).join('');
+    }
+  });
+
+  // Populate truck dropdowns for all support sections
+  const inYard=S.entries.filter(e=>!e.exitTime);
+  const truckOpts='<option value="">-- Select truck --</option>'+inYard.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+  ['greasingTruck1','greasingTruck2','pbTruck','refTruck','sbTruck','washTruck'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=truckOpts;
+  });
+
+  // Panel beater / refurbish / sandblasting staff
+  const pbStaff=(STAFF['panelbeater']||[]);
+  const refStaff=(STAFF['refurbish']||[]);
+  const sbStaff=(STAFF['sandblasting']||[]);
+  const pbs=document.getElementById('pbName'); if(pbs) pbs.innerHTML='<option value="">-- Select --</option>'+pbStaff.map(n=>`<option>${n}</option>`).join('');
+  const refs=document.getElementById('refName'); if(refs) refs.innerHTML='<option value="">-- Select --</option>'+refStaff.map(n=>`<option>${n}</option>`).join('');
+  const sbs=document.getElementById('sbName'); if(sbs) sbs.innerHTML='<option value="">-- Select --</option>'+sbStaff.map(n=>`<option>${n}</option>`).join('');
+
+  // Driver dropdown
+  const driverStaff=[...(STAFF['busdriver']||[]),...(STAFF['pickupdriver']||[])];
+  const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
+
+  refreshGreasingLog();
+  refreshSupportLogs();
+  refreshTripLog();
+}
+
+// ── GREASING TIMER ──
+const _gTimers={1:null,2:null};
+const _gState={1:{active:false,startTime:null,truckId:null,elapsed:0},2:{active:false,startTime:null,truckId:null,elapsed:0}};
+const GREASING_DURATION=40*60; // 40 minutes in seconds
+
+function startGreasing(team){
+  const truckSel=document.getElementById('greasingTruck'+team);
+  const nameSel=document.getElementById('greasingTeam'+team+'Name');
+  if(!truckSel.value) return toast('⚠️ Select a truck first','warn');
+  if(!nameSel.value) return toast('⚠️ Select team member name','warn');
+
+  const entry=S.entries.find(e=>e.id==truckSel.value);
+  if(!entry) return;
+
+  _gState[team].active=true;
+  _gState[team].startTime=new Date();
+  _gState[team].truckId=truckSel.value;
+  _gState[team].truckNo=entry.truckNo;
+  _gState[team].name=nameSel.value;
+  _gState[team].elapsed=0;
+
+  document.getElementById('greasingStart'+team).value=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('greasingStartBtn'+team).style.display='none';
+  document.getElementById('greasingDoneBtn'+team).style.display='';
+
+  const circle=document.getElementById('greasingTimer'+team);
+  circle.style.borderColor=team===1?'var(--accent)':'var(--green)';
+  circle.style.background=team===1?'rgba(232,96,10,.08)':'rgba(22,163,74,.08)';
+
+  if(_gTimers[team]) clearInterval(_gTimers[team]);
+  _gTimers[team]=setInterval(()=>updateGreasingTimer(team),1000);
+  toast('▶️ Greasing started for '+entry.truckNo,'ok');
+}
+
+function updateGreasingTimer(team){
+  if(!_gState[team].active) return;
+  _gState[team].elapsed=Math.round((new Date()-_gState[team].startTime)/1000);
+  const remaining=Math.max(0,GREASING_DURATION-_gState[team].elapsed);
+  const mins=Math.floor(remaining/60); const secs=remaining%60;
+  const pad=n=>String(n).padStart(2,'0');
+  document.getElementById('greasingTimerDisplay'+team).textContent=pad(mins)+':'+pad(secs);
+  const pct=Math.min(100,(_gState[team].elapsed/GREASING_DURATION)*100);
+  document.getElementById('greasingBar'+team).style.width=pct+'%';
+  // Color changes as time progresses
+  const col=remaining<=300?'var(--red)':remaining<=600?'var(--yellow)':team===1?'var(--accent)':'var(--green)';
+  document.getElementById('greasingBar'+team).style.background=col;
+  document.getElementById('greasingTimerDisplay'+team).style.color=remaining===0?'var(--green)':col;
+  if(remaining===0){ playSecurityBeep(); toast('✅ 40 min done — '+_gState[team].truckNo+' greasing complete!','ok'); }
+}
+
+function doneGreasing(team){
+  if(!_gState[team].active) return;
+  if(_gTimers[team]){ clearInterval(_gTimers[team]); _gTimers[team]=null; }
+  const elapsed=_gState[team].elapsed;
+  const mins=Math.floor(elapsed/60); const secs=elapsed%60;
+  const durationStr=mins+'m '+(secs>0?secs+'s':'');
+  const endTime=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  // Save to supportJobs
+  if(!S.supportJobs) S.supportJobs=[];
+  S.supportJobs.push({
+    id:Date.now(), type:'greasing', team, truckNo:_gState[team].truckNo, truckId:_gState[team].truckId,
+    name:_gState[team].name, startTime:_gState[team].startTime.toISOString(),
+    endTime:new Date().toISOString(), durationSecs:elapsed, date:new Date().toDateString()
+  });
+  save();
+
+  // Reset UI
+  _gState[team].active=false;
+  document.getElementById('greasingTimerDisplay'+team).textContent='40:00';
+  document.getElementById('greasingBar'+team).style.width='0%';
+  document.getElementById('greasingStartBtn'+team).style.display='';
+  document.getElementById('greasingDoneBtn'+team).style.display='none';
+  document.getElementById('greasingStart'+team).value='';
+  const circle=document.getElementById('greasingTimer'+team);
+  circle.style.borderColor='var(--border)';
+  circle.style.background='var(--surface3)';
+  refreshGreasingLog();
+  toast('✅ Greasing complete — '+_gState[team].truckNo+' ('+durationStr+')','ok');
+}
+
+function refreshGreasingLog(){
+  const today=new Date().toDateString();
+  const jobs=(S.supportJobs||[]).filter(j=>j.type==='greasing'&&j.date===today).reverse();
+  const tb=document.getElementById('greasingLog'); if(!tb) return;
+  if(!jobs.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No greasing done today</td></tr>';return;}
+  tb.innerHTML=jobs.map(j=>{
+    const dur=Math.floor(j.durationSecs/60)+'m '+(j.durationSecs%60>0?j.durationSecs%60+'s':'');
+    return `<tr><td>${j.truckNo}</td><td>${j.name}</td>
+      <td>${new Date(j.startTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${new Date(j.endTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${dur}</td><td><span class="tag tag-green">Done</span></td></tr>`;
+  }).join('');
+}
+
+// ── GENERIC SUPPORT JOB LOG (Panel Beater, Refurbish, Sand Blasting) ──
+function logSupportJob(type){
+  const prefixes={panelbeater:'pb',refurbish:'ref',sandblasting:'sb'};
+  const p=prefixes[type];
+  const name=document.getElementById(p+'Name').value;
+  const truckSel=document.getElementById(p+'Truck');
+  const job=document.getElementById(p+'Job').value.trim().toUpperCase();
+  const priority=document.getElementById(p+'Priority').value;
+  const start=document.getElementById(p+'Start').value;
+  const end=document.getElementById(p+'End').value;
+  if(!name) return toast('⚠️ Select staff name','warn');
+  if(!truckSel.value) return toast('⚠️ Select truck','warn');
+  if(!job) return toast('⚠️ Enter job description','warn');
+  const entry=S.entries.find(e=>e.id==truckSel.value);
+  let dur='—';
+  if(start&&end){
+    const sm=parseInt(start.split(':')[0])*60+parseInt(start.split(':')[1]);
+    const em=parseInt(end.split(':')[0])*60+parseInt(end.split(':')[1]);
+    if(em>sm) dur=Math.floor((em-sm)/60)+'h '+(em-sm)%60+'m';
+  }
+  if(!S.supportJobs) S.supportJobs=[];
+  S.supportJobs.push({id:Date.now(),type,truckNo:entry?.truckNo||'—',name,job,priority,start,end,dur,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
+  save();
+  document.getElementById(p+'Job').value='';
+  document.getElementById(p+'Start').value='';
+  document.getElementById(p+'End').value='';
+  refreshSupportLogs();
+  toast('✅ Job logged for '+entry?.truckNo,'ok');
+}
+
+function refreshSupportLogs(){
+  const today=new Date().toDateString();
+  ['panelbeater','refurbish','sandblasting'].forEach(type=>{
+    const tb=document.getElementById('supportLog-'+type); if(!tb) return;
+    const jobs=(S.supportJobs||[]).filter(j=>j.type===type).reverse();
+    if(!jobs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:12px">No jobs logged yet</td></tr>';return;}
+    tb.innerHTML=jobs.map(j=>`<tr>
+      <td style="font-size:11px">${new Date(j.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
+      <td>${j.truckNo}</td><td>${j.name}</td><td>${j.job}</td>
+      <td>${j.start||'—'}</td><td>${j.end||'—'}</td><td>${j.dur||'—'}</td></tr>`).join('');
+  });
+}
+
+// ── WASHING LOG ──
+function logWash(){
+  const truck=document.getElementById('washTruck');
+  const name=document.getElementById('washName').value.trim().toUpperCase();
+  const type=document.getElementById('washType').value;
+  const time=document.getElementById('washTime').value;
+  if(!truck.value) return toast('⚠️ Select truck','warn');
+  if(!name) return toast('⚠️ Enter staff name','warn');
+  const entry=S.entries.find(e=>e.id==truck.value);
+  if(!S.supportJobs) S.supportJobs=[];
+  S.supportJobs.push({id:Date.now(),type:'washing',truckNo:entry?.truckNo||'—',name,washType:type,time,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
+  save();
+  document.getElementById('washName').value='';
+  document.getElementById('washTime').value='';
+  refreshWashLog();
+  toast('🚿 Wash logged for '+entry?.truckNo,'ok');
+}
+
+function refreshWashLog(){
+  const today=new Date().toDateString();
+  const tb=document.getElementById('washLog'); if(!tb) return;
+  const jobs=(S.supportJobs||[]).filter(j=>j.type==='washing'&&j.date===today).reverse();
+  if(!jobs.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:12px">No washes today</td></tr>';return;}
+  tb.innerHTML=jobs.map(j=>`<tr><td>${j.time||'—'}</td><td>${j.truckNo}</td><td>${j.washType}</td><td>${j.name}</td></tr>`).join('');
+}
+
+// ── DRIVER TRIP LOG ──
+function logTrip(){
+  const driver=document.getElementById('tripDriver').value;
+  const vehicle=document.getElementById('tripVehicle').value;
+  const depart=document.getElementById('tripDepart').value;
+  const ret=document.getElementById('tripReturn').value;
+  const dest=document.getElementById('tripDest').value.trim();
+  const km=parseInt(document.getElementById('tripKm').value)||0;
+  const pass=document.getElementById('tripPass').value.trim();
+  if(!driver) return toast('⚠️ Select driver','warn');
+  if(!dest) return toast('⚠️ Enter destination','warn');
+  if(!depart) return toast('⚠️ Enter departure time','warn');
+  if(!S.tripLog) S.tripLog=[];
+  S.tripLog.push({id:Date.now(),driver,vehicle,depart,return:ret,dest,km,passengers:pass,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
+  save();
+  document.getElementById('tripDest').value='';
+  document.getElementById('tripKm').value='';
+  document.getElementById('tripReturn').value='';
+  document.getElementById('tripPass').value='';
+  refreshTripLog();
+  toast('🚗 Trip logged for '+driver,'ok');
+}
+
+function refreshTripLog(){
+  const today=new Date().toDateString();
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const allTrips=(S.tripLog||[]);
+  const todayTrips=allTrips.filter(t=>t.date===today);
+  const monthTrips=allTrips.filter(t=>new Date(t.loggedAt)>=monthStart);
+  const todayKm=todayTrips.reduce((a,t)=>a+(t.km||0),0);
+  const ctEl=document.getElementById('tripCountToday'); if(ctEl) ctEl.textContent=todayTrips.length;
+  const ckEl=document.getElementById('tripKmToday'); if(ckEl) ckEl.textContent=todayKm+' km';
+  const cmEl=document.getElementById('tripCountMonth'); if(cmEl) cmEl.textContent=monthTrips.length;
+  const tb=document.getElementById('tripLog'); if(!tb) return;
+  if(!allTrips.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:12px">No trips logged yet</td></tr>';return;}
+  tb.innerHTML=[...allTrips].reverse().map(t=>`<tr>
+    <td style="font-size:11px">${new Date(t.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
+    <td>${t.driver}</td><td>${t.vehicle}</td><td>${t.dest}</td>
+    <td>${t.depart||'—'}</td><td>${t.return||'<span style="color:var(--accent)">Active</span>'}</td>
+    <td>${t.km||'—'}${t.km?' km':''}</td><td style="font-size:11px">${t.passengers||'—'}</td>
+  </tr>`).join('');
+}
 let _lbDay='today';
 
 function setLeaderboardDay(day,btn){
