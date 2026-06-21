@@ -8141,14 +8141,24 @@ function executeRosterAction(){
 
 function addStaffMember(){
   const nameInput=document.getElementById('staffNewName');
-  const name=(nameInput.value.trim()).toUpperCase();
+  const name=(nameInput.value.trim()).toUpperCase().replace(/\s+/g,' '); // collapse multiple spaces
   const section=document.getElementById('staffNewSection').value;
   if(!name) return toast('⚠️ Enter a name','warn');
+  if(name.length>40) return toast('⚠️ Name too long — max 40 characters','warn');
+
+  // Check within same section
+  if((S.staffRoster[section]||[]).includes(name))
+    return toast('⚠️ '+name+' is already in '+STAFF_SECTION_LABELS[section],'warn');
+
+  // Check across other sections
+  const existingSection=Object.entries(S.staffRoster||{}).find(([sec,members])=>sec!==section&&(members||[]).includes(name));
+
   requireManagerConfirm(
-    `Add "${name}" to ${STAFF_SECTION_LABELS[section]}?`,
+    existingSection
+      ? `⚠️ ${name} already exists in ${STAFF_SECTION_LABELS[existingSection[0]]}. Add to ${STAFF_SECTION_LABELS[section]} as well?`
+      : `Add "${name}" to ${STAFF_SECTION_LABELS[section]}?`,
     ()=>{
       if(!S.staffRoster[section]) S.staffRoster[section]=[];
-      if(S.staffRoster[section].includes(name)) return toast('⚠️ '+name+' is already in this section','warn');
       S.staffRoster[section].push(name);
       STAFF=S.staffRoster;
       ALL_STAFF=[...new Set(Object.values(STAFF).flat())].sort();
