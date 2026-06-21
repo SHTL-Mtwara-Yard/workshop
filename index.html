@@ -76,6 +76,15 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .trend-up { color:green; font-weight:bold; }
 .trend-down { color:red; font-weight:bold; }
 .trend-stable { color:#888; }
+.lb-dept { border:1px solid var(--border); border-radius:var(--radius2); overflow:hidden; }
+.lb-dept-head { padding:8px 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:6px; }
+.lb-row { display:flex; align-items:center; gap:8px; padding:7px 12px; border-top:1px solid var(--border); font-size:12px; }
+.lb-row.lb-top { background:rgba(232,96,10,.04); }
+.lb-row.lb-bottom { background:rgba(220,38,38,.04); }
+.lb-rank { font-size:13px; width:22px; text-align:center; flex-shrink:0; }
+.lb-name { flex:1; font-weight:500; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lb-stat { font-size:10px; color:var(--text2); white-space:nowrap; }
+.lb-divider { padding:4px 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; background:var(--surface3); color:var(--text3); border-top:1px solid var(--border); }
 .subnav { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .subnav::-webkit-scrollbar { display: none; }
 .subtab { padding: 8px 14px; border-radius: 20px; background: var(--surface3); border: 1px solid var(--border); color: var(--text2); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -1261,6 +1270,19 @@ tr:hover td { background: var(--surface2); }
             <div class="perf-row"><div class="perf-name text2">TEAM B</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-yellow" id="groundPerfBarB" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfB" style="color:var(--yellow)">0%</div></div>
             <div class="perf-row"><div class="perf-name text2">AVG</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarAvg" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfAvg" style="color:var(--green)">0%</div></div>
           </div>
+        </div>
+
+        <!-- LEADERBOARD -->
+        <div class="card" style="border-top:3px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div class="card-title" style="margin-bottom:0"><span class="dot" style="background:var(--accent)"></span>🏆 Department Leaderboard</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" id="lbTodayBtn" onclick="setLeaderboardDay('today',this)">Today</button>
+              <button class="btn btn-ghost btn-sm" id="lbYesterdayBtn" onclick="setLeaderboardDay('yesterday',this)">Yesterday</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:12px">📌 Not seeing your name? Start punching your jobs — your ranking builds from completed work.</div>
+          <div id="leaderboardGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
         </div>
       </div>
     </div>
@@ -4119,6 +4141,7 @@ function refreshGroundPage(){
   setPerf('groundPerfA','groundPerfBarA',perfA);
   setPerf('groundPerfB','groundPerfBarB',perfB);
   setPerf('groundPerfAvg','groundPerfBarAvg',avg);
+  refreshLeaderboard();
 }
 
 let curGroundInsId=null;
@@ -6025,8 +6048,103 @@ function exportPostponeCSV(){
 }
 
 // ═══════════════════════════════════════════════
-// PRINT FUNCTIONS
+// DEPARTMENT LEADERBOARD
 // ═══════════════════════════════════════════════
+let _lbDay='today';
+
+function setLeaderboardDay(day,btn){
+  _lbDay=day;
+  document.getElementById('lbTodayBtn').className=day==='today'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('lbYesterdayBtn').className=day==='yesterday'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
+  refreshLeaderboard();
+}
+
+function refreshLeaderboard(){
+  const grid=document.getElementById('leaderboardGrid');
+  if(!grid) return;
+  const now=new Date();
+  let targetDate;
+  if(_lbDay==='yesterday'){
+    targetDate=new Date(now); targetDate.setDate(targetDate.getDate()-1);
+  } else {
+    targetDate=now;
+  }
+  const targetStr=targetDate.toDateString();
+
+  const depts=[
+    {key:'mech',label:'⚙️ Mechanical',color:'#2563eb',bg:'#dbeafe'},
+    {key:'elec',label:'⚡ Electrician',color:'#ca8a04',bg:'#fef3c7'},
+    {key:'tyre',label:'🔵 Tyre',color:'#16a34a',bg:'#dcfce7'},
+    {key:'weld',label:'🔥 Welding',color:'#7c3aed',bg:'#ede9fe'}
+  ];
+
+  const medals=['🥇','🥈','🥉','4.','5.'];
+
+  grid.innerHTML=depts.map(dept=>{
+    // Get all staff in this dept
+    const deptStaff=(STAFF[dept.key]||[]);
+
+    // Count jobs done per person on target day
+    const stats={};
+    deptStaff.forEach(name=>{ stats[name]={jobs:0,hrs:0}; });
+
+    S.inspections.forEach(ins=>{
+      const insDate=new Date(ins.inspectedAt);
+      if(insDate.toDateString()!==targetStr) return;
+      (ins.jobs[dept.key]||[]).forEach((j,i)=>{
+        const upd=S.jobUpdates[`${ins.id}_${dept.key}_${i}`]||{};
+        const name=upd.assignedTo||j.assignedTo||null;
+        if(!name) return;
+        if(!stats[name]) stats[name]={jobs:0,hrs:0};
+        if(upd.done||j.done){
+          stats[name].jobs++;
+          if(upd.startedAt&&upd.doneAt){
+            stats[name].hrs+=Math.round((new Date(upd.doneAt)-new Date(upd.startedAt))/60000);
+          }
+        }
+      });
+    });
+
+    // Sort by jobs desc
+    const ranked=Object.entries(stats)
+      .map(([name,s])=>({name,jobs:s.jobs,hrs:s.hrs}))
+      .filter(s=>s.jobs>0||deptStaff.includes(s.name))
+      .sort((a,b)=>b.jobs-a.jobs||a.name.localeCompare(b.name));
+
+    const withJobs=ranked.filter(r=>r.jobs>0);
+    const noJobs=deptStaff.filter(n=>!withJobs.find(r=>r.name===n));
+    const maxJobs=withJobs.length?withJobs[0].jobs:1;
+
+    // Top 5
+    const top5=withJobs.slice(0,5);
+    // Bottom 5 — those with fewest jobs (or zero)
+    const allRanked=[...withJobs,...noJobs.map(n=>({name:n,jobs:0,hrs:0}))];
+    const bottom5=[...allRanked].reverse().slice(0,5).filter(r=>r.jobs===0||r.jobs<=withJobs[Math.max(0,withJobs.length-1)]?.jobs);
+
+    const topRows=top5.length?top5.map((r,i)=>`
+      <div class="lb-row lb-top">
+        <span class="lb-rank">${medals[i]||i+1}</span>
+        <span class="lb-name">${r.name.split(' ')[0]} ${(r.name.split(' ')[1]||'').charAt(0)}.</span>
+        <div class="lb-bar-wrap"><div class="progress-bar" style="height:5px"><div style="height:5px;background:${dept.color};border-radius:3px;width:${Math.round(r.jobs/maxJobs*100)}%"></div></div></div>
+        <span class="lb-stat">${r.jobs}j${r.hrs>0?' · '+(r.hrs/60).toFixed(1)+'h':''}</span>
+      </div>`).join('')
+      :`<div class="lb-row"><span style="font-size:11px;color:var(--text2);padding:4px 0">No jobs punched today</span></div>`;
+
+    const bottomRows=bottom5.length?bottom5.filter(r=>!top5.find(t=>t.name===r.name)).slice(0,5).map((r,i)=>`
+      <div class="lb-row lb-bottom">
+        <span class="lb-rank" style="color:var(--red)">↓${i+1}</span>
+        <span class="lb-name" style="color:var(--text2)">${r.name.split(' ')[0]} ${(r.name.split(' ')[1]||'').charAt(0)}.</span>
+        <span class="lb-stat" style="margin-left:auto">${r.jobs===0?'No punches':r.jobs+' job'+(r.jobs!==1?'s':'')}</span>
+      </div>`).join(''):'';
+
+    return `<div class="lb-dept">
+      <div class="lb-dept-head" style="background:${dept.bg};color:${dept.color}">${dept.label}</div>
+      <div class="lb-divider" style="color:${dept.color}">🏆 Top 5</div>
+      ${topRows}
+      ${bottomRows?`<div class="lb-divider" style="color:var(--red)">⚠️ Needs Improvement</div>${bottomRows}`:''}
+    </div>`;
+  }).join('');
+}
 
 function showPrintModal(title, html){
   document.getElementById('printModalTitle').textContent=title;
