@@ -44,7 +44,38 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .badge-pill { background: var(--red); color: #fff; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
 .conn-indicator { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 
-/* SUB NAV (Manager) */
+/* ═══ PRINT STYLES ═══ */
+@media print {
+  body { background:#fff!important; font-family:'Arial',sans-serif; font-size:11pt; color:#000; }
+  .nav-bar,.page:not(.print-active),.modal-overlay,.toast-container { display:none!important; }
+  .print-active { display:block!important; padding:0!important; max-width:100%!important; }
+  .no-print { display:none!important; }
+  .print-page { page-break-after:always; padding:20mm; }
+  .print-page:last-child { page-break-after:avoid; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { border:1px solid #999; padding:5px 8px; font-size:10pt; }
+  th { background:#f0f0f0!important; font-weight:bold; }
+}
+.print-only { display:none; }
+@media print { .print-only { display:block; } }
+
+/* Print document styles (shown in modal before printing) */
+.print-preview { font-family:'Arial',sans-serif; font-size:11pt; color:#000; background:#fff; padding:20px; }
+.print-header { text-align:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px; }
+.print-header h1 { font-size:16pt; font-weight:bold; margin:0 0 4px; }
+.print-header h2 { font-size:13pt; font-weight:600; margin:0 0 4px; }
+.print-header p { font-size:10pt; margin:2px 0; color:#444; }
+.print-table { width:100%; border-collapse:collapse; margin-bottom:16px; }
+.print-table th { background:#e8e8e8; padding:6px 8px; text-align:left; border:1px solid #aaa; font-size:10pt; font-weight:bold; }
+.print-table td { padding:5px 8px; border:1px solid #ccc; font-size:10pt; }
+.print-table tr:nth-child(even) td { background:#f9f9f9; }
+.sig-row { display:flex; gap:40px; margin-top:30px; padding-top:20px; border-top:1px solid #ccc; }
+.sig-box { flex:1; text-align:center; }
+.sig-line { border-top:1px solid #000; padding-top:6px; margin-top:30px; font-size:10pt; }
+.stars { color:#f59e0b; font-size:14pt; }
+.trend-up { color:green; font-weight:bold; }
+.trend-down { color:red; font-weight:bold; }
+.trend-stable { color:#888; }
 .subnav { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
 .subnav::-webkit-scrollbar { display: none; }
 .subtab { padding: 8px 14px; border-radius: 20px; background: var(--surface3); border: 1px solid var(--border); color: var(--text2); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -739,6 +770,20 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- ════ UNIVERSAL PRINT MODAL ════ -->
+<div class="modal-overlay" id="printModal" style="z-index:9999">
+  <div class="modal" style="max-width:800px;max-height:90vh;overflow-y:auto;padding:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1" class="no-print">
+      <div style="font-size:14px;font-weight:600" id="printModalTitle">Print Document</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="triggerPrint()"><i class="ti ti-printer" aria-hidden="true"></i> Print</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('printModal')">✕ Close</button>
+      </div>
+    </div>
+    <div id="printModalBody" style="padding:16px"></div>
+  </div>
+</div>
+
 <!-- CLOSE APPOINTMENT MODAL -->
 <div class="modal-overlay" id="closeAptModal">
   <div class="modal-box" style="max-width:400px">
@@ -1131,7 +1176,10 @@ tr:hover td { background: var(--surface2); }
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" onclick="saveSupervisorEntry()">✅ SAVE INSPECTION &amp; ALLOCATE BAY</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-block" onclick="saveSupervisorEntry()">✅ SAVE INSPECTION &amp; ALLOCATE BAY</button>
+          <button class="btn btn-ghost btn-sm" id="supPrintBtn" style="display:none" onclick="printInspectionSheet(window._lastInsId)">🖨️ Print Sheet</button>
+        </div>
       </div>
     </div>
 
@@ -1209,9 +1257,9 @@ tr:hover td { background: var(--surface2); }
         <div class="card">
           <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Team Performance — This Month</div>
           <div id="perfSection">
-            <div class="perf-row"><div class="perf-name text2">TEAM A</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" style="width:82%"></div></div></div><div class="perf-score" style="color:var(--green)">82%</div></div>
-            <div class="perf-row"><div class="perf-name text2">TEAM B</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-yellow" style="width:74%"></div></div></div><div class="perf-score" style="color:var(--yellow)">74%</div></div>
-            <div class="perf-row"><div class="perf-name text2">AVG</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" style="width:78%"></div></div></div><div class="perf-score" style="color:var(--green)">78%</div></div>
+            <div class="perf-row"><div class="perf-name text2">TEAM A</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarA" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfA" style="color:var(--green)">0%</div></div>
+            <div class="perf-row"><div class="perf-name text2">TEAM B</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-yellow" id="groundPerfBarB" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfB" style="color:var(--yellow)">0%</div></div>
+            <div class="perf-row"><div class="perf-name text2">AVG</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarAvg" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfAvg" style="color:var(--green)">0%</div></div>
           </div>
         </div>
       </div>
@@ -1389,6 +1437,14 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('mech')">🖨️ Mechanical Dept</button>
+    <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('elec')">🖨️ Electrician Dept</button>
+    <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('tyre')">🖨️ Tyre Dept</button>
+    <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('weld')">🖨️ Welding Dept</button>
+    <button class="btn btn-ghost btn-sm" onclick="printDailySummary()">🖨️ Daily Summary</button>
+  </div>
+
   <div class="subnav">
     <div class="subtab active" onclick="showSub('mgr-jobcards',this)">All Job Cards</div>
     <div class="subtab" onclick="showSub('mgr-timestamp',this)">Time Stamping (T0–T4)</div>
@@ -1427,7 +1483,7 @@ tr:hover td { background: var(--surface2); }
         <table>
           <thead><tr>
             <th>JC#</th><th>Date</th><th>Truck</th><th>Bay</th><th>Job Type</th><th>Dept</th><th>Mechanic</th><th>Fault</th><th>Source</th>
-            <th>T0 In</th><th>T1 ETD Set</th><th>T2 Start</th><th>T4 QC</th><th>Status</th><th>Part</th>
+            <th>T0 In</th><th>T1 ETD Set</th><th>T2 Start</th><th>T4 QC</th><th>Status</th><th>Part</th><th>🖨️</th>
           </tr></thead>
           <tbody id="mgrJobCardsTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No job cards yet</td></tr></tbody>
         </table>
@@ -1965,7 +2021,7 @@ tr:hover td { background: var(--surface2); }
         <span class="tag tag-red">Delayed</span>
         <span class="tag" style="background:rgba(57,211,83,.15);color:var(--teal);border:1px solid rgba(57,211,83,.3)">Ready to Leave</span>
       </div>
-      <div id="ovParkingSection" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">👆 Tap any bay to open Ground Team for that bay</div> style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">🅿️ Parking Area</div>
         <div id="ovParkingGrid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
@@ -3222,7 +3278,10 @@ function refreshSecurityPanel(){
           Driver on arrival: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
           ${remark?`<br>Supervisor: ${remark.reason}${remark.note?' — '+remark.note:''}` : ''}
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
+          <button class="btn btn-ghost btn-sm" onclick="printGatePass('${ins.id}')">🖨️ Gate Pass</button>
+        </div>
       </div>`;
     }).join('');
   } else {
@@ -3814,6 +3873,9 @@ function saveSupervisorEntry(){
   };
   S.inspections=S.inspections.filter(i=>i.entryId!==parseInt(id));
   S.inspections.push(ins);
+  window._lastInsId=ins.id;
+  const pb=document.getElementById('supPrintBtn');
+  if(pb) pb.style.display='inline-flex';
   save();
 
   // Immediately refresh everything dependent on waiting count — no lag
@@ -4017,12 +4079,46 @@ function refreshGroundPage(){
     ?['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay']
     :['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
   const sel=document.getElementById('groundBaySelect');
-  const currentVal=sel.value; // preserve selection across live updates from other users
+  const currentVal=sel.value;
   sel.innerHTML='<option value="">-- Select Bay --</option>'+bays.map(b=>`<option>${b}</option>`).join('');
   if(currentVal && bays.includes(currentVal)){
     sel.value=currentVal;
-    loadBayJobs(); // refresh job panel for the still-selected bay with latest live data
+    loadBayJobs();
   }
+
+  // Calculate real team performance from actual inspection data
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const teamABays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
+
+  function calcTeamPerf(teamBays){
+    let total=0, onTime=0;
+    S.inspections.forEach(ins=>{
+      if(!ins.t4_qcDone) return;
+      const qcDate=new Date(ins.t4_qcDone);
+      if(qcDate<monthStart) return;
+      const inTeam=teamBays.includes(ins.bayNo);
+      if(!inTeam) return;
+      total++;
+      const etd=new Date(ins.etd);
+      if(qcDate<=etd) onTime++;
+    });
+    return total>0?Math.round(onTime/total*100):0;
+  }
+
+  const teamBBays=['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
+  const perfA=calcTeamPerf(teamABays);
+  const perfB=calcTeamPerf(teamBBays);
+  const avg=Math.round((perfA+perfB)/2);
+
+  const setPerf=(id,barId,pct)=>{
+    const el=document.getElementById(id); const bar=document.getElementById(barId);
+    if(el) el.textContent=pct+'%';
+    if(bar) bar.style.width=pct+'%';
+  };
+  setPerf('groundPerfA','groundPerfBarA',perfA);
+  setPerf('groundPerfB','groundPerfBarB',perfB);
+  setPerf('groundPerfAvg','groundPerfBarAvg',avg);
 }
 
 let curGroundInsId=null;
@@ -5036,6 +5132,7 @@ function refreshMgrJobCards(){
       <td class="text-xs">${t4}</td>
       <td>${r.isDone?'<span class="tag tag-green">COMPLETE</span>':'<span class="tag tag-red">PENDING</span>'}</td>
       <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${r.ins.jobs[r.d].indexOf(r.j)})">🔩 Part N/A</button>`:'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="printJobCard('${r.ins.id}')">🖨️</button></td>
     </tr>`;
   }).join('');
 }
@@ -5459,12 +5556,12 @@ function refreshOverview(){
   const allBays=[...Array.from({length:21},(_,i)=>'Bay '+(i+1)),'Express Bay','Free Bay'];
   document.getElementById('bayMapGrid').innerHTML=allBays.map(b=>{
     const ins=actIns.find(i=>i.bayNo===b);
-    if(!ins)return `<div class="bay-cell empty"><div class="bay-no">${b.replace('Bay ','B')}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Free</div></div>`;
+    if(!ins)return `<div class="bay-cell empty" title="Tap to go to Ground Team" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Free</div></div>`;
     const e=S.entries.find(x=>x.id===ins.entryId);
     const mainD=Object.entries(ins.jobs).find(([d,j])=>j.length)?.[0]||'mech';
     const isDel=new Date(ins.etd)<now;
     const isReady = e && e.readyToLeave;
-    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
+    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
   }).join('');
 
   // No-work-required trucks
@@ -5928,8 +6025,347 @@ function exportPostponeCSV(){
 }
 
 // ═══════════════════════════════════════════════
-// DATA CONTROL — PIN, Delete, Recycle Bin, Audit
+// PRINT FUNCTIONS
 // ═══════════════════════════════════════════════
+
+function showPrintModal(title, html){
+  document.getElementById('printModalTitle').textContent=title;
+  document.getElementById('printModalBody').innerHTML=html;
+  document.getElementById('printModal').classList.add('open');
+}
+
+function triggerPrint(){
+  const body=document.getElementById('printModalBody').innerHTML;
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>SHTL Workshop Print</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11pt;color:#000;margin:0;padding:20mm}
+      h1{font-size:16pt;font-weight:bold;margin:0 0 4px}
+      h2{font-size:13pt;font-weight:600;margin:0 0 4px}
+      h3{font-size:12pt;margin:0 0 8px}
+      p{font-size:10pt;margin:2px 0;color:#444}
+      table{width:100%;border-collapse:collapse;margin-bottom:16px}
+      th{background:#e8e8e8;padding:6px 8px;text-align:left;border:1px solid #aaa;font-weight:bold;font-size:10pt}
+      td{padding:5px 8px;border:1px solid #ccc;font-size:10pt}
+      tr:nth-child(even) td{background:#f9f9f9}
+      .print-header{text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px}
+      .sig-row{display:flex;gap:40px;margin-top:30px;padding-top:20px;border-top:1px solid #ccc}
+      .sig-box{flex:1;text-align:center}
+      .sig-line{border-top:1px solid #000;padding-top:6px;margin-top:40px;font-size:10pt}
+      .stars{color:#f59e0b;font-size:14pt}
+      .trend-up{color:green;font-weight:bold}
+      .trend-down{color:red;font-weight:bold}
+      .page-break{page-break-after:always}
+      .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:9pt;font-weight:bold}
+      .badge-green{background:#dcfce7;color:#166534}
+      .badge-red{background:#fee2e2;color:#991b1b}
+      .badge-yellow{background:#fef3c7;color:#92400e}
+    </style>
+  </head><body>${body}</body></html>`);
+  win.document.close();
+  setTimeout(()=>{win.print();},400);
+}
+
+// ── 1. DEPARTMENT PERFORMANCE NOTICE BOARD ──
+function printDeptPerformance(dept){
+  const deptNames={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const deptName=deptNames[dept]||dept;
+  const now=new Date();
+  const staff=(STAFF[dept]||[]).slice().sort();
+  if(!staff.length) return toast('No staff in '+deptName+' department yet','warn');
+
+  // Calculate performance per mechanic (last 3 months)
+  const months=[];
+  for(let i=2;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push({year:d.getFullYear(),month:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'long',year:'numeric'})});
+  }
+
+  function getStaffStats(name,year,month){
+    let jobs=0,onTime=0,totalMins=0;
+    S.inspections.forEach(ins=>{
+      const insDate=new Date(ins.inspectedAt);
+      if(insDate.getFullYear()!==year||insDate.getMonth()!==month) return;
+      (ins.jobs[dept]||[]).forEach((j,i)=>{
+        const upd=S.jobUpdates[`${ins.id}_${dept}_${i}`]||{};
+        if((upd.assignedTo||j.assignedTo)===name){
+          jobs++;
+          if(upd.done||j.done){
+            const etdKey=`${ins.id}_${dept}`;
+            const etd=S.deptETDs[etdKey];
+            const doneAt=upd.doneAt||j.doneAt;
+            if(etd&&doneAt&&new Date(doneAt)<=new Date(etd)) onTime++;
+            if(upd.startedAt&&doneAt){
+              totalMins+=Math.round((new Date(doneAt)-new Date(upd.startedAt))/60000);
+            }
+          }
+        }
+      });
+    });
+    const pct=jobs>0?Math.round(onTime/jobs*100):0;
+    const hrs=totalMins>0?(totalMins/60).toFixed(1)+'h':'—';
+    const stars=pct>=90?5:pct>=75?4:pct>=60?3:pct>=45?2:1;
+    return {jobs,onTime,pct,hrs,stars};
+  }
+
+  const curMonth=months[2];
+  const staffStats=staff.map(name=>({name,stats:getStaffStats(name,curMonth.year,curMonth.month)}))
+    .sort((a,b)=>b.stats.pct-a.stats.pct||b.stats.jobs-a.stats.jobs);
+
+  const medals=['🥇','🥈','🥉'];
+  const tableRows=staffStats.map((s,i)=>`
+    <tr>
+      <td style="text-align:center;font-size:14pt">${medals[i]||i+1}</td>
+      <td style="font-weight:bold">${s.name}</td>
+      <td style="text-align:center">${s.stats.jobs}</td>
+      <td style="text-align:center">${s.stats.hrs}</td>
+      <td style="text-align:center">${s.stats.pct}%</td>
+      <td style="text-align:center"><span class="stars">${'⭐'.repeat(s.stats.stars)}</span></td>
+    </tr>`).join('');
+
+  // 3-month trend table
+  const trendRows=staffStats.slice(0,5).map(s=>{
+    const m0=getStaffStats(s.name,months[0].year,months[0].month);
+    const m1=getStaffStats(s.name,months[1].year,months[1].month);
+    const m2=getStaffStats(s.name,months[2].year,months[2].month);
+    const trend=m2.pct>m0.pct?`<span class="trend-up">↑ Improving</span>`:m2.pct<m0.pct?`<span class="trend-down">↓ Declining</span>`:`<span style="color:#888">→ Stable</span>`;
+    return `<tr><td style="font-weight:bold">${s.name}</td><td style="text-align:center">${m0.pct}%</td><td style="text-align:center">${m1.pct}%</td><td style="text-align:center">${m2.pct}%</td><td>${trend}</td></tr>`;
+  }).join('');
+
+  const avgPct=staffStats.length?Math.round(staffStats.reduce((a,s)=>a+s.stats.pct,0)/staffStats.length):0;
+
+  const html=`
+    <div class="print-header">
+      <h1>SHTL MTWARA WORKSHOP</h1>
+      <h2>${deptName.toUpperCase()} DEPARTMENT</h2>
+      <h2>PERFORMANCE REPORT — ${curMonth.label.toUpperCase()}</h2>
+      <p>Printed: ${now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})} at ${now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</p>
+    </div>
+
+    <h3>Monthly Rankings</h3>
+    <table>
+      <thead><tr><th>Rank</th><th>Name</th><th>Jobs</th><th>Hours</th><th>On-Time %</th><th>Rating</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <p><strong>Team Average: ${avgPct}% on-time</strong></p>
+
+    <h3 style="margin-top:20px">3-Month Performance Trend (Top 5)</h3>
+    <table>
+      <thead><tr><th>Name</th><th>${months[0].label}</th><th>${months[1].label}</th><th>${months[2].label}</th><th>Trend</th></tr></thead>
+      <tbody>${trendRows}</tbody>
+    </table>
+
+    <div style="margin-top:16px;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:10pt;color:#444">
+      ⭐⭐⭐⭐⭐ = 90%+ on-time &nbsp;|&nbsp; ⭐⭐⭐⭐ = 75–89% &nbsp;|&nbsp; ⭐⭐⭐ = 60–74% &nbsp;|&nbsp; ⭐⭐ = 45–59% &nbsp;|&nbsp; ⭐ = Below 45%
+    </div>
+
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line">Workshop Manager</div></div>
+      <div class="sig-box"><div class="sig-line">Date</div></div>
+    </div>`;
+
+  showPrintModal('Department Performance — '+deptName, html);
+}
+
+// ── 2. JOB CARD ──
+function printJobCard(insId){
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ins) return;
+  const e=S.entries.find(x=>x.id===ins.entryId);
+  const now=new Date();
+  const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
+  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  let jobHtml='';
+  ['mech','elec','tyre','weld'].forEach(d=>{
+    const jobs=ins.jobs[d]||[];
+    if(!jobs.length) return;
+    jobHtml+=`<tr><td colspan="4" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
+    jobs.forEach((j,i)=>{
+      const upd=S.jobUpdates[`${ins.id}_${d}_${i}`]||{};
+      const done=upd.done||j.done;
+      const mechanic=upd.assignedTo||j.assignedTo||ins.deptStaff?.[d]||'—';
+      jobHtml+=`<tr>
+        <td>${i+1}. ${j.desc}</td>
+        <td>${mechanic}</td>
+        <td style="text-align:center">${j.source||'Inspection'}</td>
+        <td style="text-align:center"><span class="badge ${done?'badge-green':'badge-red'}">${done?'DONE':'PENDING'}</span></td>
+      </tr>`;
+    });
+  });
+
+  const html=`
+    <div class="print-header">
+      <h1>SHTL MTWARA WORKSHOP</h1>
+      <h2>JOB CARD</h2>
+      <p>Printed: ${now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
+    </div>
+
+    <table>
+      <tr><td style="width:30%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:30%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
+      <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
+      <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
+      <tr><td style="font-weight:bold">Gate In (T0)</td><td>${fmtDt(e?.entryTime)}</td><td style="font-weight:bold">ETD Set (T1)</td><td>${fmtDt(ins.t1_allocated)}</td></tr>
+      <tr><td style="font-weight:bold">Work Start (T2)</td><td>${fmtDt(ins.t2_etdSet)}</td><td style="font-weight:bold">QC Done (T4)</td><td>${fmtDt(ins.t4_qcDone)}</td></tr>
+      <tr><td style="font-weight:bold">Gate Out (T5)</td><td>${fmtDt(e?.exitTime)}</td><td style="font-weight:bold">ODO on Arrival</td><td>${ins.lockedOdo?ins.lockedOdo.toLocaleString()+' km':'—'}</td></tr>
+    </table>
+
+    <h3>Jobs by Department</h3>
+    <table>
+      <thead><tr><th>Job Description</th><th>Mechanic</th><th>Source</th><th>Status</th></tr></thead>
+      <tbody>${jobHtml}</tbody>
+    </table>
+
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line">Supervisor</div></div>
+      <div class="sig-box"><div class="sig-line">Workshop Manager</div></div>
+      <div class="sig-box"><div class="sig-line">Date</div></div>
+    </div>`;
+
+  showPrintModal('Job Card — '+ins.truckNo, html);
+}
+
+// ── 3. GATE PASS ──
+function printGatePass(insId){
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ins) return;
+  const e=S.entries.find(x=>x.id===ins.entryId);
+  const now=new Date();
+  const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
+  const isDifferentDriver=e?.driverOutcome==='different';
+  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  let workSummary='';
+  ['mech','elec','tyre','weld'].forEach(d=>{
+    const jobs=ins.jobs[d]||[];
+    if(jobs.length) workSummary+=`<tr><td>${depts[d]}</td><td>${jobs.length} job${jobs.length>1?'s':''}</td><td><span class="badge badge-green">COMPLETED</span></td></tr>`;
+  });
+
+  const html=`
+    <div class="print-header">
+      <h1>SHTL MTWARA WORKSHOP</h1>
+      <h2>VEHICLE GATE PASS</h2>
+      <p>Pass No: GP-${ins.id?.toString().slice(-6)} &nbsp;|&nbsp; Date: ${now.toLocaleDateString('en-GB')}</p>
+    </div>
+
+    <table>
+      <tr><td style="width:40%;font-weight:bold">Truck Number</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td></tr>
+      <tr><td style="font-weight:bold">Arrival Driver</td><td>${ins.driverName||'—'} · ${ins.driverMobile||'—'}</td></tr>
+      ${isDifferentDriver?`<tr><td style="font-weight:bold;color:red">⚠️ Collecting Driver</td><td style="color:red;font-weight:bold">${e?.collectingDriverName||'—'} · ${e?.collectingDriverMobile||'—'} (DIFFERENT DRIVER — RECORDED)</td></tr>`:''}
+      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt(e?.entryTime)}</td></tr>
+      <tr><td style="font-weight:bold">Work Completed</td><td>${fmtDt(ins.t4_qcDone)}</td></tr>
+      <tr><td style="font-weight:bold">Supervisor Remark</td><td>${ins.supervisorRemark?.reason||'Work completed'}</td></tr>
+      <tr><td style="font-weight:bold">Verified by Security</td><td>${e?.verifiedBy||'—'}</td></tr>
+    </table>
+
+    <h3 style="margin-top:16px">Work Completed Summary</h3>
+    <table>
+      <thead><tr><th>Department</th><th>Jobs</th><th>Status</th></tr></thead>
+      <tbody>${workSummary||'<tr><td colspan="3">No work recorded</td></tr>'}</tbody>
+    </table>
+
+    ${isDifferentDriver?'<p style="color:red;font-weight:bold;margin-top:12px">⚠️ NOTE: Vehicle collected by a different driver. Manager has been notified. Record retained for audit.</p>':''}
+
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line">Supervisor</div></div>
+      <div class="sig-box"><div class="sig-line">Security Officer</div></div>
+      <div class="sig-box"><div class="sig-line">Workshop Manager</div></div>
+    </div>
+
+    <p style="text-align:center;margin-top:20px;font-size:9pt;color:#888">SHTL Mtwara Workshop Management System · ${now.toLocaleString('en-GB')}</p>`;
+
+  showPrintModal('Gate Pass — '+ins.truckNo, html);
+}
+
+// ── 4. SUPERVISOR INSPECTION SHEET ──
+function printInspectionSheet(insId){
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ins) return;
+  const e=S.entries.find(x=>x.id===ins.entryId);
+  const now=new Date();
+  const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
+  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  let jobHtml='';
+  ['mech','elec','tyre','weld'].forEach(d=>{
+    const jobs=ins.jobs[d]||[];
+    if(!jobs.length) return;
+    jobHtml+=`<tr><td colspan="3" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
+    jobs.forEach((j,i)=>{
+      jobHtml+=`<tr><td>${i+1}. ${j.desc}</td><td>${j.source||'Inspection'}</td><td style="font-size:9pt;color:#666">${j.priority||'Normal'}</td></tr>`;
+    });
+  });
+
+  const html=`
+    <div class="print-header">
+      <h1>SHTL MTWARA WORKSHOP</h1>
+      <h2>SUPERVISOR INSPECTION SHEET</h2>
+      <p>Date: ${now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
+    </div>
+    <table>
+      <tr><td style="width:35%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:25%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
+      <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
+      <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
+      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt(e?.entryTime)}</td><td style="font-weight:bold">ETD</td><td>${ins.etd?formatETD24h(ins.etd)+' '+formatETDDate(ins.etd):'—'}</td></tr>
+    </table>
+    <h3 style="margin-top:16px">Defects / Jobs Found</h3>
+    <table>
+      <thead><tr><th>Description</th><th>Source</th><th>Priority</th></tr></thead>
+      <tbody>${jobHtml||'<tr><td colspan="3">No jobs recorded</td></tr>'}</tbody>
+    </table>
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line">Supervisor</div></div>
+      <div class="sig-box"><div class="sig-line">Date &amp; Time</div></div>
+    </div>`;
+
+  showPrintModal('Inspection Sheet — '+ins.truckNo, html);
+}
+
+// ── 5. DAILY SUMMARY ──
+function printDailySummary(){
+  const now=new Date();
+  const today=now.toDateString();
+  const todayE=S.entries.filter(e=>new Date(e.entryTime).toDateString()===today);
+  const exited=todayE.filter(e=>e.exitTime);
+  const inYard=S.entries.filter(e=>!e.exitTime);
+  const actIns=S.inspections.filter(i=>inYard.find(e=>e.id===i.entryId));
+  const delayed=actIns.filter(i=>i.etd&&new Date(i.etd)<now&&!i.t4_qcDone);
+
+  let truckRows=todayE.map(e=>{
+    const ins=S.inspections.find(i=>i.entryId===e.id);
+    const fmtT=v=>v?new Date(v).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
+    const dur=e.exitTime?Math.round((new Date(e.exitTime)-new Date(e.entryTime))/60000):'In yard';
+    const durStr=typeof dur==='number'?Math.floor(dur/60)+'h '+dur%60+'m':dur;
+    const status=e.exitTime?'<span class="badge badge-green">EXITED</span>':ins?.parked?'<span class="badge badge-yellow">PARKING</span>':'<span class="badge badge-red">IN YARD</span>';
+    return `<tr><td>${e.truckNo}</td><td>${e.origin||'—'}</td><td>${fmtT(e.entryTime)}</td><td>${fmtT(e.exitTime)}</td><td>${durStr}</td><td>${status}</td></tr>`;
+  }).join('');
+
+  const html=`
+    <div class="print-header">
+      <h1>SHTL MTWARA WORKSHOP</h1>
+      <h2>DAILY SUMMARY REPORT</h2>
+      <p>${now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
+    </div>
+
+    <table style="margin-bottom:20px">
+      <tr><td style="font-weight:bold;width:40%">Total trucks today</td><td style="font-size:14pt;font-weight:bold">${todayE.length}</td></tr>
+      <tr><td style="font-weight:bold">Completed &amp; exited</td><td style="font-weight:bold;color:green">${exited.length}</td></tr>
+      <tr><td style="font-weight:bold">Still in yard</td><td style="font-weight:bold;color:#e8600a">${inYard.length}</td></tr>
+      <tr><td style="font-weight:bold">Delayed (past ETD)</td><td style="font-weight:bold;color:red">${delayed.length}</td></tr>
+    </table>
+
+    <h3>Today's Truck Movement</h3>
+    <table>
+      <thead><tr><th>Truck</th><th>Origin</th><th>Gate In</th><th>Gate Out</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody>${truckRows||'<tr><td colspan="6">No trucks today</td></tr>'}</tbody>
+    </table>
+
+    <div class="sig-row">
+      <div class="sig-box"><div class="sig-line">Workshop Manager</div></div>
+      <div class="sig-box"><div class="sig-line">Date</div></div>
+    </div>
+    <p style="text-align:center;margin-top:16px;font-size:9pt;color:#888">SHTL Mtwara Workshop Management System · Printed ${now.toLocaleString('en-GB')}</p>`;
+
+  showPrintModal('Daily Summary — '+now.toLocaleDateString('en-GB'), html);
+}
 
 const DC_PIN_HASH_KEY = 'shtl_dc_pin';
 let _dcUnlocked = false;
@@ -6833,16 +7269,19 @@ function exportAllManagerFiles(){
 // Requires typing RESET to confirm — irreversible, so this guard matters.
 function confirmResetAllData(){
   const input=document.getElementById('resetConfirmInput').value.trim();
-  if(input!=='RESET'){
-    toast('⚠️ Type RESET exactly to confirm','warn');
-    return;
-  }
-  const emptyState={ entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerLog:[], etdRevisionLog:[] };
-  S=emptyState;
+  if(input!=='RESET'){ toast('⚠️ Type RESET exactly to confirm','warn'); return; }
+  // Preserve staff roster and bay assignments — clear everything else
+  const keepRoster=JSON.parse(JSON.stringify(S.staffRoster||{}));
+  const keepBays=JSON.parse(JSON.stringify(S.bayAssignments||{}));
+  S={ entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{},
+    notifications:[], breakdowns:[], workerLog:[], etdRevisionLog:[], appointments:[],
+    workerPunches:{}, assistingWorkers:{}, pendingParts:[], falseComplaintHistory:[],
+    postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[],
+    staffRoster:keepRoster, bayAssignments:keepBays };
   save();
   document.getElementById('resetConfirmInput').value='';
   closeModal('resetDataModal');
-  toast('🗑️ All data has been reset — starting fresh','ok');
+  toast('🗑️ All data reset — staff roster and bay assignments preserved','ok');
   refreshCurrentPage();
 }
 
