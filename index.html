@@ -1768,20 +1768,11 @@ tr:hover td { background: var(--surface2); }
 
   <!-- SUB: DATA CONTROL -->
   <div class="subpage" id="sub-mgr-datacontrol">
-    <!-- PIN GATE -->
+    <!-- MANAGER WARNING -->
     <div id="dcPinGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--red)">
-      <div class="card-title"><span class="dot" style="background:var(--red)"></span>🔐 Data Control — Manager PIN Required</div>
-      <div class="text-xs text2 mb-12">Enter your 4-digit PIN to access data management. All deletions are logged permanently.</div>
-      <div id="dcPinSetupMsg" style="display:none;background:#fff3cd;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px;margin-bottom:10px;font-size:12px;color:#92400e">
-        No PIN set yet. Enter a 4-digit PIN to set it now. This will be stored securely in Firebase.
-      </div>
-      <div class="form-row" style="margin-bottom:10px">
-        <div>
-          <label>4-Digit PIN</label>
-          <input type="password" id="dcPinInput" maxlength="4" placeholder="••••" style="font-size:24px;letter-spacing:8px;text-align:center;font-family:monospace" onkeydown="if(event.key==='Enter')verifyDataPin()">
-        </div>
-      </div>
-      <button class="btn btn-primary btn-block" onclick="verifyDataPin()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Data Control</button>
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>🗄️ Data Control — Manager Access</div>
+      <div class="text-xs text2 mb-12">This area allows permanent deletion of records. All actions are logged in the Audit Trail. Only the Workshop Manager should use this area.</div>
+      <button class="btn btn-primary btn-block" onclick="unlockDataControl()"><i class="ti ti-lock-open" aria-hidden="true"></i> Enter Data Control</button>
     </div>
 
     <!-- DATA CONTROL PANEL (shown after PIN verified) -->
@@ -1802,7 +1793,7 @@ tr:hover td { background: var(--surface2); }
         <button class="btn btn-ghost btn-sm" id="dc-tab-type" onclick="showDcTab('type',this)">📋 By Type</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-audit" onclick="showDcTab('audit',this)">📜 Audit Trail</button>
-        <button class="btn btn-ghost btn-sm" id="dc-tab-pin" onclick="showDcTab('pin',this)">🔑 Change PIN</button>
+        
       </div>
 
       <!-- BY TRUCK -->
@@ -5960,15 +5951,15 @@ function dcTypeLabel(t){
 async function verifyDataPin(){
   const pin=document.getElementById('dcPinInput').value;
   if(pin.length!==4||!/^\d{4}$/.test(pin)) return toast('⚠️ PIN must be exactly 4 digits','warn');
+  // Check against Firebase-stored hash
   const hashed=hashPin(pin);
-  // Check if PIN is set in Firebase
   const snap=await fbRoot.child('_settings/dcPinHash').once('value');
   const stored=snap.val();
   if(!stored){
-    // First time — set the PIN
+    // First time setup — store the hash
     await fbRoot.child('_settings/dcPinHash').set(hashed);
-    toast('✅ PIN set successfully','ok');
     unlockDataControl();
+    toast('✅ PIN set','ok');
   } else if(stored===hashed){
     unlockDataControl();
   } else {
@@ -6193,7 +6184,7 @@ async function saveNewDataPin(){
   await fbRoot.child('_settings/dcPinHash').set(hashPin(np));
   document.getElementById('dcNewPin').value='';
   document.getElementById('dcNewPinConfirm').value='';
-  toast('✅ PIN changed successfully','ok');
+  toast('✅ PIN changed','ok');
 }
 
 function refreshFalseHistory(){
@@ -6222,11 +6213,6 @@ function exportFalseHistoryCSV(){
 }
 
 function refreshDataControl(){
-  // Check if PIN is set
-  fbRoot.child('_settings/dcPinHash').once('value').then(snap=>{
-    if(!snap.val()) document.getElementById('dcPinSetupMsg').style.display='block';
-    else document.getElementById('dcPinSetupMsg').style.display='none';
-  });
   if(!_dcUnlocked){
     document.getElementById('dcPinGate').style.display='block';
     document.getElementById('dcPanel').style.display='none';
