@@ -1887,13 +1887,7 @@ tr:hover td { background: var(--surface2); }
       <div id="dc-section-type" class="card" style="display:none">
         <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Clear Entire Record Type</div>
         <div class="text-xs text2 mb-12">⚠️ This moves ALL records of the selected type to Recycle Bin. Restorable within 7 days.</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
-          ${['entries','inspections','appointments','breakdowns','notifications','workerLog','etdRevisionLog','falseComplaintHistory','postponeRecords','securityAlerts'].map(t=>`
-          <div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:12px;font-weight:500">${dcTypeLabel(t)}</span>
-            <button class="btn btn-danger btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearByType('${t}')">Clear</button>
-          </div>`).join('')}
-        </div>
+        <div id="dcTypeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px"></div>
       </div>
 
       <!-- RECYCLE BIN -->
@@ -4182,9 +4176,22 @@ function saveSupervisorEntry(){
 
   toast('✅ Inspection saved — '+bay+' allocated','ok');
 
+  // Clear job rows
   ['mech','elec','tyre','weld'].forEach(d=>{document.getElementById('rows-'+d).innerHTML='';jobCounts[d]=0;});
+  // Clear all input/select values
   ['supTruckSelect','supOrigin','supGateIn','supFuel','supDepts','supTrailerNo','supJobType','supDriverName','supDriverMobile','supETD','supETD_hh','supETD_mm','supETD_dd','supTripKms','supBaseOdo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  // Clear display elements
+  const etdDisp=document.getElementById('supETD_display'); if(etdDisp) etdDisp.textContent='';
+  const odoBlock=document.getElementById('supOdoCalcBlock'); if(odoBlock) odoBlock.style.display='none';
+  const odoResult=document.getElementById('supOdoCalcResult'); if(odoResult) odoResult.textContent='—';
+  const odoFormula=document.getElementById('supOdoCalcFormula'); if(odoFormula) odoFormula.textContent='';
+  // Reset bay select to blank
+  const baySelEl=document.getElementById('supBaySelect'); if(baySelEl) baySelEl.value='';
+  // Clear job dept blocks and photos
+  const jdb=document.getElementById('jobDeptBlocks'); if(jdb) jdb.innerHTML='';
   resetPhotoSlots();
+  // Hide print button
+  const pb=document.getElementById('supPrintBtn'); if(pb) pb.style.display='none';
 }
 
 function refreshSupBayTable(){
@@ -7305,6 +7312,17 @@ function showDcTab(tab,btn){
   });
   if(tab==='recycle') refreshRecycleBin();
   if(tab==='audit') refreshAuditTrail();
+  if(tab==='type'){
+    const grid=document.getElementById('dcTypeGrid');
+    if(grid && !grid.children.length){
+      const types=['entries','inspections','appointments','breakdowns','notifications','workerLog','etdRevisionLog','falseComplaintHistory','postponeRecords','securityAlerts'];
+      grid.innerHTML=types.map(t=>`
+        <div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:500">${dcTypeLabel(t)}</span>
+          <button class="btn btn-danger btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearByType('${t}')">Clear</button>
+        </div>`).join('');
+    }
+  }
 }
 
 // ── MOVE TO RECYCLE BIN ──
