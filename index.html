@@ -1826,6 +1826,8 @@ tr:hover td { background: var(--surface2); }
     <div id="dcPinGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--red)">
       <div class="card-title"><span class="dot" style="background:var(--red)"></span>🗄️ Data Control — Manager Access</div>
       <div class="text-xs text2 mb-12">This area allows permanent deletion of records. All actions are logged in the Audit Trail. Only the Workshop Manager should use this area.</div>
+      <label>Manager Name</label>
+      <input type="text" id="dcNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockDataControl()"><i class="ti ti-lock-open" aria-hidden="true"></i> Enter Data Control</button>
     </div>
 
@@ -1835,7 +1837,7 @@ tr:hover td { background: var(--surface2); }
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
         <div>
           <div style="font-size:16px;font-weight:500">🗄️ Data Control</div>
-          <div class="text-xs text2">PIN verified — session active. Locked automatically after 10 minutes.</div>
+          <div class="text-xs text2">Name verified — session active. Locked automatically after 10 minutes.</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="lockDataControl()">🔒 Lock</button>
       </div>
@@ -1928,6 +1930,23 @@ tr:hover td { background: var(--surface2); }
 
   <!-- SUB: EDIT RECORDS -->
   <div class="subpage" id="sub-mgr-edit">
+    <!-- EDIT RECORDS NAME GATE -->
+    <div id="editRecordsGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Records — Manager Access</div>
+      <div class="text-xs text2 mb-12">Only the Workshop Manager can edit records. Type your full name to unlock.</div>
+      <label>Manager Name</label>
+      <input type="text" id="editRecordsNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <button class="btn btn-primary btn-block" onclick="unlockEditRecords()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit Records</button>
+    </div>
+    <!-- EDIT RECORDS PANEL -->
+    <div id="editRecordsPanel" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:16px;font-weight:500">✏️ Edit Records</div>
+          <div class="text-xs text2">Name verified — session active. Locked automatically after 10 minutes.</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="lockEditRecords()">🔒 Lock</button>
+      </div>
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Find a Truck to Edit</div>
       <div class="text-xs text2 mb-12">Search by truck number to fix mistakes in gate entry, supervisor inspection, or ground team job details. This does not delete records — only corrects them.</div>
@@ -1939,8 +1958,8 @@ tr:hover td { background: var(--surface2); }
         </div>
       </div>
     </div>
-
     <div id="editRecordPanels"></div>
+    </div>
   </div>
 
   <!-- SUB: STAFF ROSTER -->
@@ -2795,7 +2814,7 @@ function showSub(id,el){
   if(id==='mgr-false')refreshFalseHistory();
   if(id==='mgr-postpone')refreshPostponePage();
   if(id==='mgr-datacontrol')refreshDataControl();
-  if(id==='mgr-edit')refreshEditRecords();
+  if(id==='mgr-edit' && _editRecordsUnlocked) refreshEditRecords();
   if(id==='mgr-staff')refreshStaffRoster();
 }
 
@@ -7283,11 +7302,16 @@ async function verifyDataPin(){
 }
 
 function unlockDataControl(){
+  const entered=(document.getElementById('dcNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — access blocked','warn');
+    document.getElementById('dcNameInput').value='';
+    return;
+  }
   _dcUnlocked=true;
   document.getElementById('dcPinGate').style.display='none';
   document.getElementById('dcPanel').style.display='block';
-  document.getElementById('dcPinInput').value='';
-  // Auto-lock after 10 minutes
+  document.getElementById('dcNameInput').value='';
   if(_dcLockTimer) clearTimeout(_dcLockTimer);
   _dcLockTimer=setTimeout(lockDataControl, 10*60*1000);
   showDcTab('truck',document.getElementById('dc-tab-truck'));
@@ -8175,6 +8199,34 @@ function confirmResetAllData(){
 }
 
 // ═══ MANAGER: EDIT RECORDS (fix mistakes — gate entry, inspection, ground job details) ═══
+let _editRecordsUnlocked=false;
+let _editRecordsLockTimer=null;
+
+function unlockEditRecords(){
+  const entered=(document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — access blocked','warn');
+    document.getElementById('editRecordsNameInput').value='';
+    return;
+  }
+  _editRecordsUnlocked=true;
+  document.getElementById('editRecordsGate').style.display='none';
+  document.getElementById('editRecordsPanel').style.display='block';
+  document.getElementById('editRecordsNameInput').value='';
+  if(_editRecordsLockTimer) clearTimeout(_editRecordsLockTimer);
+  _editRecordsLockTimer=setTimeout(lockEditRecords, 10*60*1000);
+  refreshEditRecords();
+  toast('🔓 Edit Records unlocked — auto-locks in 10 minutes','ok');
+}
+
+function lockEditRecords(){
+  _editRecordsUnlocked=false;
+  document.getElementById('editRecordsGate').style.display='block';
+  document.getElementById('editRecordsPanel').style.display='none';
+  if(_editRecordsLockTimer){clearTimeout(_editRecordsLockTimer);_editRecordsLockTimer=null;}
+  toast('🔒 Edit Records locked','info');
+}
+
 function refreshEditRecords(){
   const sel=document.getElementById('editTruckSearch');
   const cur=sel.value;
