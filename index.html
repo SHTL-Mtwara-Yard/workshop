@@ -615,23 +615,9 @@ tr:hover td { background: var(--surface2); }
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div>
-            <label>🔢 Base / Main ODO (km)</label>
-            <input type="number" id="iat_odo" placeholder="e.g. 89678" min="0" step="1" oninput="checkAptLastVisit();calcInchargeOdo()">
-            <div style="font-size:10px;color:var(--text2);margin-top:3px">Last known ODO reading</div>
-          </div>
-          <div>
-            <label>🚗 Trip KMs since last visit</label>
-            <input type="number" id="iat_tripKms" placeholder="e.g. 567" min="0" step="1" oninput="calcInchargeOdo()">
-            <div style="font-size:10px;color:var(--text2);margin-top:3px">KMs run since workshop</div>
-          </div>
-        </div>
-        <div id="iat_odoCalcBanner" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:2px">Estimated current ODO</div>
-          <div style="font-size:20px;font-weight:700;color:#15803d;font-family:monospace" id="iat_odoCalcResult">—</div>
-          <div style="font-size:11px;color:#15803d;margin-top:2px" id="iat_odoCalcFormula"></div>
-        </div>
+        <input type="hidden" id="iat_odo">
+        <input type="hidden" id="iat_tripKms">
+        <div id="iat_odoCalcBanner" style="display:none"></div>
 
         <!-- Pending parts banner — auto-shows if this truck has unresolved pending parts from last visit -->
         <div id="iat_pendingPartsBanner" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;margin-bottom:10px">
@@ -1123,13 +1109,23 @@ tr:hover td { background: var(--surface2); }
         </div>
         <div class="form-row">
           <div>
-            <label>ETD — Hour (00–23)</label>
+            <label>ETD — Expected Time of Delivery</label>
             <input type="hidden" id="supETD">
+            <div id="supETD_display" style="font-size:22px;font-weight:700;color:#e8600a;font-family:monospace;letter-spacing:.5px;margin-bottom:6px"></div>
             <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
-              <input type="number" id="supETD_hh" min="0" max="23" placeholder="HH" style="flex:1;padding:8px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
-              <span style="font-size:20px;color:var(--text2)">:</span>
-              <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="flex:1;padding:8px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
-              <input type="date" id="supETD_dd" style="flex:1.5;padding:8px;font-size:12px" oninput="syncSupETD()">
+              <div style="flex:1">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Hour (00–23)</div>
+                <input type="number" id="supETD_hh" min="0" max="23" placeholder="HH" style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+              </div>
+              <div style="font-size:22px;color:var(--text2);padding-top:18px">:</div>
+              <div style="flex:1">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Min (00–59)</div>
+                <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+              </div>
+              <div style="flex:1.5">
+                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Date</div>
+                <input type="date" id="supETD_dd" style="width:100%;padding:9px 6px;font-size:12px" oninput="syncSupETD()">
+              </div>
             </div>
           </div>
         </div>
@@ -4934,7 +4930,13 @@ function syncSupETD(){
   if(!dd) return;
   const h=parseInt(hh)||0; const m=parseInt(mm)||0;
   const pad=n=>String(n).padStart(2,'0');
-  document.getElementById('supETD').value=`${dd}T${pad(h)}:${pad(m)}`;
+  const val=`${dd}T${pad(h)}:${pad(m)}`;
+  document.getElementById('supETD').value=val;
+  const disp=document.getElementById('supETD_display');
+  if(disp){
+    const d=new Date(val);
+    disp.textContent=`${pad(h)}:${pad(m)} · ${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}`;
+  }
 }
 
 // ─── INCHARGE ODO CALC ───
