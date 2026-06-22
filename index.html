@@ -207,7 +207,8 @@ tr:hover td { background: var(--surface2); }
 .job-section-header.elec { background: rgba(227,179,65,.15); color: var(--yellow); }
 .job-section-header.tyre { background: #dcfce7; color: var(--green); }
 .job-section-header.weld { background: #ede9fe; color: var(--purple); }
-.job-row { display: grid; grid-template-columns: 32px 1fr 100px auto; gap: 6px; padding: 7px 10px; border-top: 1px solid var(--border); align-items: center; }
+.job-row { display: grid; grid-template-columns: 28px 1fr 90px 80px auto; gap: 6px; padding: 7px 10px; border-top: 1px solid var(--border); align-items: center; }
+@media (max-width: 900px) { .job-row { grid-template-columns: 28px 1fr; gap: 6px; } .job-row select, .job-row button { margin-top: 2px; } }
 @media (max-width: 560px) {
   .job-row { grid-template-columns: 1fr; gap: 6px; }
 }
@@ -387,7 +388,8 @@ tr:hover td { background: var(--surface2); }
 @media (min-width: 700px) and (max-width: 1100px) {
   #page-supervisor .grid-2 { grid-template-columns: 1.3fr 1fr; }
   #page-supervisor .photo-slot { height: 100px; }
-  #page-supervisor .job-row { grid-template-columns: 32px 1fr 110px auto; }
+  #page-supervisor .job-row { grid-template-columns: 28px 1fr 110px 80px auto; }
+  @media (max-width: 900px) { #page-supervisor .job-row { grid-template-columns: 28px 1fr; } }
 }
 @media (max-width: 700px) {
   #page-supervisor .grid-2 { grid-template-columns: 1fr; }
@@ -3864,7 +3866,7 @@ function addJobRow(d){
   const row=document.createElement('div');
   row.className='job-row';
   row.style.gridTemplateColumns='32px 1fr 130px 100px auto';
-  row.innerHTML=`<div class="job-sno">${n}</div><input type="text" placeholder="Describe defect / job..."><select class="job-source" title="Who reported this?"><option value="driver">🗣️ Driver Complaint</option><option value="supervisor">🔍 Supervisor Found</option></select><select class="job-priority"><option>Normal</option><option>Urgent</option><option>Critical</option></select><button class="btn btn-danger btn-sm" onclick="this.closest('.job-row').remove()">✕</button>`;
+  row.innerHTML=`<div class="job-sno">${n}</div><input type="text" placeholder="Describe defect / job..." style="min-width:0;width:100%"><select class="job-source" title="Who reported this?"><option value="driver">🗣️ Driver Complaint</option><option value="supervisor">🔍 Supervisor Found</option></select><select class="job-priority"><option>Normal</option><option>Urgent</option><option>Critical</option></select><button class="btn btn-danger btn-sm" onclick="this.closest('.job-row').remove()">✕</button>`;
   c.appendChild(row);
 }
 
