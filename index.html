@@ -3469,10 +3469,10 @@ function playSecurityBeep(){
 }
 
 function refreshSecurityPanel(){
-  // Populate officer name picker
+  // Always repopulate security officer dropdown from latest STAFF data
   const sel = document.getElementById('securityOfficerName');
-  if(sel.options.length <= 1){
-    const secStaff = (STAFF['security'] || []).sort();
+  if(sel){
+    const secStaff = (STAFF['security'] || []).slice().sort();
     sel.innerHTML = '<option value="">— Select your name —</option>' +
       secStaff.map(n => `<option value="${n}" ${n===_securityOfficerName?'selected':''}>${n}</option>`).join('');
     if(_securityOfficerName) sel.value = _securityOfficerName;
