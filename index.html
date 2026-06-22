@@ -572,29 +572,31 @@ tr:hover td { background: var(--surface2); }
       <div class="card" style="border-top:3px solid #e8600a" id="inchargeFormCard">
         <div class="card-title"><span class="dot" style="background:#e8600a"></span>New Arrival Request</div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
           <div>
             <label>🚛 Truck No</label>
-            <input type="text" id="iat_truckNo" placeholder="e.g. T221 DZT" oninput="this.value=this.value.toUpperCase();checkAptLastVisit()" style="font-weight:700;font-size:15px;letter-spacing:.5px">
+            <input type="text" id="iat_truckNo" placeholder="e.g. T221 DZT" oninput="this.value=this.value.toUpperCase();checkAptLastVisit()" style="font-weight:700;font-size:18px;letter-spacing:.5px;padding:12px">
           </div>
           <div>
             <label>📅 Planned Visit</label>
             <input type="hidden" id="iat_visit">
-            <div id="iat_visit_display" style="font-size:18px;font-weight:700;color:#e8600a;font-family:monospace;margin-bottom:4px"></div>
-            <div style="display:grid;grid-template-columns:2fr auto 2fr 3fr;gap:6px;align-items:end">
-              <div>
-                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">HOUR (00–23)</div>
-                <input type="number" id="iat_visit_hh" min="0" max="23" placeholder="HH" style="padding:10px 6px;font-size:20px;font-family:monospace;font-weight:700;text-align:center;width:100%;border:2px solid var(--border);border-radius:var(--radius)" oninput="syncInchargeVisit()">
+            <div id="iat_visit_display" style="font-size:18px;font-weight:700;color:#e8600a;font-family:monospace;margin-bottom:6px"></div>
+            <!-- HH : MM row -->
+            <div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:3px">HOUR (00–23)</div>
+                <input type="number" id="iat_visit_hh" min="0" max="23" placeholder="08" style="padding:12px 4px;font-size:26px;font-family:monospace;font-weight:700;text-align:center;width:100%;border:2px solid var(--accent);border-radius:var(--radius);background:var(--surface)" oninput="syncInchargeVisit()">
               </div>
-              <div style="font-size:24px;color:var(--text2);padding-bottom:8px;text-align:center">:</div>
-              <div>
-                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">MIN (00–59)</div>
-                <input type="number" id="iat_visit_mm" min="0" max="59" step="5" placeholder="MM" style="padding:10px 6px;font-size:20px;font-family:monospace;font-weight:700;text-align:center;width:100%;border:2px solid var(--border);border-radius:var(--radius)" oninput="syncInchargeVisit()">
+              <div style="font-size:30px;color:var(--text2);padding-bottom:10px;padding-left:2px;padding-right:2px;font-weight:700">:</div>
+              <div style="flex:1">
+                <div style="font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:3px">MIN (00–59)</div>
+                <input type="number" id="iat_visit_mm" min="0" max="59" step="5" placeholder="00" style="padding:12px 4px;font-size:26px;font-family:monospace;font-weight:700;text-align:center;width:100%;border:2px solid var(--accent);border-radius:var(--radius);background:var(--surface)" oninput="syncInchargeVisit()">
               </div>
-              <div>
-                <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">DATE</div>
-                <input type="date" id="iat_visit_dd" style="padding:10px 6px;font-size:12px;width:100%;border:2px solid var(--border);border-radius:var(--radius)" oninput="syncInchargeVisit()">
-              </div>
+            </div>
+            <!-- Date row -->
+            <div>
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;font-weight:600;margin-bottom:3px">DATE</div>
+              <input type="date" id="iat_visit_dd" style="padding:10px 8px;font-size:14px;width:100%;border:2px solid var(--border);border-radius:var(--radius)" oninput="syncInchargeVisit()">
             </div>
           </div>
         </div>
@@ -2151,23 +2153,28 @@ tr:hover td { background: var(--surface2); }
         <div><label>Staff Name</label><select id="pbName"><option value="">-- Select --</option></select></div>
         <div><label>Truck</label><select id="pbTruck"><option value="">-- Select truck --</option></select></div>
       </div>
-      <div class="form-row cols-2">
+      <div class="form-row">
         <div><label>Job Description</label><input type="text" id="pbJob" placeholder="e.g. Left door dent repair"></div>
-        <div><label>Priority</label><select id="pbPriority"><option>Normal</option><option>Urgent</option></select></div>
       </div>
       <div class="form-row cols-2">
-        <div><label>Start Time (24h)</label><input type="time" id="pbStart"></div>
-        <div><label>End Time (24h)</label><input type="time" id="pbEnd"></div>
+        <div><label>Priority</label><select id="pbPriority"><option>Normal</option><option>Urgent</option></select></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary btn-block" onclick="startSupportJob('panelbeater')">▶️ Start Job</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="logSupportJob('panelbeater')"><i class="ti ti-plus" aria-hidden="true"></i> Log Job</button>
+      <div id="pbActiveJob" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏱️ Job in progress</div>
+        <div style="font-size:14px;font-weight:700" id="pbActiveJobInfo"></div>
+        <button class="btn btn-success btn-block" style="margin-top:10px" onclick="endSupportJob('panelbeater')">✅ Mark Done — End Job</button>
+      </div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>Panel Beater Job Log</div>
         <button class="btn btn-ghost btn-sm" onclick="downloadSupportLog('panelbeater')">⬇️ Download CSV</button>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
-      <tbody id="supportLog-panelbeater"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="supportLog-panelbeater"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -2224,23 +2231,28 @@ tr:hover td { background: var(--surface2); }
         <div><label>Staff Name</label><select id="sbName"><option value="">-- Select --</option></select></div>
         <div><label>Truck</label><select id="sbTruck"><option value="">-- Select truck --</option></select></div>
       </div>
-      <div class="form-row cols-2">
+      <div class="form-row">
         <div><label>Job Description</label><input type="text" id="sbJob" placeholder="e.g. Chassis sand blast"></div>
-        <div><label>Priority</label><select id="sbPriority"><option>Normal</option><option>Urgent</option></select></div>
       </div>
       <div class="form-row cols-2">
-        <div><label>Start Time</label><input type="time" id="sbStart"></div>
-        <div><label>End Time</label><input type="time" id="sbEnd"></div>
+        <div><label>Priority</label><select id="sbPriority"><option>Normal</option><option>Urgent</option></select></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary btn-block" onclick="startSupportJob('sandblasting')">▶️ Start Job</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="logSupportJob('sandblasting')"><i class="ti ti-plus" aria-hidden="true"></i> Log Job</button>
+      <div id="sbActiveJob" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏱️ Job in progress</div>
+        <div style="font-size:14px;font-weight:700" id="sbActiveJobInfo"></div>
+        <button class="btn btn-success btn-block" style="margin-top:10px" onclick="endSupportJob('sandblasting')">✅ Mark Done — End Job</button>
+      </div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>Sand Blasting Job Log</div>
         <button class="btn btn-ghost btn-sm" onclick="downloadSupportLog('sandblasting')">⬇️ Download CSV</button>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
-      <tbody id="supportLog-sandblasting"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="supportLog-sandblasting"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -2254,17 +2266,23 @@ tr:hover td { background: var(--surface2); }
       </div>
       <div class="form-row cols-2">
         <div><label>Wash Type</label><select id="washType"><option>Full Wash</option><option>Quick Rinse</option><option>Interior Only</option><option>Engine Bay</option></select></div>
-        <div><label>Time</label><input type="time" id="washTime"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary btn-block" onclick="startSupportJob('washing')">▶️ Start Wash</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="logWash()"><i class="ti ti-droplet" aria-hidden="true"></i> Log Wash</button>
+      <div id="washActiveJob" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏱️ Wash in progress</div>
+        <div style="font-size:14px;font-weight:700" id="washActiveJobInfo"></div>
+        <button class="btn btn-success btn-block" style="margin-top:10px" onclick="endSupportJob('washing')">✅ Mark Done — Wash Complete</button>
+      </div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>Wash Log — Today</div>
         <button class="btn btn-ghost btn-sm" onclick="downloadSupportLog('washing')">⬇️ Download CSV</button>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Truck</th><th>Type</th><th>Staff</th></tr></thead>
-      <tbody id="washLog"><tr><td colspan="4" style="text-align:center;color:var(--text2);padding:16px">No washes today</td></tr></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Type</th><th>Staff</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="washLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No washes today</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -6386,6 +6404,23 @@ function refreshSupportPage(){
   refreshGreasingLog();
   refreshSupportLogs();
   refreshTripLog();
+
+  // Restore active job banners for in-progress jobs (survives page reload)
+  ['panelbeater','sandblasting','washing'].forEach(type=>{
+    const prefixes={panelbeater:'pb',sandblasting:'sb',washing:'wash'};
+    const p=prefixes[type];
+    const activeJob=(S.supportJobs||[]).slice().reverse().find(j=>j.type===type&&j.status==='in_progress');
+    const banner=document.getElementById(p+'ActiveJob');
+    const info=document.getElementById(p+'ActiveJobInfo');
+    if(activeJob && banner){
+      _activeSupportJob[type]=activeJob.id;
+      banner.style.display='block';
+      const startT=new Date(activeJob.startTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+      if(info) info.textContent=activeJob.truckNo+' · '+activeJob.name+' · Started '+startT+(activeJob.job?' · '+activeJob.job:'');
+    } else if(banner){
+      banner.style.display='none';
+    }
+  });
 }
 
 // ── GREASING TIMER ──
@@ -6484,34 +6519,79 @@ function refreshGreasingLog(){
 }
 
 // ── GENERIC SUPPORT JOB LOG (Panel Beater, Refurbish, Sand Blasting) ──
-function logSupportJob(type){
-  const prefixes={panelbeater:'pb',refurbish:'ref',sandblasting:'sb'};
+// ── Active support job state (in-memory, per tab) ──
+const _activeSupportJob={panelbeater:null, sandblasting:null, washing:null};
+
+function startSupportJob(type){
+  const prefixes={panelbeater:'pb',sandblasting:'sb',washing:'wash'};
   const p=prefixes[type];
-  const name=document.getElementById(p+'Name').value;
-  const truckSel=document.getElementById(p+'Truck');
-  const job=document.getElementById(p+'Job').value.trim().toUpperCase();
-  const priority=document.getElementById(p+'Priority').value;
-  const start=document.getElementById(p+'Start').value;
-  const end=document.getElementById(p+'End').value;
-  if(!name) return toast('⚠️ Select staff name','warn');
+  const nameEl=document.getElementById(p+'Name')||document.getElementById(p.replace('wash','wash')+'Name');
+  const name=(type==='washing')?document.getElementById('washName').value.trim():document.getElementById(p+'Name').value;
+  const truckSel=(type==='washing')?document.getElementById('washTruck'):document.getElementById(p+'Truck');
+  const job=(type==='washing')?document.getElementById('washType').value:document.getElementById(p+'Job').value.trim().toUpperCase();
+  const priority=(type==='washing')?'Normal':document.getElementById(p+'Priority').value;
+
+  if(!name||(type!=='washing'&&!name)) return toast('⚠️ Enter/select staff name','warn');
   if(!truckSel.value) return toast('⚠️ Select truck','warn');
-  if(!job) return toast('⚠️ Enter job description','warn');
+  if(type!=='washing'&&!job) return toast('⚠️ Enter job description','warn');
+
   const entry=S.entries.find(e=>e.id==truckSel.value);
-  let dur='—';
-  if(start&&end){
-    const sm=parseInt(start.split(':')[0])*60+parseInt(start.split(':')[1]);
-    const em=parseInt(end.split(':')[0])*60+parseInt(end.split(':')[1]);
-    if(em>sm) dur=Math.floor((em-sm)/60)+'h '+(em-sm)%60+'m';
-  }
+  const startISO=new Date().toISOString();
+  const startTime=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  // Save to Firebase as in-progress job
   if(!S.supportJobs) S.supportJobs=[];
-  S.supportJobs.push({id:Date.now(),type,truckNo:entry?.truckNo||'—',name,job,priority,start,end,dur,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
+  const jobObj={id:Date.now(),type,truckNo:entry?.truckNo||'—',name,job,priority,
+    startTime:startISO,endTime:null,durationSecs:null,dur:'—',
+    status:'in_progress',date:new Date().toDateString(),loggedAt:startISO};
+  S.supportJobs.push(jobObj);
   save();
-  document.getElementById(p+'Job').value='';
-  document.getElementById(p+'Start').value='';
-  document.getElementById(p+'End').value='';
+
+  _activeSupportJob[type]=jobObj.id;
+
+  // Show active banner
+  const banner=document.getElementById((type==='washing'?'wash':p)+'ActiveJob')||document.getElementById(type==='washing'?'washActiveJob':p+'ActiveJob');
+  const info=document.getElementById((type==='washing'?'wash':p)+'ActiveJobInfo')||document.getElementById(type==='washing'?'washActiveJobInfo':p+'ActiveJobInfo');
+  if(banner) banner.style.display='block';
+  if(info) info.textContent=entry?.truckNo+' · '+name+' · Started '+startTime+(job?' · '+job:'');
+
   refreshSupportLogs();
-  toast('✅ Job logged for '+entry?.truckNo,'ok');
+  toast('▶️ Job started — '+entry?.truckNo,'ok');
 }
+
+function endSupportJob(type){
+  const activeId=_activeSupportJob[type];
+  // Also try finding latest in-progress from S.supportJobs if page was refreshed
+  const job=(S.supportJobs||[]).find(j=>j.id==activeId && j.status==='in_progress')
+    || (S.supportJobs||[]).slice().reverse().find(j=>j.type===type && j.status==='in_progress');
+  if(!job) return toast('⚠️ No active job found','warn');
+
+  const endISO=new Date().toISOString();
+  const secs=Math.round((new Date(endISO)-new Date(job.startTime))/1000);
+  const mins=Math.floor(secs/60); const remSecs=secs%60;
+  job.endTime=endISO;
+  job.durationSecs=secs;
+  job.dur=mins+'m'+(remSecs>0?' '+remSecs+'s':'');
+  job.status='done';
+  save();
+
+  _activeSupportJob[type]=null;
+
+  // Hide active banner
+  const prefixes={panelbeater:'pb',sandblasting:'sb',washing:'wash'};
+  const p=prefixes[type];
+  const banner=document.getElementById(p+'ActiveJob')||(type==='washing'?document.getElementById('washActiveJob'):null);
+  if(banner) banner.style.display='none';
+
+  refreshSupportLogs();
+  toast('✅ Job done — '+job.truckNo+' ('+job.dur+')','ok');
+}
+
+function logSupportJob(type){
+  // Legacy function kept for compatibility — now just calls startSupportJob
+  startSupportJob(type);
+}
+
 
 function logRefurbishJob(){
   const name=document.getElementById('refName').value;
@@ -6604,16 +6684,58 @@ function refreshSupportLogs(){
       }).join('');
     }
   }
-  // Panel Beater, Sand Blasting
-  ['panelbeater','sandblasting'].forEach(type=>{
-    const tb=document.getElementById('supportLog-'+type); if(!tb) return;
+  // Panel Beater, Sand Blasting, Washing
+  ['panelbeater','sandblasting','washing'].forEach(type=>{
+    const tbId=type==='washing'?'washLog':'supportLog-'+type;
+    const tb=document.getElementById(tbId); if(!tb) return;
     const jobs=(S.supportJobs||[]).filter(j=>j.type===type).reverse();
-    if(!jobs.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:12px">No jobs logged yet</td></tr>';return;}
-    tb.innerHTML=jobs.map(j=>`<tr>
-      <td style="font-size:11px">${new Date(j.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
-      <td>${j.truckNo}</td><td>${j.name}</td><td>${j.job}</td>
-      <td>${j.start||'—'}</td><td>${j.end||'—'}</td><td>${j.dur||'—'}</td></tr>`).join('');
+    const cols=type==='washing'?8:8;
+    if(!jobs.length){tb.innerHTML=`<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:12px">No jobs logged yet</td></tr>`;return;}
+    const fmtT=iso=>iso?new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
+    const fmtD=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{dateStyle:'short'}):'—';
+    tb.innerHTML=jobs.map(j=>{
+      const statusTag=j.status==='done'
+        ?'<span class="tag tag-green">✅ Done</span>'
+        :'<span class="tag" style="background:#fff7ed;color:#c2410c;border:1px solid #fdba74">⏱️ In Progress</span>';
+      const endBtn=j.status!=='done'
+        ?`<button class="btn btn-success btn-sm" style="font-size:11px;padding:4px 8px;margin-left:4px" onclick="endSupportJobById(${j.id},'${type}')">✅ End</button>`
+        :'';
+      if(type==='washing'){
+        return `<tr>
+          <td style="font-size:11px">${fmtD(j.loggedAt)}</td>
+          <td style="font-weight:700">${j.truckNo}</td>
+          <td>${j.job||j.washType||'—'}</td><td>${j.name}</td>
+          <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${j.dur||'—'}</td>
+          <td>${statusTag}${endBtn}</td></tr>`;
+      }
+      return `<tr>
+        <td style="font-size:11px">${fmtD(j.loggedAt)}</td>
+        <td style="font-weight:700">${j.truckNo}</td><td>${j.name}</td><td>${j.job||'—'}</td>
+        <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${j.dur||'—'}</td>
+        <td>${statusTag}${endBtn}</td></tr>`;
+    }).join('');
   });
+}
+
+function endSupportJobById(id,type){
+  const job=(S.supportJobs||[]).find(j=>j.id==id);
+  if(!job||job.status==='done') return toast('Job already done','warn');
+  const endISO=new Date().toISOString();
+  const secs=Math.round((new Date(endISO)-new Date(job.startTime))/1000);
+  const mins=Math.floor(secs/60); const remSecs=secs%60;
+  job.endTime=endISO;
+  job.durationSecs=secs;
+  job.dur=mins+'m'+(remSecs>0?' '+remSecs+'s':'');
+  job.status='done';
+  save();
+  // Hide active banner if still visible
+  const prefixes={panelbeater:'pb',sandblasting:'sb',washing:'wash'};
+  const p=prefixes[type];
+  const banner=document.getElementById(p+'ActiveJob');
+  if(banner) banner.style.display='none';
+  _activeSupportJob[type]=null;
+  refreshSupportLogs();
+  toast('✅ Job done — '+job.truckNo+' ('+job.dur+')','ok');
 }
 
 function updateRefurbishStatus(id){
@@ -6628,30 +6750,10 @@ function updateRefurbishStatus(id){
 }
 
 // ── WASHING LOG ──
-function logWash(){
-  const truck=document.getElementById('washTruck');
-  const name=document.getElementById('washName').value.trim().toUpperCase();
-  const type=document.getElementById('washType').value;
-  const time=document.getElementById('washTime').value;
-  if(!truck.value) return toast('⚠️ Select truck','warn');
-  if(!name) return toast('⚠️ Enter staff name','warn');
-  const entry=S.entries.find(e=>e.id==truck.value);
-  if(!S.supportJobs) S.supportJobs=[];
-  S.supportJobs.push({id:Date.now(),type:'washing',truckNo:entry?.truckNo||'—',name,washType:type,time,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
-  save();
-  document.getElementById('washName').value='';
-  document.getElementById('washTime').value='';
-  refreshWashLog();
-  toast('🚿 Wash logged for '+entry?.truckNo,'ok');
-}
+function logWash(){ startSupportJob('washing'); } // redirects to new start/end system
 
-function refreshWashLog(){
-  const today=new Date().toDateString();
-  const tb=document.getElementById('washLog'); if(!tb) return;
-  const jobs=(S.supportJobs||[]).filter(j=>j.type==='washing'&&j.date===today).reverse();
-  if(!jobs.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:12px">No washes today</td></tr>';return;}
-  tb.innerHTML=jobs.map(j=>`<tr><td>${j.time||'—'}</td><td>${j.truckNo}</td><td>${j.washType}</td><td>${j.name}</td></tr>`).join('');
-}
+function refreshWashLog(){ refreshSupportLogs(); } // unified refresh
+
 
 // ── DRIVER TRIP LOG ──
 function logTrip(){
