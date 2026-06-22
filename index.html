@@ -524,6 +524,7 @@ tr:hover td { background: var(--surface2); }
   <div class="nav-tab" onclick="showPage('manager',this)">🗂 Manager</div>
   <div class="nav-tab" onclick="showPage('overview',this)">📊 Overview</div>
   <div class="nav-tab" onclick="showPage('support',this)">🛠️ Support</div>
+  <div class="nav-tab" onclick="showPage('stores',this)">🏪 Stores</div>
   <div class="nav-tab" onclick="showPage('fleet',this)">🚚 Fleet</div>
   <div class="nav-right">
     <span class="conn-indicator" id="connIndicator">🟡 Connecting...</span>
@@ -2372,6 +2373,117 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<div class="page" id="page-stores">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <div>
+      <div class="page-title">🏪 Stores — Spare Parts</div>
+      <div class="page-sub">Requests from Supervisor · Issue tracking · Old part collection</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="storesPendingBadge" style="display:none;background:var(--red);color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700"></span>
+      <button class="btn btn-ghost btn-sm" onclick="exportStoresCSV()">📥 Export CSV</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <button class="subtab active" id="stab-pending" onclick="showStoresTab('pending',this)">⏳ Pending Requests</button>
+    <button class="subtab" id="stab-ready" onclick="showStoresTab('ready',this)">✅ Ready to Issue</button>
+    <button class="subtab" id="stab-issued" onclick="showStoresTab('issued',this)">📦 Issued Log</button>
+    <button class="subtab" id="stab-raise" onclick="showStoresTab('raise',this)" style="color:var(--accent)">➕ Raise Request</button>
+  </div>
+
+  <!-- PENDING REQUESTS -->
+  <div id="stores-pending">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>Pending Spare Part Requests</div>
+      <div class="text-xs text2 mb-12">Requests raised by Supervisor. Prepare the part and click "Mark Ready" when available at counter.</div>
+      <div id="storesPendingList"><div class="alert alert-info">No pending requests.</div></div>
+    </div>
+  </div>
+
+  <!-- READY TO ISSUE -->
+  <div id="stores-ready" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>Ready to Issue</div>
+      <div class="text-xs text2 mb-12">Parts prepared and waiting at counter. When mechanic arrives with old part — click "Issue + Collect Old Part".</div>
+      <div id="storesReadyList"><div class="alert alert-info">No parts ready yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ISSUED LOG -->
+  <div id="stores-issued" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>Issued Parts Log</div>
+        <button class="btn btn-ghost btn-sm" onclick="exportStoresCSV()">⬇️ Download CSV</button>
+      </div>
+      <input type="text" id="storesIssuedSearch" placeholder="Search truck / part..." oninput="refreshStoresPage()" style="margin-bottom:10px">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Truck</th><th>Bay</th><th>Dept</th><th>Part</th><th>Qty</th><th>Requested</th><th>Issued</th><th>Duration</th><th>Old Part</th><th>Issued By</th></tr></thead>
+        <tbody id="storesIssuedLog"><tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- RAISE REQUEST (Supervisor can also raise from here) -->
+  <div id="stores-raise" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>➕ Raise Spare Part Request</div>
+      <div class="text-xs text2 mb-12">Supervisor raises request here. Store team will be notified instantly.</div>
+      <div class="form-row cols-2">
+        <div><label>🚛 Truck No</label>
+          <select id="storesReqTruck">
+            <option value="">-- Select active truck --</option>
+          </select>
+        </div>
+        <div><label>🔧 Department</label>
+          <select id="storesReqDept">
+            <option value="">-- Select --</option>
+            <option>Mechanical</option>
+            <option>Electrician</option>
+            <option>Tyre</option>
+            <option>Welding</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>🔩 Part Name</label>
+          <input type="text" id="storesReqPart" placeholder="e.g. Brake Pads Front" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div><label>🔢 Quantity</label>
+          <input type="number" id="storesReqQty" min="1" value="1" style="font-size:16px;font-weight:700">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>📋 Part Number <span style="font-size:10px;color:var(--text2)">(optional)</span></label>
+          <input type="text" id="storesReqPartNo" placeholder="e.g. BP-4421" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div><label>⚠️ Priority</label>
+          <select id="storesReqPriority">
+            <option>Normal</option>
+            <option>Urgent</option>
+            <option>Critical — truck cannot move</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>📝 Notes</label>
+          <input type="text" id="storesReqNotes" placeholder="e.g. Left side only, need OEM not copy">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>👤 Requested By</label>
+          <input type="text" id="storesReqBy" placeholder="Supervisor name" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary btn-block" onclick="raiseSpareRequest()">📤 Submit Request to Stores</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-fleet">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
     <div>
@@ -2663,7 +2775,7 @@ tr:hover td { background: var(--surface2); }
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[] };
+let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[] };
 let _fbReady=false;
 let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -2728,7 +2840,8 @@ fbRoot.on('value', snapshot=>{
       recycleBin: data.recycleBin || [],
       deletionLog: data.deletionLog || [],
       supportJobs: data.supportJobs || [],
-      tripLog: data.tripLog || []
+      tripLog: data.tripLog || [],
+      spareRequests: data.spareRequests || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -2878,7 +2991,7 @@ function showPage(id,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
-  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage};
+  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage};
   if(map[id])map[id]();
   checkCompletionAlertQueue();
 }
@@ -6963,7 +7076,229 @@ function logTrip(){
   toast('🚗 Trip logged for '+driver,'ok');
 }
 
-// ── SUPPORT EDIT (Manager protected) ──
+// ══════════════════════════════════════════
+// 🏪 STORES — SPARE PARTS SYSTEM
+// ══════════════════════════════════════════
+
+function showStoresTab(tab, btn){
+  ['pending','ready','issued','raise'].forEach(t=>{
+    document.getElementById('stores-'+t).style.display=t===tab?'block':'none';
+    const b=document.getElementById('stab-'+t);
+    if(b){b.classList.toggle('active',t===tab);}
+  });
+  refreshStoresPage();
+}
+
+function refreshStoresPage(){
+  if(!S.spareRequests) S.spareRequests=[];
+  const pending=S.spareRequests.filter(r=>r.status==='pending');
+  const ready=S.spareRequests.filter(r=>r.status==='ready');
+
+  // Badge
+  const badge=document.getElementById('storesPendingBadge');
+  if(badge){
+    if(pending.length){badge.style.display='inline-block';badge.textContent=pending.length+' pending';}
+    else badge.style.display='none';
+  }
+
+  // Populate truck dropdown
+  const truckSel=document.getElementById('storesReqTruck');
+  if(truckSel){
+    const active=S.inspections.filter(i=>{const e=S.entries.find(x=>x.id===i.entryId);return e&&!e.exitTime&&!i.parked;});
+    truckSel.innerHTML='<option value="">-- Select active truck --</option>'+active.map(i=>`<option value="${i.id}">${i.truckNo} — ${i.bayNo}</option>`).join('');
+  }
+
+  // Pending list
+  const pList=document.getElementById('storesPendingList');
+  if(pList){
+    if(!pending.length){pList.innerHTML='<div class="alert alert-info">No pending requests.</div>';}
+    else{
+      pList.innerHTML=pending.map(r=>`
+        <div class="card" style="margin-bottom:10px;border-left:4px solid ${r.priority==='Critical — truck cannot move'?'var(--red)':r.priority==='Urgent'?'var(--yellow)':'var(--border)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <div>
+              <span style="font-size:16px;font-weight:700">${r.truckNo}</span>
+              <span class="tag tag-blue" style="margin-left:6px">${r.bayNo||'—'}</span>
+              <span class="tag" style="margin-left:4px;background:rgba(88,166,255,.1);color:var(--blue)">${r.dept}</span>
+            </div>
+            <span class="tag ${r.priority==='Critical — truck cannot move'?'tag-red':r.priority==='Urgent'?'tag-yellow':'tag-green'}">${r.priority}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">🔩 ${r.partName} ${r.partNo?'('+r.partNo+')':''} × ${r.qty}</div>
+          ${r.notes?`<div class="text-xs text2 mb-8">📝 ${r.notes}</div>`:''}
+          <div class="text-xs text2 mb-10">Requested by <strong>${r.requestedBy}</strong> at ${new Date(r.requestedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success btn-sm" onclick="markSpareReady('${r.id}')">✅ Mark Ready — Part Prepared</button>
+            <button class="btn btn-ghost btn-sm" onclick="cancelSpareRequest('${r.id}')">✕ Cancel</button>
+          </div>
+        </div>`).join('');
+    }
+  }
+
+  // Ready list
+  const rList=document.getElementById('storesReadyList');
+  if(rList){
+    if(!ready.length){rList.innerHTML='<div class="alert alert-info">No parts ready yet.</div>';}
+    else{
+      rList.innerHTML=ready.map(r=>`
+        <div class="card" style="margin-bottom:10px;border-left:4px solid var(--green)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <div>
+              <span style="font-size:16px;font-weight:700">${r.truckNo}</span>
+              <span class="tag tag-blue" style="margin-left:6px">${r.bayNo||'—'}</span>
+              <span class="tag tag-green" style="margin-left:4px">✅ READY</span>
+            </div>
+            <span class="text-xs text2">Ready since ${new Date(r.readyAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">🔩 ${r.partName} ${r.partNo?'('+r.partNo+')':''} × ${r.qty}</div>
+          <div style="margin-bottom:8px">
+            <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Old Part Condition</label>
+            <select id="oldpart-${r.id}" style="width:100%;margin-top:4px">
+              <option value="">-- Select condition --</option>
+              <option>Worn out — normal use</option>
+              <option>Broken / damaged</option>
+              <option>Seized / corroded</option>
+              <option>Leaking</option>
+              <option>No old part — new fitment</option>
+            </select>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Issued By (Store Staff)</label>
+            <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="this.value=this.value.toUpperCase()" style="margin-top:4px">
+          </div>
+          <button class="btn btn-primary btn-block" onclick="issueSpare('${r.id}')">📦 Issue Part + Old Part Received</button>
+        </div>`).join('');
+    }
+  }
+
+  // Issued log
+  const iLog=document.getElementById('storesIssuedLog');
+  if(iLog){
+    const search=(document.getElementById('storesIssuedSearch')?.value||'').trim().toUpperCase();
+    let issued=S.spareRequests.filter(r=>r.status==='issued').reverse();
+    if(search) issued=issued.filter(r=>r.truckNo.includes(search)||r.partName.includes(search));
+    if(!issued.length){iLog.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr>';}
+    else{
+      iLog.innerHTML=issued.map(r=>{
+        const reqT=new Date(r.requestedAt);
+        const issT=new Date(r.issuedAt);
+        const durMins=Math.round((issT-reqT)/60000);
+        const dur=durMins<60?durMins+'m':Math.floor(durMins/60)+'h '+durMins%60+'m';
+        return `<tr>
+          <td style="font-size:11px">${reqT.toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
+          <td style="font-weight:700">${r.truckNo}</td>
+          <td>${r.bayNo||'—'}</td>
+          <td>${r.dept}</td>
+          <td>${r.partName}${r.partNo?' ('+r.partNo+')':''}</td>
+          <td>${r.qty}</td>
+          <td>${reqT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
+          <td>${issT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
+          <td style="font-weight:700;color:var(--green)">${dur}</td>
+          <td style="font-size:11px">${r.oldPartCondition||'—'}</td>
+          <td>${r.issuedBy||'—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+}
+
+function raiseSpareRequest(){
+  const truckSel=document.getElementById('storesReqTruck');
+  const dept=document.getElementById('storesReqDept').value;
+  const part=document.getElementById('storesReqPart').value.trim().toUpperCase();
+  const qty=parseInt(document.getElementById('storesReqQty').value)||1;
+  const partNo=document.getElementById('storesReqPartNo').value.trim().toUpperCase();
+  const priority=document.getElementById('storesReqPriority').value;
+  const notes=document.getElementById('storesReqNotes').value.trim();
+  const reqBy=document.getElementById('storesReqBy').value.trim().toUpperCase();
+  if(!truckSel.value) return toast('⚠️ Select truck','warn');
+  if(!dept) return toast('⚠️ Select department','warn');
+  if(!part) return toast('⚠️ Enter part name','warn');
+  if(!reqBy) return toast('⚠️ Enter your name','warn');
+  const ins=S.inspections.find(i=>i.id==truckSel.value);
+  if(!S.spareRequests) S.spareRequests=[];
+  S.spareRequests.push({
+    id:Date.now(), truckNo:ins?.truckNo||'—', bayNo:ins?.bayNo||'—',
+    dept, partName:part, partNo, qty, priority, notes,
+    requestedBy:reqBy, requestedAt:new Date().toISOString(),
+    status:'pending'
+  });
+  save();
+  // Clear form
+  document.getElementById('storesReqPart').value='';
+  document.getElementById('storesReqPartNo').value='';
+  document.getElementById('storesReqNotes').value='';
+  document.getElementById('storesReqQty').value='1';
+  document.getElementById('storesReqBy').value='';
+  document.getElementById('storesReqDept').value='';
+  truckSel.value='';
+  refreshStoresPage();
+  showStoresTab('pending',document.getElementById('stab-pending'));
+  toast('📤 Request sent to Stores — '+ins?.truckNo,'ok');
+}
+
+function markSpareReady(id){
+  const req=(S.spareRequests||[]).find(r=>r.id==id);
+  if(!req) return;
+  req.status='ready';
+  req.readyAt=new Date().toISOString();
+  save();
+  refreshStoresPage();
+  // Announce on speaker
+  const msg=`Attention. Spare part ready for ${req.truckNo}. Bay ${req.bayNo}. ${req.partName}. Please collect from store.`;
+  speakAnnouncement(msg);
+  toast('✅ Part marked ready — announcement sent 🔊','ok');
+}
+
+function issueSpare(id){
+  const req=(S.spareRequests||[]).find(r=>r.id==id);
+  if(!req) return;
+  const oldPart=document.getElementById('oldpart-'+id)?.value;
+  const issuedBy=document.getElementById('issuedby-'+id)?.value.trim().toUpperCase();
+  if(!oldPart) return toast('⚠️ Select old part condition','warn');
+  if(!issuedBy) return toast('⚠️ Enter store staff name','warn');
+  req.status='issued';
+  req.issuedAt=new Date().toISOString();
+  req.oldPartCondition=oldPart;
+  req.issuedBy=issuedBy;
+  save();
+  refreshStoresPage();
+  toast('📦 Part issued — '+req.partName+' for '+req.truckNo,'ok');
+}
+
+function cancelSpareRequest(id){
+  const req=(S.spareRequests||[]).find(r=>r.id==id);
+  if(!req) return;
+  req.status='cancelled';
+  req.cancelledAt=new Date().toISOString();
+  save();
+  refreshStoresPage();
+  toast('Request cancelled','info');
+}
+
+function exportStoresCSV(){
+  const issued=(S.spareRequests||[]).filter(r=>r.status==='issued');
+  if(!issued.length) return toast('No issued records to export','warn');
+  const rows=[['Date','Truck','Bay','Dept','Part Name','Part No','Qty','Priority','Requested By','Requested At','Ready At','Issued At','Duration(mins)','Old Part Condition','Issued By','Notes']];
+  issued.forEach(r=>{
+    const durMins=r.issuedAt&&r.requestedAt?Math.round((new Date(r.issuedAt)-new Date(r.requestedAt))/60000):'—';
+    rows.push([
+      new Date(r.requestedAt).toLocaleDateString('en-GB'),
+      r.truckNo,r.bayNo||'—',r.dept,r.partName,r.partNo||'—',r.qty,r.priority,
+      r.requestedBy,new Date(r.requestedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+      r.readyAt?new Date(r.readyAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      r.issuedAt?new Date(r.issuedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      durMins,r.oldPartCondition||'—',r.issuedBy||'—',r.notes||'—'
+    ]);
+  });
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='Stores_Log_'+new Date().toLocaleDateString('en-GB').replace(/\//g,'-')+'.csv';
+  a.click();
+}
+
+// ── END STORES ──
+
 let _supportEditUnlocked=false;
 let _supportEditLockTimer=null;
 
