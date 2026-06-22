@@ -76,6 +76,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 .trend-up { color:green; font-weight:bold; }
 .trend-down { color:red; font-weight:bold; }
 .trend-stable { color:#888; }
+.sup-subpage { display:none; }
+.sup-subpage.active { display:block; }
+.sup-subtab.active { background:var(--surface)!important;color:var(--accent)!important;border:1px solid var(--border)!important; }
 .support-subpage { display:none; }
 .support-subpage.active { display:block; }
 .lb-dept { border:1px solid var(--border); border-radius:var(--radius2); overflow:hidden; }
@@ -1047,195 +1050,137 @@ tr:hover td { background: var(--surface2); }
 
 <!-- ════════════════ SUPERVISOR ════════════════ -->
 <div class="page" id="page-supervisor">
-  <div class="page-title">👁 Supervisor Panel</div>
-  <div class="page-sub">Inspect trucks · Record defects · Allocate bays · Set ETD</div>
-
-  <div class="waiting-strip">
-    <div class="waiting-num" id="waitingCount">0</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
     <div>
-      <div class="fw-700">Trucks Waiting for Inspection</div>
-      <div class="text2 text-sm">Entered by Security — pending supervisor check</div>
+      <div class="page-title">👁 Supervisor Panel</div>
+      <div class="page-sub">Inspect trucks · Record defects · Allocate bays · Set ETD</div>
+    </div>
+    <div class="waiting-strip" style="margin-bottom:0;padding:8px 14px;display:flex;align-items:center;gap:8px">
+      <div class="waiting-num" id="waitingCount" style="font-size:22px">0</div>
+      <div class="text-xs fw-700">Waiting</div>
     </div>
   </div>
 
-  <!-- MANAGER NOTIFICATIONS PANEL -->
-  <div class="card" id="supNotifyCard" style="border-top:3px solid var(--accent);display:none">
-    <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📨 Notifications from Workshop Manager <span class="badge-pill" id="supUnreadBadge" style="display:none;margin-left:4px"></span></div>
-    <div id="supNotifyList"></div>
+  <!-- SUB-TAB NAV -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface3);border-radius:var(--radius2);padding:4px;margin-bottom:14px">
+    <button class="sup-subtab active" id="supTab-inspect" onclick="showSupTab('inspect',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:var(--surface);border:1px solid var(--border)">
+      <i class="ti ti-clipboard-check" aria-hidden="true" style="font-size:18px"></i>Inspect
+    </button>
+    <button class="sup-subtab" id="supTab-baymonitor" onclick="showSupTab('baymonitor',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:transparent;color:var(--text2)">
+      <i class="ti ti-layout-grid" aria-hidden="true" style="font-size:18px"></i>Bay Monitor
+    </button>
+    <button class="sup-subtab" id="supTab-alerts" onclick="showSupTab('alerts',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:transparent;color:var(--text2);position:relative">
+      <i class="ti ti-bell" aria-hidden="true" style="font-size:18px"></i>Alerts
+      <span id="supUnreadBadge" style="display:none;position:absolute;top:6px;right:10px;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;min-width:16px;text-align:center"></span>
+    </button>
   </div>
 
-  <div class="grid-2">
-    <div>
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Truck Inspection Entry</div>
-
+  <!-- SUB: INSPECT -->
+  <div class="sup-subpage active" id="supsub-inspect">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Truck Inspection Entry</div>
+      <div class="form-row cols-2">
+        <div><label>🚛 Select Truck (from Gate)</label><select id="supTruckSelect" onchange="loadTruckForSup()"><option value="">-- Select Truck --</option></select></div>
+        <div><label>📍 Origin</label><input type="text" id="supOrigin" placeholder="e.g. SONGEA" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+      <div class="form-row cols-3">
+        <div><label>🕐 Gate In</label><input type="text" id="supGateIn" readonly style="background:var(--surface3)"></div>
+        <div><label>⛽ Fuel Arrival</label><input type="text" id="supFuel" readonly style="background:var(--surface3)"></div>
+        <div><label>🔧 Dept Logged</label><input type="text" id="supDepts" readonly style="background:var(--surface3)"></div>
+      </div>
+      <div id="supAptRefPanel" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">📋 Incharge Complaints</div>
+        <div id="supAptRefComplaints" style="font-size:12px;color:#78350f;margin-bottom:8px"></div>
+        <div id="supComplaintVerdicts"></div>
+        <div id="supSendBackSection" style="display:none;margin-top:10px">
+          <div class="alert alert-warn text-xs mb-8">All complaints marked Not Found — truck can be sent back.</div>
+          <input type="text" id="supSendBackRemark" placeholder="Supervisor remark (required)" style="margin-bottom:6px">
+          <button class="btn btn-danger btn-block" onclick="sendTruckBackNoWork()">🚫 Send Back — No Work Required</button>
+        </div>
+        <button class="btn btn-ghost btn-sm mt-8" id="supPostponeBtn" onclick="openSupPostpone()" style="display:none">⏸️ Postpone this truck</button>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>🚌 Trailer No</label><input type="text" id="supTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()"></div>
+        <div><label>🔧 Job Type</label><select id="supJobType"><option value="">-- Select Job Type --</option><option>Running Repair</option><option>PM Maintenance</option><option>Accidental</option><option>Minor Job</option><option>Major Job</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>👤 Driver Name</label><input type="text" id="supDriverName" placeholder="Full name"></div>
+        <div><label>📞 Driver Mobile</label><input type="tel" id="supDriverMobile" placeholder="e.g. 0755 123 456" inputmode="tel"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label>📸 Essential Photos</label>
+        <div id="photoGrid" class="photo-grid"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label>🔍 Defects / Jobs by Department</label>
+        <div id="jobDeptBlocks"></div>
+      </div>
+      <div class="card" style="background:var(--surface3);border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
+        <div class="fw-700 mb-12" style="font-size:13px">🅿️ Bay Allocation</div>
         <div class="form-row cols-2">
-          <div>
-            <label>🚛 Select Truck (from Gate)</label>
-            <select id="supTruckSelect" onchange="loadTruckForSup()"><option value="">-- Select Truck --</option></select>
-          </div>
-          <div>
-            <label>📍 Origin</label>
-            <input type="text" id="supOrigin" readonly>
-          </div>
+          <div><label>Bay Number</label><select id="supBaySelect"><option value="">-- Select --</option></select></div>
+          <div><label>Priority</label><select id="supPriority"><option>Normal</option><option>Urgent</option><option>Critical</option></select></div>
         </div>
-        <div class="form-row cols-3">
-          <div>
-            <label>🕐 Gate In</label>
-            <input type="text" id="supGateIn" readonly>
-          </div>
-          <div>
-            <label>⛽ Fuel Arrival</label>
-            <input type="text" id="supFuel" readonly>
-          </div>
-          <div>
-            <label>📍 Dept Logged</label>
-            <input type="text" id="supDepts" readonly>
-          </div>
-        </div>
-
-        <!-- INCHARGE COMPLAINTS REFERENCE PANEL — shown when truck has a matched appointment -->
-        <div id="supInchargeComplaintsPanel" style="display:none;background:#fef9c3;border:1px solid #fde047;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px">
-          <div style="font-size:12px;font-weight:700;color:#854d0e;margin-bottom:8px">📋 Incharge Complaints — Submitted by <span id="supAptSubmittedBy"></span></div>
-          <div id="supComplaintVerdicts"></div>
-          <div id="supSendBackSection" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde047">
-            <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:6px">⚠️ All complaints marked Not Found — no work required</div>
-            <textarea id="supSendBackRemark" placeholder="Supervisor remark — e.g. Physically inspected entire truck. No issues found. Driver complaint appears false." rows="2" style="margin-bottom:8px;font-size:12px"></textarea>
-            <button class="btn btn-danger btn-sm" onclick="sendTruckBackNoWork()">🚫 Send Back — No Work Required</button>
-          </div>
-          <div id="supPostponeSection" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde047">
-            <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px">⏸️ Postpone this truck</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-              <div><label style="font-size:10px">Reason</label><input type="text" id="supPostponeReason" placeholder="e.g. Brake pads not in stock"></div>
-              <div><label style="font-size:10px">Suggested new date</label><input type="datetime-local" id="supPostponeDate"></div>
-            </div>
-            <button class="btn btn-purple btn-sm" onclick="postponeTruck()">⏸️ Postpone &amp; Notify Incharge</button>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="toggleSupPostpone()" id="supPostponeToggleBtn">⏸️ Postpone this truck</button>
-          </div>
-        </div>
-
-        <div class="form-row cols-2">
-          <div>
-            <label>🚚 Trailer No (if applicable)</label>
-            <input type="text" id="supTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()">
-          </div>
-          <div>
-            <label>🔧 Job Type</label>
-            <select id="supJobType">
-              <option value="">-- Select Job Type --</option>
-              <option>Accidental</option>
-              <option>Running Repair</option>
-              <option>PM Maintenance</option>
-              <option>Minor Job</option>
-              <option>Major Job</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-row cols-2">
-          <div>
-            <label>👤 Driver Name</label>
-            <input type="text" id="supDriverName" placeholder="Full name">
-          </div>
-          <div>
-            <label>📱 Driver Mobile No</label>
-            <input type="text" id="supDriverMobile" placeholder="e.g. 0755 123 456" inputmode="tel">
-          </div>
-        </div>
-
-        <label class="mb-8">📸 Essential Photos (tap to capture, retake or zoom-fit)</label>
-        <div class="photo-grid mb-12" id="photoGrid">
-          <div class="photo-slot" data-slot="0" onclick="capturePhoto(0)"><span>📷</span><span>Front View</span></div>
-          <div class="photo-slot" data-slot="1" onclick="capturePhoto(1)"><span>📷</span><span>Rear View</span></div>
-          <div class="photo-slot" data-slot="2" onclick="capturePhoto(2)"><span>📷</span><span>Engine Bay</span></div>
-          <div class="photo-slot" data-slot="3" onclick="capturePhoto(3)"><span>📷</span><span>Dashboard</span></div>
-          <div class="photo-slot" data-slot="4" onclick="capturePhoto(4)"><span>📷</span><span>Tyre FL</span></div>
-          <div class="photo-slot" data-slot="5" onclick="capturePhoto(5)"><span>📷</span><span>Tyre FR</span></div>
-        </div>
-        <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCapture(event)">
-
-        <div class="section-head">🔍 Defects / Jobs by Department</div>
-
-        <div class="job-section"><div class="job-section-header mech">⚙️ Mechanical <button class="btn btn-blue btn-sm" onclick="addJobRow('mech')">+ Add</button></div><div id="rows-mech"></div></div>
-        <div class="job-section"><div class="job-section-header elec">⚡ Electrician <button class="btn btn-yellow btn-sm" onclick="addJobRow('elec')">+ Add</button></div><div id="rows-elec"></div></div>
-        <div class="job-section"><div class="job-section-header tyre">🔵 Tyre Job <button class="btn btn-success btn-sm" onclick="addJobRow('tyre')">+ Add</button></div><div id="rows-tyre"></div></div>
-        <div class="job-section mb-12"><div class="job-section-header weld">🔥 Welding <button class="btn btn-purple btn-sm" onclick="addJobRow('weld')">+ Add</button></div><div id="rows-weld"></div></div>
-
-        <div class="section-head">🅿️ Bay Allocation</div>
-        <div class="form-row cols-3">
-          <div>
-            <label>Bay Number</label>
-            <select id="supBayNo">
-              <option value="">-- Select --</option>
-              <optgroup label="Team A (Bays 1–10)">
-                <option>Bay 1</option><option>Bay 2</option><option>Bay 3</option><option>Bay 4</option><option>Bay 5</option>
-                <option>Bay 6</option><option>Bay 7</option><option>Bay 8</option><option>Bay 9</option><option>Bay 10</option>
-              </optgroup>
-              <optgroup label="Team B (Bays 11–21)">
-                <option>Bay 11</option><option>Bay 12</option><option>Bay 13</option><option>Bay 14</option><option>Bay 15</option>
-                <option>Bay 16</option><option>Bay 17</option><option>Bay 18</option><option>Bay 19</option><option>Bay 20</option><option>Bay 21</option>
-              </optgroup>
-              <optgroup label="Special"><option>Express Bay</option><option>Free Bay</option></optgroup>
-            </select>
-          </div>
+        <div class="form-row">
           <div>
             <label>ETD — Hour (00–23)</label>
             <input type="hidden" id="supETD">
-            <div style="display:flex;gap:6px;align-items:center">
-              <input type="number" id="supETD_hh" min="0" max="23" placeholder="HH" style="flex:1;padding:8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
-              <span style="font-size:18px;color:var(--text2)">:</span>
-              <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="flex:1;padding:8px;font-size:16px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+              <input type="number" id="supETD_hh" min="0" max="23" placeholder="HH" style="flex:1;padding:8px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+              <span style="font-size:20px;color:var(--text2)">:</span>
+              <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="flex:1;padding:8px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+              <input type="date" id="supETD_dd" style="flex:1.5;padding:8px;font-size:12px" oninput="syncSupETD()">
             </div>
-            <input type="date" id="supETD_dd" style="margin-top:4px;font-size:12px;width:100%" oninput="syncSupETD()">
-          </div>
-          <div>
-            <label>Priority</label>
-            <select id="supPriority"><option>Normal</option><option>Urgent</option><option>Critical</option></select>
           </div>
         </div>
-
-        <div class="form-row cols-2" style="margin-bottom:10px">
+        <div class="form-row cols-2">
           <div>
             <label>🔢 Trip KMs since last visit</label>
             <input type="number" id="supTripKms" placeholder="e.g. 567" min="0" step="1" oninput="calcSupOdo()">
             <div style="font-size:10px;color:var(--text2);margin-top:3px">Supervisor reads dashboard odometer</div>
           </div>
           <div id="supOdoCalcBlock" style="display:none">
-            <label>Calculated ODO (locked on save)</label>
+            <label>Calculated ODO</label>
             <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px">
               <div style="font-size:18px;font-weight:700;color:#15803d;font-family:monospace" id="supOdoCalcResult">—</div>
               <div style="font-size:10px;color:#15803d;margin-top:2px" id="supOdoCalcFormula"></div>
             </div>
           </div>
         </div>
-
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-block" onclick="saveSupervisorEntry()">✅ SAVE INSPECTION &amp; ALLOCATE BAY</button>
-          <button class="btn btn-ghost btn-sm" id="supPrintBtn" style="display:none" onclick="printInspectionSheet(window._lastInsId)">🖨️ Print Sheet</button>
-        </div>
       </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Bay Monitor — Live</div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Truck</th><th>Trailer</th><th>Bay</th><th>Job Type</th><th>Driver</th><th>In</th><th>ETD</th><th>Hrs Left</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="supBayTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card" style="border-top:3px solid var(--accent)">
-        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🅿️ Parking — Work Done, Awaiting Remark / Driver</div>
-        <div class="text-xs text2 mb-12">All jobs complete — bay has been freed. Add a remark below so the truck can move to the parking area while waiting for the driver.</div>
-        <div id="supParkingList"><div class="alert alert-info">No trucks currently parked.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-block" onclick="saveSupervisorEntry()">✅ SAVE INSPECTION &amp; ALLOCATE BAY</button>
+        <button class="btn btn-ghost btn-sm" id="supPrintBtn" style="display:none" onclick="printInspectionSheet(window._lastInsId)">🖨️ Print Sheet</button>
       </div>
     </div>
   </div>
+
+  <!-- SUB: BAY MONITOR -->
+  <div class="sup-subpage" id="supsub-baymonitor">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Bay Monitor — Live</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Truck</th><th>Trailer</th><th>Bay</th><th>Job Type</th><th>Driver</th><th>In</th><th>ETD</th><th>Hrs Left</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="supBayTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🅿️ Parking — Work Done, Awaiting Remark / Driver</div>
+      <div class="text-xs text2 mb-12">All jobs complete — bay has been freed. Add a remark below.</div>
+      <div id="supParkingList"><div class="alert alert-info">No trucks currently parked.</div></div>
+    </div>
+  </div>
+
+  <!-- SUB: ALERTS -->
+  <div class="sup-subpage" id="supsub-alerts">
+    <div class="card" id="supNotifyCard" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📨 Notifications from Workshop Manager</div>
+      <div id="supNotifyList"><div class="text2 text-xs" style="padding:12px">No notifications yet</div></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ════════════════ GROUND TEAM ════════════════ -->
@@ -6320,6 +6265,23 @@ function exportPostponeCSV(){
 // ═══════════════════════════════════════════════
 // SUPPORT SERVICES
 // ═══════════════════════════════════════════════
+
+function showSupTab(tab, btn){
+  document.querySelectorAll('.sup-subpage').forEach(el=>el.classList.remove('active'));
+  document.getElementById('supsub-'+tab).classList.add('active');
+  document.querySelectorAll('.sup-subtab').forEach(el=>{
+    el.style.background='transparent';
+    el.style.color='var(--text2)';
+    el.style.border='none';
+  });
+  if(btn){
+    btn.style.background='var(--surface)';
+    btn.style.color='var(--accent)';
+    btn.style.border='1px solid var(--border)';
+  }
+  if(tab==='baymonitor'){ refreshSupBayTable(); refreshSupParking(); }
+  if(tab==='alerts'){ refreshSupNotify(); }
+}
 
 function showSupportSub(id,btn){
   document.querySelectorAll('.support-subpage').forEach(el=>el.classList.remove('active'));
