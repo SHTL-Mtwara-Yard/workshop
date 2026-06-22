@@ -3873,7 +3873,6 @@ function addJobRow(d){
   </div>
   <div class="job-row-bottom">
     <select class="job-source" title="Who reported this?"><option value="driver">🗣️ Driver Complaint</option><option value="supervisor">🔍 Supervisor Found</option></select>
-    <select class="job-priority"><option>Normal</option><option>Urgent</option><option>Critical</option></select>
     <button class="btn btn-danger btn-sm" onclick="this.closest('.job-row').remove()">✕ Remove</button>
   </div>`;
   c.appendChild(row);
@@ -4130,7 +4129,7 @@ function saveSupervisorEntry(){
   const jobs={};
   ['mech','elec','tyre','weld'].forEach(d=>{
     jobs[d]=Array.from(document.querySelectorAll(`#rows-${d} .job-row`)).map((r,i)=>({
-      sno:i+1,desc:r.querySelector('input').value,priority:r.querySelector('.job-priority').value,source:r.querySelector('.job-source')?.value||'driver',done:false,doneBy:null,doneTime:null,addedBy:null
+      sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:r.querySelector('.job-source')?.value||'driver',done:false,doneBy:null,doneTime:null,addedBy:null
     })).filter(j=>j.desc.trim());
   });
 
