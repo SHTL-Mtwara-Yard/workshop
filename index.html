@@ -2067,6 +2067,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSupportSub('sandblasting',this)">💨 Sand Blasting</div>
     <div class="subtab" onclick="showSupportSub('washing',this)">🚿 Washing</div>
     <div class="subtab" onclick="showSupportSub('drivers',this)">🚗 Drivers</div>
+    <div class="subtab" onclick="showSupportSub('edit',this)" style="color:var(--accent)">✏️ Edit Records</div>
   </div>
 
   <!-- GREASING -->
@@ -2328,6 +2329,45 @@ tr:hover td { background: var(--surface2); }
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Trip Log</div>
       <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>Passengers</th></tr></thead>
       <tbody id="tripLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- SUPPORT EDIT -->
+  <div class="support-subpage" id="ssub-edit">
+    <!-- NAME GATE -->
+    <div id="supportEditGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Support Records — Manager Access</div>
+      <div class="text-xs text2 mb-12">Only the Workshop Manager can edit support records. Type your full name to unlock.</div>
+      <label>Manager Name</label>
+      <input type="text" id="supportEditNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <button class="btn btn-primary btn-block" onclick="unlockSupportEdit()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit</button>
+    </div>
+    <!-- EDIT PANEL -->
+    <div id="supportEditPanel" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div><div style="font-size:16px;font-weight:500">✏️ Edit Support Records</div>
+        <div class="text-xs text2">Name verified — auto-locks in 10 minutes.</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="lockSupportEdit()">🔒 Lock</button>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Select Record to Edit</div>
+        <div class="form-row cols-2">
+          <div><label>Service Type</label>
+            <select id="supportEditType" onchange="loadSupportEditRecords()">
+              <option value="">-- Select Type --</option>
+              <option value="panelbeater">Panel Beater</option>
+              <option value="sandblasting">Sand Blasting</option>
+              <option value="washing">Washing</option>
+              <option value="greasing">Greasing</option>
+              <option value="refurbish">Refurbish</option>
+            </select>
+          </div>
+          <div><label>Filter by Truck</label>
+            <input type="text" id="supportEditTruckFilter" placeholder="e.g. T936 ECY" oninput="this.value=this.value.toUpperCase();loadSupportEditRecords()">
+          </div>
+        </div>
+      </div>
+      <div id="supportEditRecordsList"></div>
     </div>
   </div>
 </div>
@@ -6717,8 +6757,27 @@ function refreshSupportLogs(){
     const jobs=(S.supportJobs||[]).filter(j=>j.type===type).reverse();
     const cols=type==='washing'?8:8;
     if(!jobs.length){tb.innerHTML=`<tr><td colspan="${cols}" style="text-align:center;color:var(--text2);padding:12px">No jobs logged yet</td></tr>`;return;}
-    const fmtT=iso=>iso?new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
-    const fmtD=iso=>iso?new Date(iso).toLocaleDateString('en-GB',{dateStyle:'short'}):'—';
+    const fmtT=iso=>{
+      if(!iso) return '—';
+      // Handle old format "HH:MM" string (legacy records)
+      if(/^\d{2}:\d{2}$/.test(iso)) return iso;
+      const d=new Date(iso);
+      return isNaN(d)?iso:d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    };
+    const fmtD=iso=>{
+      if(!iso) return '—';
+      const d=new Date(iso);
+      return isNaN(d)?'—':d.toLocaleDateString('en-GB',{dateStyle:'short'});
+    };
+    const calcDur=(start,end)=>{
+      if(!start||!end) return '—';
+      // If old HH:MM format, can't calculate duration
+      if(/^\d{2}:\d{2}$/.test(start)||/^\d{2}:\d{2}$/.test(end)) return '—';
+      const secs=Math.round((new Date(end)-new Date(start))/1000);
+      if(isNaN(secs)||secs<=0) return '—';
+      const mins=Math.floor(secs/60); const remSecs=secs%60;
+      return mins+'m'+(remSecs>0?' '+remSecs+'s':'');
+    };
     tb.innerHTML=jobs.map(j=>{
       const statusTag=j.status==='done'
         ?'<span class="tag tag-green">✅ Done</span>'
@@ -6726,18 +6785,19 @@ function refreshSupportLogs(){
       const endBtn=j.status!=='done'
         ?`<button class="btn btn-success btn-sm" style="font-size:11px;padding:4px 8px;margin-left:4px" onclick="endSupportJobById(${j.id},'${type}')">✅ End</button>`
         :'';
+      const durDisplay=j.dur&&j.dur!=='—'?j.dur:calcDur(j.startTime,j.endTime);
       if(type==='washing'){
         return `<tr>
           <td style="font-size:11px">${fmtD(j.loggedAt)}</td>
           <td style="font-weight:700">${j.truckNo}</td>
           <td>${j.job||j.washType||'—'}</td><td>${j.name}</td>
-          <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${j.dur||'—'}</td>
+          <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${durDisplay}</td>
           <td>${statusTag}${endBtn}</td></tr>`;
       }
       return `<tr>
         <td style="font-size:11px">${fmtD(j.loggedAt)}</td>
         <td style="font-weight:700">${j.truckNo}</td><td>${j.name}</td><td>${j.job||'—'}</td>
-        <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${j.dur||'—'}</td>
+        <td>${fmtT(j.startTime)}</td><td>${fmtT(j.endTime)}</td><td>${durDisplay}</td>
         <td>${statusTag}${endBtn}</td></tr>`;
     }).join('');
   });
@@ -6802,6 +6862,112 @@ function logTrip(){
   document.getElementById('tripPass').value='';
   refreshTripLog();
   toast('🚗 Trip logged for '+driver,'ok');
+}
+
+// ── SUPPORT EDIT (Manager protected) ──
+let _supportEditUnlocked=false;
+let _supportEditLockTimer=null;
+
+function unlockSupportEdit(){
+  const entered=(document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — access blocked','warn');
+    document.getElementById('supportEditNameInput').value='';
+    return;
+  }
+  _supportEditUnlocked=true;
+  document.getElementById('supportEditGate').style.display='none';
+  document.getElementById('supportEditPanel').style.display='block';
+  document.getElementById('supportEditNameInput').value='';
+  if(_supportEditLockTimer) clearTimeout(_supportEditLockTimer);
+  _supportEditLockTimer=setTimeout(lockSupportEdit, 10*60*1000);
+  toast('🔓 Support Edit unlocked — auto-locks in 10 minutes','ok');
+}
+
+function lockSupportEdit(){
+  _supportEditUnlocked=false;
+  document.getElementById('supportEditGate').style.display='block';
+  document.getElementById('supportEditPanel').style.display='none';
+  document.getElementById('supportEditRecordsList').innerHTML='';
+  if(_supportEditLockTimer){clearTimeout(_supportEditLockTimer);_supportEditLockTimer=null;}
+  toast('🔒 Support Edit locked','info');
+}
+
+function loadSupportEditRecords(){
+  const type=document.getElementById('supportEditType').value;
+  const truckFilter=(document.getElementById('supportEditTruckFilter').value||'').trim().toUpperCase();
+  const div=document.getElementById('supportEditRecordsList');
+  if(!type){div.innerHTML='';return;}
+  let jobs=(S.supportJobs||[]).filter(j=>j.type===type);
+  if(truckFilter) jobs=jobs.filter(j=>j.truckNo.includes(truckFilter));
+  jobs=jobs.slice().reverse();
+  if(!jobs.length){div.innerHTML='<div class="alert alert-info">No records found.</div>';return;}
+  const typeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',greasing:'Greasing',refurbish:'Refurbish'};
+  div.innerHTML=jobs.map(j=>`
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700">${j.truckNo} — ${typeLabels[j.type]||j.type}</div>
+        <span class="tag ${j.status==='done'?'tag-green':''}">${j.status==='done'?'✅ Done':j.status==='in_progress'?'⏱️ In Progress':'Waiting Parts'}</span>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Truck No</label><input type="text" id="sedit-truck-${j.id}" value="${j.truckNo||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        <div><label>Staff Name</label><input type="text" id="sedit-name-${j.id}" value="${j.name||''}" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Job Description</label><input type="text" id="sedit-job-${j.id}" value="${j.job||j.washType||''}"></div>
+        <div><label>Status</label>
+          <select id="sedit-status-${j.id}">
+            <option value="in_progress" ${j.status==='in_progress'?'selected':''}>In Progress</option>
+            <option value="done" ${j.status==='done'?'selected':''}>Done</option>
+            <option value="waiting_parts" ${j.status==='waiting_parts'?'selected':''}>Waiting Parts</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Start Time</label><input type="datetime-local" id="sedit-start-${j.id}" value="${j.startTime&&!/^\d{2}:\d{2}$/.test(j.startTime)?j.startTime.slice(0,16):''}"></div>
+        <div><label>End Time</label><input type="datetime-local" id="sedit-end-${j.id}" value="${j.endTime?j.endTime.slice(0,16):''}"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveSupportEdit('${j.id}')">💾 Save Changes</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSupportRecord('${j.id}')">🗑️ Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function saveSupportEdit(id){
+  const job=(S.supportJobs||[]).find(j=>j.id==id);
+  if(!job) return toast('Record not found','warn');
+  job.truckNo=document.getElementById('sedit-truck-'+id).value.trim().toUpperCase()||job.truckNo;
+  job.name=document.getElementById('sedit-name-'+id).value.trim().toUpperCase()||job.name;
+  const newJob=document.getElementById('sedit-job-'+id).value.trim();
+  if(newJob) job.job=newJob;
+  job.status=document.getElementById('sedit-status-'+id).value;
+  const newStart=document.getElementById('sedit-start-'+id).value;
+  const newEnd=document.getElementById('sedit-end-'+id).value;
+  if(newStart) job.startTime=new Date(newStart).toISOString();
+  if(newEnd){
+    job.endTime=new Date(newEnd).toISOString();
+    if(job.startTime){
+      const secs=Math.round((new Date(job.endTime)-new Date(job.startTime))/1000);
+      if(!isNaN(secs)&&secs>0){
+        job.durationSecs=secs;
+        job.dur=Math.floor(secs/60)+'m'+(secs%60>0?' '+secs%60+'s':'');
+      }
+    }
+  }
+  save();
+  refreshSupportLogs();
+  loadSupportEditRecords();
+  toast('✅ Record updated — '+job.truckNo,'ok');
+}
+
+function deleteSupportRecord(id){
+  if(!confirm('Delete this support record? This cannot be undone.')) return;
+  S.supportJobs=(S.supportJobs||[]).filter(j=>j.id!=id);
+  save();
+  refreshSupportLogs();
+  loadSupportEditRecords();
+  toast('🗑️ Record deleted','ok');
 }
 
 function refreshTripLog(){
