@@ -874,6 +874,8 @@ tr:hover td { background: var(--surface2); }
     <span style="font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap">👮 On duty:</span>
     <select id="securityOfficerName" onchange="saveSecurityOfficerName()" style="flex:1;max-width:260px;font-weight:600">
       <option value="">— Select your name —</option>
+      <option value="RAHIM MILONGEKA">RAHIM MILONGEKA</option>
+      <option value="PIUS MILANZI">PIUS MILANZI</option>
     </select>
     <span id="securityOfficerGreeting" style="font-size:12px;color:var(--text2)"></span>
     <div id="secAudioToggle" style="margin-left:auto">
@@ -3469,13 +3471,19 @@ function playSecurityBeep(){
 }
 
 function refreshSecurityPanel(){
-  // Always repopulate security officer dropdown from latest STAFF data
+  // Merge hardcoded HTML options with any new names from Firebase roster
   const sel = document.getElementById('securityOfficerName');
   if(sel){
-    const secStaff = (STAFF['security'] || []).slice().sort();
-    sel.innerHTML = '<option value="">— Select your name —</option>' +
-      secStaff.map(n => `<option value="${n}" ${n===_securityOfficerName?'selected':''}>${n}</option>`).join('');
-    if(_securityOfficerName) sel.value = _securityOfficerName;
+    const rosterStaff = (S.staffRoster?.security || STAFF['security'] || []).slice().sort();
+    const existing = Array.from(sel.options).map(o=>o.value).filter(v=>v);
+    rosterStaff.forEach(name=>{
+      if(!existing.includes(name)){
+        const opt=document.createElement('option');
+        opt.value=name; opt.textContent=name;
+        sel.appendChild(opt);
+      }
+    });
+    if(_securityOfficerName) sel.value=_securityOfficerName;
     document.getElementById('securityOfficerGreeting').textContent = _securityOfficerName ? 'On duty: ' + _securityOfficerName : '';
   }
 
