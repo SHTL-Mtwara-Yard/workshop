@@ -2458,6 +2458,52 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- CARRY FORWARD MODAL -->
+<div class="modal-overlay" id="carryForwardModal">
+  <div class="modal" style="border-top:4px solid #7c3aed">
+    <div class="modal-title" style="color:#7c3aed">🌙 Carry Forward to Next Day<button class="modal-close" onclick="closeModal('carryForwardModal')">✕</button></div>
+    <p class="text2 text-sm mb-12">Truck <strong id="cfTruckNo" style="color:var(--text);font-size:15px"></strong> — ETD missed today. Record reason and set new ETD for tomorrow.</p>
+    <div class="alert" style="background:#f5f3ff;border:1px solid #c4b5fd;color:#6d28d9;margin-bottom:12px;font-size:12px">
+      ⚠️ This will mark the truck as <strong>Carried Forward</strong>. It will remain in the yard overnight and appear in tomorrow's queue with the new ETD.
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Reason ETD Was Missed</label>
+        <select id="cfReason">
+          <option value="">-- Select reason --</option>
+          <option>Spare parts not available</option>
+          <option>Parts ordered — awaiting delivery</option>
+          <option>Specialist mechanic not available</option>
+          <option>Job more complex than estimated</option>
+          <option>Waiting for manager approval</option>
+          <option>Bay equipment issue</option>
+          <option>Driver requested delay</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Additional Notes</label>
+        <input type="text" id="cfNotes" placeholder="e.g. Brake pads ordered from Dar, arriving tomorrow">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div>
+        <label>New ETD — Next Day</label>
+        <input type="datetime-local" id="cfNewETD">
+        <div style="font-size:10px;color:var(--text2);margin-top:3px">Set expected completion time tomorrow</div>
+      </div>
+      <div>
+        <label>Entered By</label>
+        <input type="text" id="cfEnteredBy" placeholder="Supervisor / Manager name" oninput="this.value=this.value.toUpperCase()">
+      </div>
+    </div>
+    <button class="btn btn-block" style="background:#7c3aed;color:#fff;margin-top:4px" onclick="saveCarryForward()">🌙 Confirm Carry Forward</button>
+    <button class="btn btn-ghost btn-block" onclick="closeModal('carryForwardModal')" style="margin-top:6px">Cancel</button>
+  </div>
+</div>
+
 <!-- ════════════════ EXIT CONFIRM MODAL ════════════════ -->
 <div class="modal-overlay" id="exitConfirmModal">
   <div class="modal">
@@ -4266,9 +4312,10 @@ function refreshSupBayTable(){
     const isDelay=mins<0;
     const hrsLeft=isDelay?`<span class="tag tag-red">⚠️ +${Math.abs(Math.round(mins/60))}h</span>`:`<span style="color:${mins<60?'var(--red)':'var(--green)'};font-weight:700">${Math.floor(mins/60)}h ${mins%60}m</span>`;
     const readyTag = e.readyToLeave ? '<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3);margin-left:6px">READY</span>' : '';
+    const cfTag = ins.carryForward ? '<span class="tag" style="background:#f5f3ff;color:#7c3aed;border:1px solid #c4b5fd;margin-left:4px">🌙 Carried</span>' : '';
     const jtColor = jobTypeColor[ins.jobType]||'blue';
     return `<tr>
-      <td class="fw-700">${ins.truckNo}${readyTag}</td>
+      <td class="fw-700">${ins.truckNo}${readyTag}${cfTag}</td>
       <td class="text2 text-xs">${ins.trailerNo||'—'}</td>
       <td><span class="tag tag-blue">${ins.bayNo}</span></td>
       <td><span class="tag tag-${jtColor}">${ins.jobType||'—'}</span></td>
@@ -4277,12 +4324,64 @@ function refreshSupBayTable(){
       <td>${etdDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
       <td>${hrsLeft}</td>
       <td><span class="tag tag-${ins.priority==='Critical'?'red':ins.priority==='Urgent'?'yellow':'green'}">${ins.priority}</span></td>
-      <td>${isDelay&&!ins.delayReason?`<button class="btn btn-danger btn-sm" onclick="openDelayModal('${ins.id}')">Delay Reason</button>`:'<span class="text2 text-xs">—</span>'}</td>
+      <td>${isDelay?`<div style="display:flex;flex-direction:column;gap:4px">
+        ${!ins.delayReason?`<button class="btn btn-danger btn-sm" onclick="openDelayModal('${ins.id}')">⚠️ Delay Reason</button>`:`<span class="text-xs" style="color:var(--red);max-width:120px">${ins.delayReason.substring(0,30)}</span>`}
+        <button class="btn btn-sm" style="background:#7c3aed;color:#fff;font-size:10px;padding:3px 7px;border:none;border-radius:var(--radius);cursor:pointer" onclick="openCarryForwardModal('${ins.id}')">🌙 Carry Forward</button>
+      </div>`:'<span class="text2 text-xs">—</span>'}</td>
     </tr>`;
   }).join('');
 }
 
-let curDelayId=null;
+let curCarryForwardId=null;
+
+function openCarryForwardModal(id){
+  curCarryForwardId=id;
+  const ins=S.inspections.find(i=>i.id==id);
+  document.getElementById('cfTruckNo').textContent=ins?.truckNo||'';
+  // Default new ETD = tomorrow 08:00
+  const tomorrow=new Date();
+  tomorrow.setDate(tomorrow.getDate()+1);
+  tomorrow.setHours(8,0,0,0);
+  document.getElementById('cfNewETD').value=tomorrow.toISOString().slice(0,16);
+  document.getElementById('cfReason').value='';
+  document.getElementById('cfNotes').value='';
+  document.getElementById('cfEnteredBy').value='';
+  document.getElementById('carryForwardModal').classList.add('open');
+}
+
+function saveCarryForward(){
+  const reason=document.getElementById('cfReason').value;
+  const notes=document.getElementById('cfNotes').value.trim();
+  const newETD=document.getElementById('cfNewETD').value;
+  const enteredBy=document.getElementById('cfEnteredBy').value.trim();
+  if(!reason) return toast('⚠️ Select a reason','warn');
+  if(!newETD) return toast('⚠️ Set new ETD date/time','warn');
+  if(!enteredBy) return toast('⚠️ Enter your name','warn');
+  const ins=S.inspections.find(i=>i.id==curCarryForwardId);
+  if(!ins) return;
+  // Update inspection record
+  ins.etd=new Date(newETD).toISOString();
+  ins.delayed=true;
+  ins.delayReason=reason;
+  ins.carryForward={
+    reason, notes, newETD:new Date(newETD).toISOString(),
+    enteredBy, recordedAt:new Date().toISOString(),
+    originalETD:ins.etd
+  };
+  // Log to postpone records
+  if(!S.postponeRecords) S.postponeRecords=[];
+  S.postponeRecords.push({
+    id:Date.now(), truckNo:ins.truckNo, bayNo:ins.bayNo,
+    reason, notes, newETD:new Date(newETD).toISOString(),
+    enteredBy, type:'carry_forward',
+    recordedAt:new Date().toISOString()
+  });
+  save();
+  closeModal('carryForwardModal');
+  refreshSupBayTable();
+  toast('🌙 Carry Forward saved — new ETD: '+new Date(newETD).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),'ok');
+}
+
 function openDelayModal(id){curDelayId=id;const ins=S.inspections.find(i=>i.id==id);document.getElementById('delayTruckNo').textContent=ins?.truckNo||'';document.getElementById('delayModal').classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function saveDelay(){
