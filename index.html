@@ -1828,7 +1828,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--red)"></span>🗄️ Data Control — Manager Access</div>
       <div class="text-xs text2 mb-12">This area allows permanent deletion of records. All actions are logged in the Audit Trail. Only the Workshop Manager should use this area.</div>
       <label>Manager Name</label>
-      <input type="text" id="dcNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="dcNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockDataControl()"><i class="ti ti-lock-open" aria-hidden="true"></i> Enter Data Control</button>
     </div>
 
@@ -1936,7 +1936,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Records — Manager Access</div>
       <div class="text-xs text2 mb-12">Only the Workshop Manager can edit records. Type your full name to unlock.</div>
       <label>Manager Name</label>
-      <input type="text" id="editRecordsNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="editRecordsNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockEditRecords()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit Records</button>
     </div>
     <!-- EDIT RECORDS PANEL -->
@@ -2209,7 +2209,7 @@ tr:hover td { background: var(--surface2); }
         </div>
         <div>
           <label>🚌 Trailer No</label>
-          <input type="text" id="refTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="onTruckInput(this)" style="font-weight:700">
+          <input type="text" id="refTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()" style="font-weight:700">
         </div>
       </div>
       <div class="form-row cols-2">
@@ -2341,7 +2341,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Support Records — Manager Access</div>
       <div class="text-xs text2 mb-12">Only the Workshop Manager can edit support records. Type your full name to unlock.</div>
       <label>Manager Name</label>
-      <input type="text" id="supportEditNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="supportEditNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockSupportEdit()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit</button>
     </div>
     <!-- EDIT PANEL -->
@@ -7240,7 +7240,7 @@ function refreshStoresPage(){
           </div>
           <div style="margin-bottom:10px">
             <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Issued By (Store Staff)</label>
-            <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="onTruckInput(this)" style="margin-top:4px">
+            <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="this.value=this.value.toUpperCase()" style="margin-top:4px">
           </div>
           <button class="btn btn-primary btn-block" onclick="issueSpare('${r.id}')">📦 Issue Part + Old Part Received</button>
         </div>`).join('');
