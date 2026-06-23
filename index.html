@@ -7818,7 +7818,7 @@ function printGatePass(insId){
     <div class="print-header">
       <h1>SHTL MTWARA WORKSHOP</h1>
       <h2>VEHICLE GATE PASS</h2>
-      <p>Pass No: GP-${ins.(id&&id.toString)().slice(-6)} &nbsp;|&nbsp; Date: ${now.toLocaleDateString('en-GB')}</p>
+      <p>Pass No: GP-${(ins.id&&ins.id.toString())?ins.id.toString().slice(-6):'000000'} &nbsp;|&nbsp; Date: ${now.toLocaleDateString('en-GB')}</p>
     </div>
 
     <table>
@@ -7827,7 +7827,7 @@ function printGatePass(insId){
       ${isDifferentDriver?`<tr><td style="font-weight:bold;color:red">⚠️ Collecting Driver</td><td style="color:red;font-weight:bold">${(e&&e.collectingDriverName)||'—'} · ${(e&&e.collectingDriverMobile)||'—'} (DIFFERENT DRIVER — RECORDED)</td></tr>`:''}
       <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt((e&&e.entryTime))}</td></tr>
       <tr><td style="font-weight:bold">Work Completed</td><td>${fmtDt(ins.t4_qcDone)}</td></tr>
-      <tr><td style="font-weight:bold">Supervisor Remark</td><td>${ins.(supervisorRemark&&supervisorRemark.reason)||'Work completed'}</td></tr>
+      <tr><td style="font-weight:bold">Supervisor Remark</td><td>${(ins.supervisorRemark&&ins.supervisorRemark.reason)||'Work completed'}</td></tr>
       <tr><td style="font-weight:bold">Verified by Security</td><td>${(e&&e.verifiedBy)||'—'}</td></tr>
     </table>
 
