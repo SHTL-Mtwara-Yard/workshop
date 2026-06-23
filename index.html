@@ -3892,7 +3892,7 @@ function openDriverVerify(insId, alertId){
 function checkDriverMatch(){
   const entryId = document.getElementById('dv_entryId').value;
   const ins = S.inspections.find(i => i.entryId == entryId);
-  const enteredName = ((document.getElementById('dv_driverName').value||'').trim().toUpperCase();
+  const enteredName = (document.getElementById('dv_driverName').value||'').trim().toUpperCase();
   const arrivalName = ((ins&&ins.driverName)||'').toUpperCase();
   const result = document.getElementById('dv_matchResult');
   if(!enteredName){ result.innerHTML=''; return; }
