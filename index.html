@@ -3240,7 +3240,7 @@ function getLastVisitForTruck(truckNo){
 }
 
 function checkAptLastVisit(){
-  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
+  const tn=fmtTruckdocument.getElementById('iat_truckNo').value||'');
   const banner=document.getElementById('iat_lastVisitBanner');
   const lastOdoEl=document.getElementById('iat_lastOdo');
 
@@ -3273,7 +3273,7 @@ function checkAptLastVisit(){
     document.getElementById('iat_lastVisitText').textContent=`Last entry: ${last.odoOnArrival.toLocaleString()} km on ${d}`;
     lastOdoEl.value=last.odoOnArrival;
     banner.style.display='block';
-    const cur=parseInt(document.getElementById('iat_odo').value);
+    const cur=parseIntdocument.getElementById('iat_odo').value);
     if(cur && cur>last.odoOnArrival){
       document.getElementById('iat_lastVisitText').textContent+=` · Diff: ${(cur-last.odoOnArrival).toLocaleString()} km`;
     }
@@ -3287,15 +3287,15 @@ function checkAptLastVisit(){
 function submitAppointment(){
   const who=document.getElementById('inchargeName').value;
   if(!who) return toast('⚠️ Select your name first','warn');
-  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
+  const tn=fmtTruckdocument.getElementById('iat_truckNo').value||'');
   if(!tn) return toast('⚠️ Enter truck number','warn');
   const visit=document.getElementById('iat_visit').value;
   if(!visit) return toast('⚠️ Set planned visit date & time','warn');
   const driverName=document.getElementById('iat_driverName').value.trim();
   if(!driverName) return toast('⚠️ Enter driver name','warn');
   const driverMobile=document.getElementById('iat_driverMobile').value.trim();
-  const odo=document.getElementById('iat_odo').value ? parseInt(document.getElementById('iat_odo').value) : null;
-  const tripKms=document.getElementById('iat_tripKms').value ? parseInt(document.getElementById('iat_tripKms').value) : null;
+  const odo=document.getElementById('iat_odo').value ? parseIntdocument.getElementById('iat_odo').value) : null;
+  const tripKms=document.getElementById('iat_tripKms').value ? parseIntdocument.getElementById('iat_tripKms').value) : null;
   const estimatedOdo=(odo&&tripKms)?odo+tripKms:odo||null;
   const complaints=document.getElementById('iat_complaints').value.trim();
 
@@ -3534,7 +3534,7 @@ function openCloseApt(id){
 }
 
 function confirmCloseApt(){
-  const id=parseInt(document.getElementById('closeAptId').value);
+  const id=parseIntdocument.getElementById('closeAptId').value);
   const reason=document.getElementById('closeAptReason').value;
   const remark=document.getElementById('closeAptRemark').value.trim();
   if(!reason) return toast('⚠️ Select a reason','warn');
@@ -3566,15 +3566,15 @@ function openEditApt(id){
 }
 
 function saveEditApt(){
-  const id=parseInt(document.getElementById('editAptId').value);
+  const id=parseIntdocument.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
+  apt.truckNo=fmtTruckdocument.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
-  apt.currentOdo=document.getElementById('ea_odo').value?parseInt(document.getElementById('ea_odo').value):null;
-  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseInt(document.getElementById('ea_lastOdo').value):null;
+  apt.currentOdo=document.getElementById('ea_odo').value?parseIntdocument.getElementById('ea_odo').value):null;
+  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseIntdocument.getElementById('ea_lastOdo').value):null;
   apt.complaints=document.getElementById('ea_complaints').value.trim();
   save();
   renderInchargeQueue();
@@ -3596,7 +3596,7 @@ function reraiseApt(id){
 }
 
 function confirmReraise(){
-  const id=parseInt(document.getElementById('reraiseAptId').value);
+  const id=parseIntdocument.getElementById('reraiseAptId').value);
   const newDate=document.getElementById('reraiseNewDate').value;
   if(!newDate) return toast('⚠️ Select a new visit date first','warn');
   // Prevent re-raising to today or a past date
@@ -3629,7 +3629,7 @@ function confirmReraise(){
 
 function punchEntry(){
   if(_punchEntryInProgress)return; // guards against rapid double-click/double-tap creating duplicate entries
-  const tn=fmtTruck(document.getElementById('truckNo').value.trim());
+  const tn=fmtTruckdocument.getElementById('truckNo').value.trim());
   const org=document.getElementById('truckOrigin').value;
   const fuel=document.getElementById('fuelSelected').value;
   if(!tn)return toast('⚠️ Enter truck number','warn');
@@ -3892,7 +3892,7 @@ function openDriverVerify(insId, alertId){
 function checkDriverMatch(){
   const entryId = document.getElementById('dv_entryId').value;
   const ins = S.inspections.find(i => i.entryId == entryId);
-  const enteredName = (document.getElementById('dv_driverName').value||'').trim().toUpperCase();
+  const enteredName = document.getElementById('dv_driverName').value||'').trim().toUpperCase();
   const arrivalName = ((ins&&ins.driverName)||'').toUpperCase();
   const result = document.getElementById('dv_matchResult');
   if(!enteredName){ result.innerHTML=''; return; }
@@ -3903,7 +3903,7 @@ function checkDriverMatch(){
 }
 
 function confirmVerifiedExit(outcome){
-  const entryId = parseInt(document.getElementById('dv_entryId').value);
+  const entryId = parseIntdocument.getElementById('dv_entryId').value);
   const collectingName = document.getElementById('dv_driverName').value.trim();
   const collectingMobile = document.getElementById('dv_driverMobile').value.trim();
   const e = S.entries.find(x => x.id === entryId);
@@ -4366,7 +4366,7 @@ function openPostponeConfirm(aptId){
 }
 
 function confirmPostpone(){
-  const aptId=parseInt(document.getElementById('postponeConfirmAptId').value);
+  const aptId=parseIntdocument.getElementById('postponeConfirmAptId').value);
   const newDate=document.getElementById('postponeConfirmDate').value;
   if(!newDate) return toast('⚠️ Set a confirmed date','warn');
   const apt=S.appointments.find(a=>a.id==aptId);
@@ -4418,8 +4418,8 @@ function saveSupervisorEntry(){
     })).filter(j=>j.desc.trim());
   });
 
-  const tripKms=document.getElementById('supTripKms').value?parseInt(document.getElementById('supTripKms').value):null;
-  const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseInt(document.getElementById('supBaseOdo').value):null;
+  const tripKms=document.getElementById('supTripKms').value?parseIntdocument.getElementById('supTripKms').value):null;
+  const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseIntdocument.getElementById('supBaseOdo').value):null;
   const lastOdoRecord=getLastLockedOdo((S.entries.find(e=>e.id==id)||{truckNo:''}).truckNo);
   // Manual base overrides locked record; if both trip + base given, sum them
   const lockedOdo=manualBaseOdo?(tripKms?manualBaseOdo+tripKms:manualBaseOdo):(tripKms?(lastOdoRecord?lastOdoRecord.odo+tripKms:tripKms):null);
@@ -5356,8 +5356,8 @@ function syncSupETD(){
 
 // ─── INCHARGE ODO CALC ───
 function calcInchargeOdo(){
-  const base=parseInt(document.getElementById('iat_odo').value)||0;
-  const trip=parseInt(document.getElementById('iat_tripKms').value)||0;
+  const base=parseIntdocument.getElementById('iat_odo').value)||0;
+  const trip=parseIntdocument.getElementById('iat_tripKms').value)||0;
   const banner=document.getElementById('iat_odoCalcBanner');
   const result=document.getElementById('iat_odoCalcResult');
   const formula=document.getElementById('iat_odoCalcFormula');
@@ -5373,12 +5373,12 @@ function calcInchargeOdo(){
 
 // ─── SUPERVISOR ODO CALC ───
 function calcSupOdo(){
-  const trip=parseInt(document.getElementById('supTripKms').value)||0;
+  const trip=parseIntdocument.getElementById('supTripKms').value)||0;
   const manualBase=parseInt((document.getElementById('supBaseOdo')||{}).value)||0;
   const block=document.getElementById('supOdoCalcBlock');
   const result=document.getElementById('supOdoCalcResult');
   const formula=document.getElementById('supOdoCalcFormula');
-  const tn=(document.getElementById('supTruckSelect').value);
+  const tn=document.getElementById('supTruckSelect').value);
   const entry=S.entries.find(e=>e.id==tn);
   const truckNo=entry?entry.truckNo:'';
   const lastOdo=getLastLockedOdo(truckNo);
@@ -5453,8 +5453,8 @@ function todayDateValue(){
 
 // Combines the three separate HH / MM / date fields into a datetime-local value and saves
 function syncETDFromParts(insId,dept){
-  const hh=document.getElementById('detd_hh_'+dept)).value;
-  const mm=(document.getElementById('detd_mm_'+dept).value;
+  const hh=document.getElementById('detd_hh_'+dept).value;
+  const mm=document.getElementById('detd_mm_'+dept).value;
   const dd=document.getElementById('detd_dd_'+dept).value;
   if(hh===''||mm===''||!dd) return; // wait until all three are filled
   const hhN=parseInt(hh); const mmN=parseInt(mm);
@@ -5700,7 +5700,7 @@ function toggleJobJC(insId,dept,idx,cb){
 // ═══ REVISIT ═══
 function logRevisit(){
   const truck=document.getElementById('rvTruck').value.trim();
-  const km=parseInt(document.getElementById('rvKm').value);
+  const km=parseIntdocument.getElementById('rvKm').value);
   const dept=document.getElementById('rvDept').value;
   const issue=document.getElementById('rvIssue').value.trim();
   if(!truck||!km||!issue)return toast('⚠️ Fill all fields','warn');
@@ -5742,7 +5742,7 @@ function renderTrend(){
 
 // ═══ MANAGER: ALL JOB CARDS REGISTER ═══
 function refreshMgrJobCards(){
-  const search=(document.getElementById('mgrSearch').value||'').toUpperCase();
+  const search=document.getElementById('mgrSearch').value||'').toUpperCase();
   const statusF=document.getElementById('mgrStatusFilter').value;
   const teamF=document.getElementById('mgrTeamFilter').value;
 
@@ -6488,7 +6488,7 @@ function deleteBreakdown(id){
 }
 
 function refreshBreakdown(){
-  const search=(document.getElementById('bdSearch').value||'').toUpperCase();
+  const search=document.getElementById('bdSearch').value||'').toUpperCase();
   const monthF=document.getElementById('bdMonthFilter').value;
   const now=new Date();
   const todayStr=now.toDateString();
@@ -7137,7 +7137,7 @@ function logTrip(){
   const depart=document.getElementById('tripDepart').value;
   const ret=document.getElementById('tripReturn').value;
   const dest=document.getElementById('tripDest').value.trim();
-  const km=parseInt(document.getElementById('tripKm').value)||0;
+  const km=parseIntdocument.getElementById('tripKm').value)||0;
   const pass=document.getElementById('tripPass').value.trim();
   if(!driver) return toast('⚠️ Select driver','warn');
   if(!dest) return toast('⚠️ Enter destination','warn');
@@ -7282,7 +7282,7 @@ function raiseSpareRequest(){
   const truckSel=document.getElementById('storesReqTruck');
   const dept=document.getElementById('storesReqDept').value;
   const part=document.getElementById('storesReqPart').value.trim().toUpperCase();
-  const qty=parseInt(document.getElementById('storesReqQty').value)||1;
+  const qty=parseIntdocument.getElementById('storesReqQty').value)||1;
   const partNo=document.getElementById('storesReqPartNo').value.trim().toUpperCase();
   const priority=document.getElementById('storesReqPriority').value;
   const notes=document.getElementById('storesReqNotes').value.trim();
@@ -7380,7 +7380,7 @@ let _supportEditUnlocked=false;
 let _supportEditLockTimer=null;
 
 function unlockSupportEdit(){
-  const entered=(document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
+  const entered=document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('supportEditNameInput').value='';
@@ -7406,7 +7406,7 @@ function lockSupportEdit(){
 
 function loadSupportEditRecords(){
   const type=document.getElementById('supportEditType').value;
-  const truckFilter=(document.getElementById('supportEditTruckFilter').value||'').trim().toUpperCase();
+  const truckFilter=document.getElementById('supportEditTruckFilter').value||'').trim().toUpperCase();
   const div=document.getElementById('supportEditRecordsList');
   if(!type){div.innerHTML='';return;}
   let jobs=(S.supportJobs||[]).filter(j=>j.type===type);
@@ -7979,7 +7979,7 @@ async function verifyDataPin(){
 }
 
 function unlockDataControl(){
-  const entered=(document.getElementById('dcNameInput').value||'').trim().toUpperCase();
+  const entered=document.getElementById('dcNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('dcNameInput').value='';
@@ -8059,7 +8059,7 @@ function purgeExpiredBin(){
 
 // ── BY TRUCK ──
 function loadDcTruckRecords(){
-  const tn=(document.getElementById('dcTruckSearch').value||'').trim().toUpperCase();
+  const tn=document.getElementById('dcTruckSearch').value||'').trim().toUpperCase();
   const div=document.getElementById('dcTruckRecords');
   if(!tn||tn.length<3){div.innerHTML='';return;}
   const entries=S.entries.filter(e=>e.truckNo===tn);
@@ -8249,7 +8249,7 @@ function refreshDataControl(){
 function refreshMgrIncharge(){
   if(!S.appointments){ document.getElementById('mgrInchargeList').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No records yet</div>'; return; }
   const filter=document.getElementById('mgrAptFilter').value;
-  const search=(document.getElementById('mgrAptSearch').value||'').trim().toUpperCase();
+  const search=document.getElementById('mgrAptSearch').value||'').trim().toUpperCase();
   const now=new Date();
   const threeDaysAgo=new Date(now-3*24*3600000);
 
@@ -8338,15 +8338,15 @@ function openMgrEditApt(id){
 }
 
 function saveMgrAptFromModal(){
-  const id=parseInt(document.getElementById('editAptId').value);
+  const id=parseIntdocument.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
+  apt.truckNo=fmtTruckdocument.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
-  apt.currentOdo=document.getElementById('ea_odo').value?parseInt(document.getElementById('ea_odo').value):null;
-  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseInt(document.getElementById('ea_lastOdo').value):null;
+  apt.currentOdo=document.getElementById('ea_odo').value?parseIntdocument.getElementById('ea_odo').value):null;
+  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseIntdocument.getElementById('ea_lastOdo').value):null;
   apt.complaints=document.getElementById('ea_complaints').value.trim();
   apt.managerVerified=true;
   apt.managerVerifiedAt=new Date().toISOString();
@@ -8410,7 +8410,7 @@ function openSparePartModal(insId,dept,jobIdx){
 function saveSparePartPending(){
   const insId=document.getElementById('sparePartInsId').value;
   const dept=document.getElementById('sparePartDept').value;
-  const jobIdx=parseInt(document.getElementById('sparePartJobIdx').value);
+  const jobIdx=parseIntdocument.getElementById('sparePartJobIdx').value);
   const partName=document.getElementById('sparePartName').value.trim();
   const notes=document.getElementById('sparePartNotes').value.trim();
   if(!partName) return toast('⚠️ Enter the part name','warn');
@@ -8811,7 +8811,7 @@ function deltaTag(hrs){
   return `<span class="tag tag-green">${Math.abs(rounded)}h saved</span>`;
 }
 function refreshETDReport(){
-  const search=(document.getElementById('etdSearchTruck').value||'').trim();
+  const search=document.getElementById('etdSearchTruck').value||'').trim();
   const rows=computeETDStories(search);
   const tb=document.getElementById('etdReportTable');
   if(!rows.length){
@@ -8838,7 +8838,7 @@ function refreshETDReport(){
   }).join('');
 }
 function exportETDCSV(){
-  const search=(document.getElementById('etdSearchTruck').value||'').trim();
+  const search=document.getElementById('etdSearchTruck').value||'').trim();
   const rows=computeETDStories(search);
   const headers=['Truck','Bay','Dept','Technician','Assisting','Supervisor ETD','Ground Team ETD','Actual Finish','Revisions','Sup vs Ground (hrs)','Ground vs Actual (hrs)','Sup vs Actual (hrs)'];
   const fmt=v=>v?new Date(v).toLocaleString('en-GB'):'';
@@ -8880,7 +8880,7 @@ let _editRecordsUnlocked=false;
 let _editRecordsLockTimer=null;
 
 function unlockEditRecords(){
-  const entered=(document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
+  const entered=document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('editRecordsNameInput').value='';
@@ -9631,7 +9631,7 @@ function requireManagerConfirm(desc, action){
 }
 
 function executeRosterAction(){
-  const entered = (document.getElementById('rosterConfirmInput').value||'').trim().toUpperCase();
+  const entered = document.getElementById('rosterConfirmInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — action blocked','warn');
     return;
