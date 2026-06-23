@@ -6670,7 +6670,7 @@ function savePostponeRecord(){
 }
 
 function refreshPostponeHistory(){
-  const search=(document.getElementById('postponeSearch')||{}).value||'').toUpperCase();
+  const search=((document.getElementById('postponeSearch')||{}).value||'').toUpperCase();
   const records=(S.postponeRecords||[]).filter(r=>!search||r.truckNo.includes(search))
     .sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt));
   const list=document.getElementById('postponeHistoryList');
@@ -7250,7 +7250,7 @@ function refreshStoresPage(){
   // Issued log
   const iLog=document.getElementById('storesIssuedLog');
   if(iLog){
-    const search=(document.getElementById('storesIssuedSearch')||{}).value||'').trim().toUpperCase();
+    const search=((document.getElementById('storesIssuedSearch')||{}).value||'').trim().toUpperCase();
     let issued=S.spareRequests.filter(r=>r.status==='issued').reverse();
     if(search) issued=issued.filter(r=>r.truckNo.includes(search)||r.partName.includes(search));
     if(!issued.length){iLog.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr>';}
@@ -8214,7 +8214,7 @@ async function saveNewDataPin(){
 }
 
 function refreshFalseHistory(){
-  const search=(document.getElementById('falseSearch')||{}).value||'').toUpperCase();
+  const search=((document.getElementById('falseSearch')||{}).value||'').toUpperCase();
   const list=document.getElementById('falseHistoryList');
   const records=(S.falseComplaintHistory||[]).filter(f=>{
     if(!search) return true;
