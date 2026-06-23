@@ -4206,9 +4206,7 @@ function loadTruckForSup(){
 
   // Check if this truck has a matched Incharge appointment — show complaint reference panel
   const apt=S.appointments&&S.appointments.find(a=>
-    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo)) &&
-    (a.status==='reported'||a.status==='pending') &&
-    !a.supVerdict
+    (()=>{const n=s=>(s||'').toUpperCase().replace(/[\s-]/g,'');return n(a.truckNo)===n(e.truckNo)&&(a.status==='reported'||a.status==='pending')&&!a.supVerdict;})()
   );
   const panel=document.getElementById('supInchargeComplaintsPanel');
   if(apt && apt.complaints){
@@ -4277,7 +4275,7 @@ function sendTruckBackNoWork(){
 
   // Update appointment with supervisor verdict
   const apt=S.appointments&&S.appointments.find(a=>
-    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo))&&(a.status==='reported'||a.status==='pending')
+    (()=>{const n=s=>(s||'').toUpperCase().replace(/[\s-]/g,'');return n(a.truckNo)===n(e.truckNo)&&(a.status==='reported'||a.status==='pending');})()
   );
   if(apt){
     apt.supVerdict='rejected';
@@ -4329,7 +4327,7 @@ function postponeTruck(){
   if(!suggestedDate) return toast('⚠️ Set a suggested new date','warn');
 
   const apt=S.appointments&&S.appointments.find(a=>
-    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo))&&(a.status==='reported'||a.status==='pending')
+    (()=>{const n=s=>(s||'').toUpperCase().replace(/[\s-]/g,'');return n(a.truckNo)===n(e.truckNo)&&(a.status==='reported'||a.status==='pending');})()
   );
   if(apt){
     apt.status='postponed';
