@@ -3150,6 +3150,24 @@ function saveInchargeName(){
 }
 
 function refreshInchargePage(){
+  // Auto re-match pending appointments with existing gate entries (fixes format mismatch)
+  const normT=s=>(s||'').toUpperCase().replace(/[\s\-]/g,'');
+  const threeDaysAgo=new Date(Date.now()-3*24*3600000).toISOString().slice(0,10);
+  if(S.appointments && S.entries){
+    let changed=false;
+    S.appointments.forEach(apt=>{
+      if(apt.status==='pending' && apt.plannedVisit>=threeDaysAgo){
+        const matchedEntry=S.entries.find(e=>normT(e.truckNo)===normT(apt.truckNo) && !e.exitTime);
+        if(matchedEntry){
+          apt.status='reported';
+          apt.reportedEntryId=matchedEntry.id;
+          if(!apt.reportedAt) apt.reportedAt=matchedEntry.entryTime;
+          changed=true;
+        }
+      }
+    });
+    if(changed) save();
+  }
   // Populate name picker from Floor Incharge section of staff roster
   const sel=document.getElementById('inchargeName');
   const cur=sel.value||_inchargeNameSession;
@@ -3607,11 +3625,12 @@ function punchEntry(){
   S.entries.push(entry);
 
   // Auto-match any pending appointment for this truck within the 3-day window
+  const normalize=s=>(s||'').toUpperCase().replace(/[\s\-]/g,'');
   const threeDaysAgo=new Date(Date.now()-3*24*3600000).toISOString().slice(0,10);
   if(S.appointments){
     let matched=false;
     S.appointments.forEach(apt=>{
-      if(apt.truckNo.toUpperCase()===tn.toUpperCase() && apt.status==='pending' && apt.plannedVisit>=threeDaysAgo){
+      if(normalize(apt.truckNo)===normalize(tn) && apt.status==='pending' && apt.plannedVisit>=threeDaysAgo){
         apt.status='reported';
         apt.reportedEntryId=entry.id;
         apt.reportedAt=new Date().toISOString();
@@ -4168,7 +4187,7 @@ function loadTruckForSup(){
 
   // Check if this truck has a matched Incharge appointment — show complaint reference panel
   const apt=S.appointments&&S.appointments.find(a=>
-    a.truckNo.toUpperCase()===e.truckNo.toUpperCase() &&
+    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo)) &&
     (a.status==='reported'||a.status==='pending') &&
     !a.supVerdict
   );
@@ -4239,7 +4258,7 @@ function sendTruckBackNoWork(){
 
   // Update appointment with supervisor verdict
   const apt=S.appointments&&S.appointments.find(a=>
-    a.truckNo.toUpperCase()===e.truckNo.toUpperCase()&&(a.status==='reported'||a.status==='pending')
+    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo))&&(a.status==='reported'||a.status==='pending')
   );
   if(apt){
     apt.supVerdict='rejected';
@@ -4291,7 +4310,7 @@ function postponeTruck(){
   if(!suggestedDate) return toast('⚠️ Set a suggested new date','warn');
 
   const apt=S.appointments&&S.appointments.find(a=>
-    a.truckNo.toUpperCase()===e.truckNo.toUpperCase()&&(a.status==='reported'||a.status==='pending')
+    ((s=>s.toUpperCase().replace(/[\s\-]/g,''))(a.truckNo))===(s=>s.toUpperCase().replace(/[\s\-]/g,''))(e.truckNo))&&(a.status==='reported'||a.status==='pending')
   );
   if(apt){
     apt.status='postponed';
