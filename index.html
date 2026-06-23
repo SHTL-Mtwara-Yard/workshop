@@ -5374,11 +5374,11 @@ function calcInchargeOdo(){
 // ─── SUPERVISOR ODO CALC ───
 function calcSupOdo(){
   const trip=parseInt(document.getElementById('supTripKms').value)||0;
-  const manualBase=parseInt(document.getElementById('supBaseOdo')||{}).value)||0;
+  const manualBase=parseInt((document.getElementById('supBaseOdo')||{}).value)||0;
   const block=document.getElementById('supOdoCalcBlock');
   const result=document.getElementById('supOdoCalcResult');
   const formula=document.getElementById('supOdoCalcFormula');
-  const tn=document.getElementById('supTruckSelect').value);
+  const tn=document.getElementById('supTruckSelect').value;
   const entry=S.entries.find(e=>e.id==tn);
   const truckNo=entry?entry.truckNo:'';
   const lastOdo=getLastLockedOdo(truckNo);
