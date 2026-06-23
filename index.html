@@ -3273,7 +3273,7 @@ function checkAptLastVisit(){
     document.getElementById('iat_lastVisitText').textContent=`Last entry: ${last.odoOnArrival.toLocaleString()} km on ${d}`;
     lastOdoEl.value=last.odoOnArrival;
     banner.style.display='block';
-    const cur=parseIntdocument.getElementById('iat_odo').value);
+    const cur=parseInt(document.getElementById('iat_odo').value);
     if(cur && cur>last.odoOnArrival){
       document.getElementById('iat_lastVisitText').textContent+=` · Diff: ${(cur-last.odoOnArrival).toLocaleString()} km`;
     }
@@ -3294,8 +3294,8 @@ function submitAppointment(){
   const driverName=document.getElementById('iat_driverName').value.trim();
   if(!driverName) return toast('⚠️ Enter driver name','warn');
   const driverMobile=document.getElementById('iat_driverMobile').value.trim();
-  const odo=document.getElementById('iat_odo').value ? parseIntdocument.getElementById('iat_odo').value) : null;
-  const tripKms=document.getElementById('iat_tripKms').value ? parseIntdocument.getElementById('iat_tripKms').value) : null;
+  const odo=document.getElementById('iat_odo').value ? parseInt(document.getElementById('iat_odo').value) : null;
+  const tripKms=document.getElementById('iat_tripKms').value ? parseInt(document.getElementById('iat_tripKms').value) : null;
   const estimatedOdo=(odo&&tripKms)?odo+tripKms:odo||null;
   const complaints=document.getElementById('iat_complaints').value.trim();
 
@@ -3534,7 +3534,7 @@ function openCloseApt(id){
 }
 
 function confirmCloseApt(){
-  const id=parseIntdocument.getElementById('closeAptId').value);
+  const id=parseInt(document.getElementById('closeAptId').value);
   const reason=document.getElementById('closeAptReason').value;
   const remark=document.getElementById('closeAptRemark').value.trim();
   if(!reason) return toast('⚠️ Select a reason','warn');
@@ -3566,15 +3566,15 @@ function openEditApt(id){
 }
 
 function saveEditApt(){
-  const id=parseIntdocument.getElementById('editAptId').value);
+  const id=parseInt(document.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
   apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
-  apt.currentOdo=document.getElementById('ea_odo').value?parseIntdocument.getElementById('ea_odo').value):null;
-  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseIntdocument.getElementById('ea_lastOdo').value):null;
+  apt.currentOdo=document.getElementById('ea_odo').value?parseInt(document.getElementById('ea_odo').value):null;
+  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseInt(document.getElementById('ea_lastOdo').value):null;
   apt.complaints=document.getElementById('ea_complaints').value.trim();
   save();
   renderInchargeQueue();
@@ -3596,7 +3596,7 @@ function reraiseApt(id){
 }
 
 function confirmReraise(){
-  const id=parseIntdocument.getElementById('reraiseAptId').value);
+  const id=parseInt(document.getElementById('reraiseAptId').value);
   const newDate=document.getElementById('reraiseNewDate').value;
   if(!newDate) return toast('⚠️ Select a new visit date first','warn');
   // Prevent re-raising to today or a past date
@@ -3903,7 +3903,7 @@ function checkDriverMatch(){
 }
 
 function confirmVerifiedExit(outcome){
-  const entryId = parseIntdocument.getElementById('dv_entryId').value);
+  const entryId = parseInt(document.getElementById('dv_entryId').value);
   const collectingName = document.getElementById('dv_driverName').value.trim();
   const collectingMobile = document.getElementById('dv_driverMobile').value.trim();
   const e = S.entries.find(x => x.id === entryId);
@@ -4366,7 +4366,7 @@ function openPostponeConfirm(aptId){
 }
 
 function confirmPostpone(){
-  const aptId=parseIntdocument.getElementById('postponeConfirmAptId').value);
+  const aptId=parseInt(document.getElementById('postponeConfirmAptId').value);
   const newDate=document.getElementById('postponeConfirmDate').value;
   if(!newDate) return toast('⚠️ Set a confirmed date','warn');
   const apt=S.appointments.find(a=>a.id==aptId);
@@ -4418,8 +4418,8 @@ function saveSupervisorEntry(){
     })).filter(j=>j.desc.trim());
   });
 
-  const tripKms=document.getElementById('supTripKms').value?parseIntdocument.getElementById('supTripKms').value):null;
-  const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseIntdocument.getElementById('supBaseOdo').value):null;
+  const tripKms=document.getElementById('supTripKms').value?parseInt(document.getElementById('supTripKms').value):null;
+  const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseInt(document.getElementById('supBaseOdo').value):null;
   const lastOdoRecord=getLastLockedOdo((S.entries.find(e=>e.id==id)||{truckNo:''}).truckNo);
   // Manual base overrides locked record; if both trip + base given, sum them
   const lockedOdo=manualBaseOdo?(tripKms?manualBaseOdo+tripKms:manualBaseOdo):(tripKms?(lastOdoRecord?lastOdoRecord.odo+tripKms:tripKms):null);
@@ -5356,8 +5356,8 @@ function syncSupETD(){
 
 // ─── INCHARGE ODO CALC ───
 function calcInchargeOdo(){
-  const base=parseIntdocument.getElementById('iat_odo').value)||0;
-  const trip=parseIntdocument.getElementById('iat_tripKms').value)||0;
+  const base=parseInt(document.getElementById('iat_odo').value)||0;
+  const trip=parseInt(document.getElementById('iat_tripKms').value)||0;
   const banner=document.getElementById('iat_odoCalcBanner');
   const result=document.getElementById('iat_odoCalcResult');
   const formula=document.getElementById('iat_odoCalcFormula');
@@ -5373,7 +5373,7 @@ function calcInchargeOdo(){
 
 // ─── SUPERVISOR ODO CALC ───
 function calcSupOdo(){
-  const trip=parseIntdocument.getElementById('supTripKms').value)||0;
+  const trip=parseInt(document.getElementById('supTripKms').value)||0;
   const manualBase=parseInt((document.getElementById('supBaseOdo')||{}).value)||0;
   const block=document.getElementById('supOdoCalcBlock');
   const result=document.getElementById('supOdoCalcResult');
@@ -5700,7 +5700,7 @@ function toggleJobJC(insId,dept,idx,cb){
 // ═══ REVISIT ═══
 function logRevisit(){
   const truck=document.getElementById('rvTruck').value.trim();
-  const km=parseIntdocument.getElementById('rvKm').value);
+  const km=parseInt(document.getElementById('rvKm').value);
   const dept=document.getElementById('rvDept').value;
   const issue=document.getElementById('rvIssue').value.trim();
   if(!truck||!km||!issue)return toast('⚠️ Fill all fields','warn');
@@ -7137,7 +7137,7 @@ function logTrip(){
   const depart=document.getElementById('tripDepart').value;
   const ret=document.getElementById('tripReturn').value;
   const dest=document.getElementById('tripDest').value.trim();
-  const km=parseIntdocument.getElementById('tripKm').value)||0;
+  const km=parseInt(document.getElementById('tripKm').value)||0;
   const pass=document.getElementById('tripPass').value.trim();
   if(!driver) return toast('⚠️ Select driver','warn');
   if(!dest) return toast('⚠️ Enter destination','warn');
@@ -7282,7 +7282,7 @@ function raiseSpareRequest(){
   const truckSel=document.getElementById('storesReqTruck');
   const dept=document.getElementById('storesReqDept').value;
   const part=document.getElementById('storesReqPart').value.trim().toUpperCase();
-  const qty=parseIntdocument.getElementById('storesReqQty').value)||1;
+  const qty=parseInt(document.getElementById('storesReqQty').value)||1;
   const partNo=document.getElementById('storesReqPartNo').value.trim().toUpperCase();
   const priority=document.getElementById('storesReqPriority').value;
   const notes=document.getElementById('storesReqNotes').value.trim();
@@ -8338,15 +8338,15 @@ function openMgrEditApt(id){
 }
 
 function saveMgrAptFromModal(){
-  const id=parseIntdocument.getElementById('editAptId').value);
+  const id=parseInt(document.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
   apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
-  apt.currentOdo=document.getElementById('ea_odo').value?parseIntdocument.getElementById('ea_odo').value):null;
-  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseIntdocument.getElementById('ea_lastOdo').value):null;
+  apt.currentOdo=document.getElementById('ea_odo').value?parseInt(document.getElementById('ea_odo').value):null;
+  apt.lastVisitOdo=document.getElementById('ea_lastOdo').value?parseInt(document.getElementById('ea_lastOdo').value):null;
   apt.complaints=document.getElementById('ea_complaints').value.trim();
   apt.managerVerified=true;
   apt.managerVerifiedAt=new Date().toISOString();
@@ -8410,7 +8410,7 @@ function openSparePartModal(insId,dept,jobIdx){
 function saveSparePartPending(){
   const insId=document.getElementById('sparePartInsId').value;
   const dept=document.getElementById('sparePartDept').value;
-  const jobIdx=parseIntdocument.getElementById('sparePartJobIdx').value);
+  const jobIdx=parseInt(document.getElementById('sparePartJobIdx').value);
   const partName=document.getElementById('sparePartName').value.trim();
   const notes=document.getElementById('sparePartNotes').value.trim();
   if(!partName) return toast('⚠️ Enter the part name','warn');
