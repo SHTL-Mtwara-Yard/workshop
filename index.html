@@ -2861,10 +2861,11 @@ fbRoot.on('value', snapshot=>{
     _fbReady=true;
     runInitialRender();
   } else {
+    // Firebase data arrived — refresh current page with live data
+    refreshCurrentPage();
     // Check for new unread security alerts and beep
     const newAlerts=(S.securityAlerts||[]).filter(a=>!a.acknowledgedAt);
     if(newAlerts.length>0) playSecurityBeep();
-    refreshCurrentPage();
   }
 }, err=>{
   console.error('Firebase listener error:',err);
@@ -2882,6 +2883,23 @@ fbRoot.on('value', snapshot=>{
   }
 });
 setConnIndicator('connecting');
+
+// Load cache immediately so data shows while Firebase connects
+(function loadCacheOnStartup(){
+  try{
+    const c=localStorage.getItem('shtl_v3_cache');
+    if(c){
+      const cached=JSON.parse(c);
+      S=cached;
+      if(!S.staffRoster||!Object.keys(S.staffRoster).length) S.staffRoster=JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED));
+      STAFF=S.staffRoster;
+      ALL_STAFF=[...new Set(Object.values(STAFF).flat())].sort();
+      _fbReady=true;
+      runInitialRender();
+      setConnIndicator('connecting'); // still connecting to Firebase for live sync
+    }
+  }catch(e){}
+})();
 
 // Re-render whichever page/sub-page is currently active, so live updates from
 // other users appear without the current user needing to navigate away and back.
