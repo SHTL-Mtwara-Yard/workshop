@@ -4076,6 +4076,28 @@ function updateBadge(){
 // ═══ SUPERVISOR ═══
 let jobCounts={mech:0,elec:0,tyre:0,weld:0};
 
+const deptColors={mech:'var(--blue)',elec:'var(--yellow)',tyre:'var(--green)',weld:'var(--purple)'};
+const deptNames={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
+
+function buildDeptBlocks(depts){
+  const container=document.getElementById('jobDeptBlocks');
+  if(!container) return;
+  // Only rebuild if depts changed
+  const existing=container.getAttribute('data-depts')||'';
+  const newDepts=(depts||[]).join(',');
+  if(existing===newDepts) return;
+  container.setAttribute('data-depts',newDepts);
+  container.innerHTML=(depts||[]).map(d=>`
+    <div class="dept-block" style="margin-bottom:14px;border:1px solid ${deptColors[d]||'var(--border)'};border-radius:var(--radius);overflow:hidden">
+      <div style="background:${deptColors[d]||'var(--border)'};padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;color:#fff;font-size:13px">${deptNames[d]||d}</span>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:none;font-size:11px;padding:3px 8px" onclick="addJobRow('${d}')">+ Add Job</button>
+      </div>
+      <div id="rows-${d}" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
+    </div>`).join('');
+  jobCounts={mech:0,elec:0,tyre:0,weld:0};
+}
+
 function addJobRow(d){
   const c=document.getElementById('rows-'+d);
   const n=++jobCounts[d];
@@ -4140,6 +4162,8 @@ function loadTruckForSup(){
   document.getElementById('supGateIn').value=new Date(e.entryTime).toLocaleTimeString('en-GB');
   document.getElementById('supFuel').value=e.fuel+' L';
   document.getElementById('supDepts').value=e.depts.map(d=>dL(d)).join(', ')||'—';
+  // Build department blocks first, then add job rows
+  buildDeptBlocks(e.depts);
   e.depts.forEach(d=>{if(!document.getElementById('rows-'+d).children.length)addJobRow(d);});
 
   // Check if this truck has a matched Incharge appointment — show complaint reference panel
