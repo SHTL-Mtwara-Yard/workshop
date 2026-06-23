@@ -3892,7 +3892,7 @@ function openDriverVerify(insId, alertId){
 function checkDriverMatch(){
   const entryId = document.getElementById('dv_entryId').value;
   const ins = S.inspections.find(i => i.entryId == entryId);
-  const enteredName = document.getElementById('dv_driverName').value||'').trim().toUpperCase();
+  const enteredName = ((document.getElementById('dv_driverName').value||'').trim().toUpperCase();
   const arrivalName = ((ins&&ins.driverName)||'').toUpperCase();
   const result = document.getElementById('dv_matchResult');
   if(!enteredName){ result.innerHTML=''; return; }
@@ -5742,7 +5742,7 @@ function renderTrend(){
 
 // ═══ MANAGER: ALL JOB CARDS REGISTER ═══
 function refreshMgrJobCards(){
-  const search=document.getElementById('mgrSearch').value||'').toUpperCase();
+  const search=(document.getElementById('mgrSearch').value||'').toUpperCase();
   const statusF=document.getElementById('mgrStatusFilter').value;
   const teamF=document.getElementById('mgrTeamFilter').value;
 
@@ -6488,7 +6488,7 @@ function deleteBreakdown(id){
 }
 
 function refreshBreakdown(){
-  const search=document.getElementById('bdSearch').value||'').toUpperCase();
+  const search=(document.getElementById('bdSearch').value||'').toUpperCase();
   const monthF=document.getElementById('bdMonthFilter').value;
   const now=new Date();
   const todayStr=now.toDateString();
@@ -7380,7 +7380,7 @@ let _supportEditUnlocked=false;
 let _supportEditLockTimer=null;
 
 function unlockSupportEdit(){
-  const entered=document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
+  const entered=(document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('supportEditNameInput').value='';
@@ -7406,7 +7406,7 @@ function lockSupportEdit(){
 
 function loadSupportEditRecords(){
   const type=document.getElementById('supportEditType').value;
-  const truckFilter=document.getElementById('supportEditTruckFilter').value||'').trim().toUpperCase();
+  const truckFilter=(document.getElementById('supportEditTruckFilter').value||'').trim().toUpperCase();
   const div=document.getElementById('supportEditRecordsList');
   if(!type){div.innerHTML='';return;}
   let jobs=(S.supportJobs||[]).filter(j=>j.type===type);
@@ -7979,7 +7979,7 @@ async function verifyDataPin(){
 }
 
 function unlockDataControl(){
-  const entered=document.getElementById('dcNameInput').value||'').trim().toUpperCase();
+  const entered=(document.getElementById('dcNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('dcNameInput').value='';
@@ -8059,7 +8059,7 @@ function purgeExpiredBin(){
 
 // ── BY TRUCK ──
 function loadDcTruckRecords(){
-  const tn=document.getElementById('dcTruckSearch').value||'').trim().toUpperCase();
+  const tn=(document.getElementById('dcTruckSearch').value||'').trim().toUpperCase();
   const div=document.getElementById('dcTruckRecords');
   if(!tn||tn.length<3){div.innerHTML='';return;}
   const entries=S.entries.filter(e=>e.truckNo===tn);
@@ -8249,7 +8249,7 @@ function refreshDataControl(){
 function refreshMgrIncharge(){
   if(!S.appointments){ document.getElementById('mgrInchargeList').innerHTML='<div style="text-align:center;color:var(--text2);padding:24px">No records yet</div>'; return; }
   const filter=document.getElementById('mgrAptFilter').value;
-  const search=document.getElementById('mgrAptSearch').value||'').trim().toUpperCase();
+  const search=(document.getElementById('mgrAptSearch').value||'').trim().toUpperCase();
   const now=new Date();
   const threeDaysAgo=new Date(now-3*24*3600000);
 
@@ -8811,7 +8811,7 @@ function deltaTag(hrs){
   return `<span class="tag tag-green">${Math.abs(rounded)}h saved</span>`;
 }
 function refreshETDReport(){
-  const search=document.getElementById('etdSearchTruck').value||'').trim();
+  const search=(document.getElementById('etdSearchTruck').value||'').trim();
   const rows=computeETDStories(search);
   const tb=document.getElementById('etdReportTable');
   if(!rows.length){
@@ -8838,7 +8838,7 @@ function refreshETDReport(){
   }).join('');
 }
 function exportETDCSV(){
-  const search=document.getElementById('etdSearchTruck').value||'').trim();
+  const search=(document.getElementById('etdSearchTruck').value||'').trim();
   const rows=computeETDStories(search);
   const headers=['Truck','Bay','Dept','Technician','Assisting','Supervisor ETD','Ground Team ETD','Actual Finish','Revisions','Sup vs Ground (hrs)','Ground vs Actual (hrs)','Sup vs Actual (hrs)'];
   const fmt=v=>v?new Date(v).toLocaleString('en-GB'):'';
@@ -8880,7 +8880,7 @@ let _editRecordsUnlocked=false;
 let _editRecordsLockTimer=null;
 
 function unlockEditRecords(){
-  const entered=document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
+  const entered=(document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — access blocked','warn');
     document.getElementById('editRecordsNameInput').value='';
@@ -9631,7 +9631,7 @@ function requireManagerConfirm(desc, action){
 }
 
 function executeRosterAction(){
-  const entered = document.getElementById('rosterConfirmInput').value||'').trim().toUpperCase();
+  const entered = (document.getElementById('rosterConfirmInput').value||'').trim().toUpperCase();
   if(entered !== MANAGER_NAME.toUpperCase()){
     toast('❌ Name does not match — action blocked','warn');
     return;
