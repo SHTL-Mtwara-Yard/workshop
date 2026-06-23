@@ -6201,6 +6201,7 @@ function speakAnnouncement(text){
 }
 
 function refreshOverview(){
+  try{
   const now=new Date();
   document.getElementById('overviewDate').textContent=now.toLocaleDateString('en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const today=now.toDateString();
@@ -6284,6 +6285,7 @@ function refreshOverview(){
     const ot=e.exitTime?new Date(e.exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):null;
     return `<div class="flex items-center gap-8 mb-8" style="padding:8px;background:var(--surface3);border-radius:6px"><span>${e.exitTime?'🚪':'🚛'}</span><span class="fw-700">${e.truckNo}</span><span class="text2 text-xs">${e.origin}</span><span class="text2 text-xs" style="margin-left:auto">${ot?'⬆️ '+ot:'⬇️ '+t}</span></div>`;
   }).join('')||'<div class="text2 text-sm">No activity yet</div>';
+  }catch(e){ console.error('refreshOverview error:',e); }
 }
 
 // ═══ MANAGER → SUPERVISOR NOTIFICATIONS ═══
