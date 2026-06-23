@@ -933,7 +933,7 @@ tr:hover td { background: var(--surface2); }
           </div>
           <div>
             <label>🚛 Truck Number</label>
-            <input type="text" id="truckNo" placeholder="e.g. T 123 ABC" oninput="this.value=this.value.toUpperCase()" style="margin-bottom:10px">
+            <input type="text" id="truckNo" placeholder="e.g. T123 ABC" oninput="this.value=this.value.toUpperCase()" style="margin-bottom:10px;font-weight:700;font-size:16px;letter-spacing:.5px">
             <label>📍 Coming From</label>
             <select id="truckOrigin">
               <option value="">-- Select Origin --</option>
@@ -3352,14 +3352,22 @@ function submitAppointment(){
   document.getElementById('iat_emailLink').href=mailto;
   document.getElementById('iat_emailRow').style.display='block';
 
-  // Clear form
+  // Clear form — all fields
   document.getElementById('iat_truckNo').value='';
   document.getElementById('iat_driverName').value='';
   document.getElementById('iat_driverMobile').value='';
   document.getElementById('iat_odo').value='';
   document.getElementById('iat_tripKms').value='';
+  document.getElementById('iat_complaints').value='';
+  document.getElementById('iat_visit_hh').value='';
+  document.getElementById('iat_visit_mm').value='';
+  document.getElementById('iat_visit_dd').value='';
+  document.getElementById('iat_visit').value='';
+  const visitDisp=document.getElementById('iat_visit_display');
+  if(visitDisp) visitDisp.textContent='';
   document.getElementById('iat_odoCalcBanner').style.display='none';
-  document.getElementById('iat_lastVisitBanner').style.display='';
+  document.getElementById('iat_lastVisitBanner').style.display='none';
+  document.getElementById('iat_emailRow').style.display='none';
 
   toast('✅ Request submitted for '+tn,'ok');
   updateInchargeCounter();
@@ -5751,7 +5759,12 @@ function refreshMgrJobCards(){
 
   // filter
   rows=rows.filter(r=>{
-    if(search && !(r.ins.truckNo.includes(search) || r.j.desc.toUpperCase().includes(search))) return false;
+    if(search){
+      const norm=s=>(s||'').toUpperCase().replace(/[\s]/g,'');
+      const truckMatch=norm(r.ins.truckNo).includes(norm(search));
+      const faultMatch=r.j.desc.toUpperCase().includes(search);
+      if(!truckMatch && !faultMatch) return false;
+    }
     if(statusF==='complete' && !r.isDone) return false;
     if(statusF==='pending' && r.isDone) return false;
     if(teamF!=='all'){
