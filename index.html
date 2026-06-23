@@ -576,7 +576,7 @@ tr:hover td { background: var(--surface2); }
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
           <div>
             <label>🚛 Truck No</label>
-            <input type="text" id="iat_truckNo" placeholder="e.g. T221 DZT" oninput="this.value=this.value.toUpperCase();checkAptLastVisit()" style="font-weight:700;font-size:18px;letter-spacing:.5px;padding:12px">
+            <input type="text" id="iat_truckNo" placeholder="e.g. T221 DZT" oninput="onTruckInput(this);checkAptLastVisit()" style="font-weight:700;font-size:18px;letter-spacing:.5px;padding:12px">
           </div>
           <div>
             <label>📅 Planned Visit</label>
@@ -840,7 +840,7 @@ tr:hover td { background: var(--surface2); }
     <div class="modal-title">Edit Request <button class="modal-close" onclick="closeModal('editAptModal')">✕</button></div>
     <input type="hidden" id="editAptId">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-      <div><label>Truck No</label><input type="text" id="ea_truckNo" oninput="this.value=this.value.toUpperCase()"></div>
+      <div><label>Truck No</label><input type="text" id="ea_truckNo" oninput="onTruckInput(this)"></div>
       <div><label>Planned Visit</label><input type="datetime-local" id="ea_visit"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
@@ -933,7 +933,7 @@ tr:hover td { background: var(--surface2); }
           </div>
           <div>
             <label>🚛 Truck Number</label>
-            <input type="text" id="truckNo" placeholder="e.g. T123 ABC" oninput="this.value=this.value.toUpperCase()" style="margin-bottom:10px;font-weight:700;font-size:16px;letter-spacing:.5px">
+            <input type="text" id="truckNo" placeholder="e.g. T123 ABC" oninput="onTruckInput(this)" style="margin-bottom:10px;font-weight:700;font-size:16px;letter-spacing:.5px">
             <label>📍 Coming From</label>
             <select id="truckOrigin">
               <option value="">-- Select Origin --</option>
@@ -1378,7 +1378,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card">
         <div class="card-title"><span class="dot" style="background:var(--red)"></span>Log Revisit</div>
         <div class="form-row cols-2">
-          <div><label>Truck No</label><input type="text" id="rvTruck" placeholder="T 456 ABC" oninput="this.value=this.value.toUpperCase()"></div>
+          <div><label>Truck No</label><input type="text" id="rvTruck" placeholder="e.g. T456 ABC" oninput="onTruckInput(this)"></div>
           <div><label>KM Since Last Service</label><input type="number" id="rvKm" placeholder="e.g. 3200"></div>
         </div>
         <div class="form-row cols-2">
@@ -1828,7 +1828,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--red)"></span>🗄️ Data Control — Manager Access</div>
       <div class="text-xs text2 mb-12">This area allows permanent deletion of records. All actions are logged in the Audit Trail. Only the Workshop Manager should use this area.</div>
       <label>Manager Name</label>
-      <input type="text" id="dcNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="dcNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockDataControl()"><i class="ti ti-lock-open" aria-hidden="true"></i> Enter Data Control</button>
     </div>
 
@@ -1936,7 +1936,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Records — Manager Access</div>
       <div class="text-xs text2 mb-12">Only the Workshop Manager can edit records. Type your full name to unlock.</div>
       <label>Manager Name</label>
-      <input type="text" id="editRecordsNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="editRecordsNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockEditRecords()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit Records</button>
     </div>
     <!-- EDIT RECORDS PANEL -->
@@ -2205,11 +2205,11 @@ tr:hover td { background: var(--surface2); }
       <div class="form-row cols-2">
         <div>
           <label>🚛 Truck No</label>
-          <input type="text" id="refTruckNo" placeholder="e.g. T936 ECY" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px">
+          <input type="text" id="refTruckNo" placeholder="e.g. T936 ECY" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px">
         </div>
         <div>
           <label>🚌 Trailer No</label>
-          <input type="text" id="refTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()" style="font-weight:700">
+          <input type="text" id="refTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="onTruckInput(this)" style="font-weight:700">
         </div>
       </div>
       <div class="form-row cols-2">
@@ -2341,7 +2341,7 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>✏️ Edit Support Records — Manager Access</div>
       <div class="text-xs text2 mb-12">Only the Workshop Manager can edit support records. Type your full name to unlock.</div>
       <label>Manager Name</label>
-      <input type="text" id="supportEditNameInput" placeholder="Type your full name" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
+      <input type="text" id="supportEditNameInput" placeholder="Type your full name" oninput="onTruckInput(this)" style="font-weight:700;font-size:15px;letter-spacing:.5px;margin-bottom:10px">
       <button class="btn btn-primary btn-block" onclick="unlockSupportEdit()"><i class="ti ti-lock-open" aria-hidden="true"></i> Unlock Edit</button>
     </div>
     <!-- EDIT PANEL -->
@@ -3239,7 +3239,7 @@ function getLastVisitForTruck(truckNo){
 }
 
 function checkAptLastVisit(){
-  const tn=(document.getElementById('iat_truckNo').value||'').toUpperCase().trim();
+  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
   const banner=document.getElementById('iat_lastVisitBanner');
   const lastOdoEl=document.getElementById('iat_lastOdo');
 
@@ -3286,7 +3286,7 @@ function checkAptLastVisit(){
 function submitAppointment(){
   const who=document.getElementById('inchargeName').value;
   if(!who) return toast('⚠️ Select your name first','warn');
-  const tn=(document.getElementById('iat_truckNo').value||'').trim().toUpperCase();
+  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
   if(!tn) return toast('⚠️ Enter truck number','warn');
   const visit=document.getElementById('iat_visit').value;
   if(!visit) return toast('⚠️ Set planned visit date & time','warn');
@@ -3568,7 +3568,7 @@ function saveEditApt(){
   const id=parseInt(document.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=(document.getElementById('ea_truckNo').value||'').toUpperCase().trim();
+  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
@@ -3628,7 +3628,7 @@ function confirmReraise(){
 
 function punchEntry(){
   if(_punchEntryInProgress)return; // guards against rapid double-click/double-tap creating duplicate entries
-  const tn=document.getElementById('truckNo').value.trim();
+  const tn=fmtTruck(document.getElementById('truckNo').value.trim());
   const org=document.getElementById('truckOrigin').value;
   const fuel=document.getElementById('fuelSelected').value;
   if(!tn)return toast('⚠️ Enter truck number','warn');
@@ -7237,7 +7237,7 @@ function refreshStoresPage(){
           </div>
           <div style="margin-bottom:10px">
             <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Issued By (Store Staff)</label>
-            <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="this.value=this.value.toUpperCase()" style="margin-top:4px">
+            <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="onTruckInput(this)" style="margin-top:4px">
           </div>
           <button class="btn btn-primary btn-block" onclick="issueSpare('${r.id}')">📦 Issue Part + Old Part Received</button>
         </div>`).join('');
@@ -7445,7 +7445,7 @@ function loadSupportEditRecords(){
 function saveSupportEdit(id){
   const job=(S.supportJobs||[]).find(j=>j.id==id);
   if(!job) return toast('Record not found','warn');
-  job.truckNo=document.getElementById('sedit-truck-'+id).value.trim().toUpperCase()||job.truckNo;
+  job.truckNo=fmtTruck(document.getElementById('sedit-truck-'+id).value.trim())||job.truckNo;
   job.name=document.getElementById('sedit-name-'+id).value.trim().toUpperCase()||job.name;
   const newJob=document.getElementById('sedit-job-'+id).value.trim();
   if(newJob) job.job=newJob;
@@ -8338,7 +8338,7 @@ function saveMgrAptFromModal(){
   const id=parseInt(document.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=(document.getElementById('ea_truckNo').value||'').toUpperCase().trim();
+  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
@@ -9597,6 +9597,25 @@ function getWorkerFixedBay(name){
 }
 
 // ── ROSTER MANAGER CONFIRMATION ──
+// ── TRUCK NUMBER FORMATTER ──
+// Enforces T123 ABC format — uppercase, T prefix, space before letters
+function fmtTruck(val){
+  if(!val) return '';
+  let v=val.toUpperCase().replace(/[^A-Z0-9 ]/g,'').trim();
+  // Remove extra spaces
+  v=v.replace(/\s+/g,' ');
+  // Ensure T prefix
+  if(v.length>0 && v[0]!=='T') v='T'+v;
+  // Auto-insert space: T[digits][space][letters] e.g. T915 DYX
+  const m=v.replace(' ','').match(/^(T\d+)([A-Z]+)$/);
+  if(m) return m[1]+' '+m[2];
+  return v;
+}
+function onTruckInput(el){
+  const formatted=fmtTruck(el.value);
+  if(el.value!==formatted) el.value=formatted;
+}
+
 const MANAGER_NAME = 'JAI SRIMANNARAYANA';
 let _pendingRosterAction = null;
 
