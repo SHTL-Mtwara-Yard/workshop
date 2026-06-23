@@ -2885,23 +2885,7 @@ fbRoot.on('value', snapshot=>{
 });
 setConnIndicator('connecting');
 
-// ── INSTANT STARTUP FROM CACHE ──
-// Load last saved data immediately so app is usable while Firebase connects
-(function(){
-  try{
-    const c=localStorage.getItem('shtl_v3_cache');
-    if(c){
-      S=JSON.parse(c);
-      if(!S.staffRoster||!Object.keys(S.staffRoster||{}).length)
-        S.staffRoster=JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED));
-      STAFF=S.staffRoster;
-      ALL_STAFF=[...new Set(Object.values(STAFF).flat())].sort();
-      _fbReady=true;
-      runInitialRender();
-      refreshCurrentPage();
-    }
-  }catch(e){ console.warn('Cache load failed:',e); }
-})();
+// ── INSTANT STARTUP FROM CACHE — runs after STAFF declared below ──
 
 // Re-render whichever page/sub-page is currently active, so live updates from
 // other users appear without the current user needing to navigate away and back.
@@ -2976,6 +2960,23 @@ const STAFF_SECTION_LABELS = {
 // latest add/remove changes without needing to be rewritten.
 let STAFF = DEFAULT_STAFF_SEED;
 let ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
+
+// ── INSTANT STARTUP FROM CACHE ──
+(function(){
+  try{
+    const c=localStorage.getItem('shtl_v3_cache');
+    if(c){
+      S=JSON.parse(c);
+      if(!S.staffRoster||!Object.keys(S.staffRoster||{}).length)
+        S.staffRoster=JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED));
+      STAFF=S.staffRoster;
+      ALL_STAFF=[...new Set(Object.values(STAFF).flat())].sort();
+      _fbReady=true;
+      runInitialRender();
+      refreshCurrentPage();
+    }
+  }catch(e){ console.warn('Cache load failed:',e); }
+})();
 
 // ═══ SECURITY INVENTORY CHECKLIST ITEMS (fixed, non-editable) ═══
 const INVENTORY_ITEMS = ["Jack","Wheel Spanner 2pc","Triangle 2pc","First Aid Kit","Hard Cap","Reflector Jacket","Safety Shoe","Spare Tires 2pc","Tarpaulin","Fire Extinguisher","Cargo Belt"];
@@ -3849,7 +3850,7 @@ function refreshSecurityPanel(){
         mLeft < 0 ? `<span class="tag tag-red" style="font-size:10px">⚠️ +${Math.abs(Math.round(mLeft/60))}h late</span>` :
         mLeft < 60 ? `<span class="tag tag-yellow" style="font-size:10px">${mLeft}m left</span>` :
         `<span class="tag tag-green" style="font-size:10px">${Math.floor(mLeft/60)}h ${mLeft%60}m</span>`;
-      const depts = ins.jobs ? Object.entries(ins.jobs).filter(([d,j])=>j.length).map(([d])=>dL(d)).join('+') : (e&&e.depts?e.depts.map(d=>dL(d)).join('+'):'—');
+      const depts = ins.jobs ? Object.entries(ins.jobs||{}).filter(([d,j])=>j.length).map(([d])=>dL(d)).join('+') : (e&&e.depts?e.depts.map(d=>dL(d)).join('+'):'—');
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <span style="font-weight:700;min-width:90px">${ins.truckNo}</span>
         ${ins.bayNo!=='—'?`<span class="tag tag-blue" style="font-size:10px">${ins.bayNo}</span>`:''}
@@ -4801,7 +4802,7 @@ function loadBayJobs(){
   let totalJobs=0, totalDone=0;
   ['mech','elec','tyre','weld'].forEach(d=>{
     if(dFilter!=='all'&&dFilter!==d)return;
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     const di=dInfo[d];
     const done=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
     const etdMissing = jobs.length>0 && !deptEtdIsSet(ins.id,d);
@@ -4845,7 +4846,7 @@ function loadBayJobs(){
 
   let eHtml=`<div class="mb-12 text2 text-sm">Truck: <strong style="color:var(--text)">${ins.truckNo}</strong> · ${bay}</div>`;
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];if(!jobs.length)return;
+    const jobs=(ins.jobs||{})[d]||[];if(!jobs.length)return;
     const di=dInfo[d];
     const doneC=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
     const pct=jobs.length?Math.round(doneC/jobs.length*100):0;
@@ -5032,7 +5033,7 @@ function computeETDStories(truckFilter){
   S.inspections.forEach(ins=>{
     if(truckFilter && !ins.truckNo.toUpperCase().includes(truckFilter.toUpperCase())) return;
     ['mech','elec','tyre','weld'].forEach(d=>{
-      const jobs=ins.jobs[d]||[];
+      const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const promised=ins.etd||null;
       const revisions=(S.etdRevisionLog||[])
@@ -5077,7 +5078,7 @@ function checkAutoCompletion(insId){
   const byDept={};
   ['mech','elec','tyre','weld'].forEach(d=>{
     let dTotal=0, dDone=0;
-    (ins.jobs[d]||[]).forEach((j,i)=>{
+    ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
       total++; dTotal++;
       if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done){ done++; dDone++; }
     });
@@ -5246,9 +5247,9 @@ function resolveSendBackToBay(){
     ins.completedAt=null;
     ins.supervisorRemark=null;
 
-    if(!ins.jobs[dept]) ins.jobs[dept]=[];
-    const nextSno=ins.jobs[dept].length+1;
-    ins.jobs[dept].push({
+    if(!(ins.jobs||{})[dept]) (ins.jobs||{})[dept]=[];
+    const nextSno=(ins.jobs||{})[dept].length+1;
+    (ins.jobs||{})[dept].push({
       sno:nextSno,
       desc:'🔁 RECHECK ('+reason+'): '+note,
       priority:'Urgent',
@@ -5536,9 +5537,9 @@ function addGroundJob(insId,dept){
   if(!desc)return toast('⚠️ Describe the job first','warn');
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
-  if(!ins.jobs[dept]) ins.jobs[dept]=[];
-  const nextSno=ins.jobs[dept].length+1;
-  ins.jobs[dept].push({
+  if(!(ins.jobs||{})[dept]) (ins.jobs||{})[dept]=[];
+  const nextSno=(ins.jobs||{})[dept].length+1;
+  (ins.jobs||{})[dept].push({
     sno:nextSno,
     desc,
     priority:priEl.value,
@@ -5636,7 +5637,7 @@ function loadJobCard(){
   const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
 
   let tot=0,don=0;
-  ['mech','elec','tyre','weld'].forEach(d=>(ins.jobs[d]||[]).forEach((j,i)=>{tot++;if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done)don++;}));
+  ['mech','elec','tyre','weld'].forEach(d=>((ins.jobs||{})[d]||[]).forEach((j,i)=>{tot++;if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done)don++;}));
   const pct=tot?Math.round(don/tot*100):0;
 
   let html=`<div class="card mb-12" style="border-top:3px solid var(--accent)">
@@ -5652,7 +5653,7 @@ function loadJobCard(){
 
   ['mech','elec','tyre','weld'].forEach(d=>{
     if(dFilter!=='all'&&dFilter!==d)return;
-    const jobs=ins.jobs[d]||[];if(!jobs.length)return;
+    const jobs=(ins.jobs||{})[d]||[];if(!jobs.length)return;
     const di=dInfo[d];
     const doneJobs=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done);
     const pendJobs=jobs.length-doneJobs.length;
@@ -5749,7 +5750,7 @@ function refreshMgrJobCards(){
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id===ins.entryId);
     ['mech','elec','tyre','weld'].forEach(d=>{
-      (ins.jobs[d]||[]).forEach((j,i)=>{
+      ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
         const key=`${ins.id}_${d}_${i}`;
         const upd=S.jobUpdates[key]||{};
         const isDone=upd.done||j.done;
@@ -5802,7 +5803,7 @@ function refreshMgrJobCards(){
       <td class="text-xs">${t2}</td>
       <td class="text-xs">${t4}</td>
       <td>${r.isDone?'<span class="tag tag-green">COMPLETE</span>':'<span class="tag tag-red">PENDING</span>'}</td>
-      <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${r.ins.jobs[r.d].indexOf(r.j)})">🔩 Part N/A</button>`:'—'}</td>
+      <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${r.(ins.jobs||{})[r.d].indexOf(r.j)})">🔩 Part N/A</button>`:'—'}</td>
       <td><button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="printJobCard('${r.ins.id}')">🖨️</button></td>
     </tr>`;
   }).join('');
@@ -5912,7 +5913,7 @@ function refreshUptime(){
     const pmVisits = visits.filter(v=>{
       const ins=S.inspections.find(i=>i.entryId===v.id);
       if(!ins) return true; // no defects logged = preventive/check only
-      const anyJobs = ['mech','elec','tyre','weld'].some(d=>(ins.jobs[d]||[]).length>0);
+      const anyJobs = ['mech','elec','tyre','weld'].some(d=>((ins.jobs||{})[d]||[]).length>0);
       return !anyJobs;
     }).length;
     const rrVisits = visits.length - pmVisits;
@@ -6023,7 +6024,7 @@ function refreshFleet(){
       hasInspection=true; bay=ins.bayNo; etd=new Date(ins.etd);
       minsLeft=Math.round((etd-now)/60000);
       ['mech','elec','tyre','weld'].forEach(d=>{
-        (ins.jobs[d]||[]).forEach((j,i)=>{ totalCount++; if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++; });
+        ((ins.jobs||{})[d]||[]).forEach((j,i)=>{ totalCount++; if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++; });
       });
     }
     const isParked=ins&&ins.parked;
@@ -6176,7 +6177,7 @@ function checkETDAnnouncements(){
     const minsLeft=Math.round((etd-now)/60000);
     if(minsLeft<0||minsLeft>60) return; // only announce when within 1 hour
     ['mech','elec','tyre','weld'].forEach(d=>{
-      const jobs=ins.jobs[d]||[];
+      const jobs=(ins.jobs||{})[d]||[];
       const pending=jobs.filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
       if(!pending.length) return;
       const key=`${ins.id}_${d}`;
@@ -6222,7 +6223,7 @@ function refreshOverview(){
   document.getElementById('ov-waiting').textContent=uninsp.length;
 
   const dc={mech:0,elec:0,tyre:0,weld:0};
-  actIns.forEach(i=>['mech','elec','tyre','weld'].forEach(d=>{dc[d]+=(i.jobs[d]||[]).length;}));
+  actIns.forEach(i=>['mech','elec','tyre','weld'].forEach(d=>{dc[d]+=((i.jobs||{})[d]||[]).length;}));
   ['mech','elec','tyre','weld'].forEach(d=>document.getElementById('ov-'+d).textContent=dc[d]);
 
   const allBays=[...Array.from({length:21},(_,i)=>'Bay '+(i+1)),'Express Bay','Free Bay'];
@@ -6230,7 +6231,7 @@ function refreshOverview(){
     const ins=actIns.find(i=>i.bayNo===b);
     if(!ins)return `<div class="bay-cell empty" title="Tap to go to Ground Team" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Free</div></div>`;
     const e=S.entries.find(x=>x.id===ins.entryId);
-    const mainD=Object.entries(ins.jobs).find(([d,j])=>j.length)?.[0]||'mech';
+    const mainD=Object.entries(ins.jobs||{}).find(([d,j])=>j.length)?.[0]||'mech';
     const isDel=new Date(ins.etd)<now;
     const isReady = e && e.readyToLeave;
     return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
@@ -6620,7 +6621,7 @@ function loadPostponeDetails(){
   let txt=`Truck: <strong>${e.truckNo}</strong> · Gate In: ${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
   if(ins) txt+=` · Bay: ${ins.bayNo} · ETD: ${new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;
   const pending=ins?['mech','elec','tyre','weld'].reduce((acc,d)=>{
-    const p=(ins.jobs[d]||[]).filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
+    const p=((ins.jobs||{})[d]||[]).filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
     return acc+p.length;
   },0):0;
   if(pending) txt+=` · <strong style="color:var(--red)">${pending} jobs pending</strong>`;
@@ -7541,7 +7542,7 @@ function refreshLeaderboard(){
     S.inspections.forEach(ins=>{
       const insDate=new Date(ins.inspectedAt);
       if(insDate.toDateString()!==targetStr) return;
-      (ins.jobs[dept.key]||[]).forEach((j,i)=>{
+      ((ins.jobs||{})[dept.key]||[]).forEach((j,i)=>{
         const upd=S.jobUpdates[`${ins.id}_${dept.key}_${i}`]||{};
         const name=upd.assignedTo||j.assignedTo||null;
         if(!name) return;
@@ -7655,7 +7656,7 @@ function printDeptPerformance(dept){
     S.inspections.forEach(ins=>{
       const insDate=new Date(ins.inspectedAt);
       if(insDate.getFullYear()!==year||insDate.getMonth()!==month) return;
-      (ins.jobs[dept]||[]).forEach((j,i)=>{
+      ((ins.jobs||{})[dept]||[]).forEach((j,i)=>{
         const upd=S.jobUpdates[`${ins.id}_${dept}_${i}`]||{};
         if((upd.assignedTo||j.assignedTo)===name){
           jobs++;
@@ -7751,7 +7752,7 @@ function printJobCard(insId){
   const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
   let jobHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length) return;
     jobHtml+=`<tr><td colspan="4" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
     jobs.forEach((j,i)=>{
@@ -7809,7 +7810,7 @@ function printGatePass(insId){
   const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
   let workSummary='';
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(jobs.length) workSummary+=`<tr><td>${depts[d]}</td><td>${jobs.length} job${jobs.length>1?'s':''}</td><td><span class="badge badge-green">COMPLETED</span></td></tr>`;
   });
 
@@ -7859,7 +7860,7 @@ function printInspectionSheet(insId){
   const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
   let jobHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length) return;
     jobHtml+=`<tr><td colspan="3" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
     jobs.forEach((j,i)=>{
@@ -8395,7 +8396,7 @@ function saveMgrApt(id){
 function openSparePartModal(insId,dept,jobIdx){
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins) return;
-  const job=(ins.jobs[dept]||[])[jobIdx];
+  const job=((ins.jobs||{})[dept]||[])[jobIdx];
   if(!job) return;
   document.getElementById('sparePartInsId').value=insId;
   document.getElementById('sparePartDept').value=dept;
@@ -8415,7 +8416,7 @@ function saveSparePartPending(){
   if(!partName) return toast('⚠️ Enter the part name','warn');
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins) return;
-  const job=(ins.jobs[dept]||[])[jobIdx];
+  const job=((ins.jobs||{})[dept]||[])[jobIdx];
   if(!job) return;
   if(!S.pendingParts) S.pendingParts=[];
   S.pendingParts.push({
@@ -8466,7 +8467,7 @@ function refreshMechPerf(){
   S.inspections.forEach(ins=>{
     ['mech','elec','tyre','weld'].forEach(d=>{
       if(deptFilter!=='all' && deptFilter!==d) return;
-      const jobs=ins.jobs[d]||[];
+      const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assignedMechanic=(ins.deptStaff||{})[d];
       const t2=S.deptETDs[`${ins.id}_${d}`]; // department start/ETD-set time, used as job-start reference
@@ -8589,7 +8590,7 @@ function exportJobCardsCSV(){
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id===ins.entryId);
     ['mech','elec','tyre','weld'].forEach(d=>{
-      (ins.jobs[d]||[]).forEach((j,i)=>{
+      ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
         idx++;
         const key=`${ins.id}_${d}_${i}`;
         const upd=S.jobUpdates[key]||{};
@@ -8667,7 +8668,7 @@ function exportUptimeCSV(){
     const pmVisits=visits.filter(v=>{
       const ins=S.inspections.find(i=>i.entryId===v.id);
       if(!ins) return true;
-      const anyJobs=['mech','elec','tyre','weld'].some(d=>(ins.jobs[d]||[]).length>0);
+      const anyJobs=['mech','elec','tyre','weld'].some(d=>((ins.jobs||{})[d]||[]).length>0);
       return !anyJobs;
     }).length;
     const rrVisits=visits.length-pmVisits;
@@ -8703,7 +8704,7 @@ function exportMechPerfCSV(){
 
   S.inspections.forEach(ins=>{
     ['mech','elec','tyre','weld'].forEach(d=>{
-      const jobs=ins.jobs[d]||[];
+      const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assignedMechanic=(ins.deptStaff||{})[d];
       const t2=S.deptETDs[`${ins.id}_${d}`];
@@ -9045,7 +9046,7 @@ function renderInspectionEditPanel(ins){
   const dInfo2={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
   let staffHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo2[d];
     const staffList=STAFF[d]||[];
@@ -9071,7 +9072,7 @@ function renderInspectionEditPanel(ins){
   const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
   let jobsHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo[d];
     jobsHtml+=`<div class="jc-dept-block mb-12">
@@ -9191,7 +9192,7 @@ function saveEditMechanicAssignment(insId,dept){
 function saveEditJob(insId,dept,idx){
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
-  const job=(ins.jobs[dept]||[])[idx];
+  const job=((ins.jobs||{})[dept]||[])[idx];
   if(!job)return;
   job.desc=document.getElementById(`editjob-desc-${insId}-${dept}-${idx}`).value.trim();
   job.priority=document.getElementById(`editjob-pri-${insId}-${dept}-${idx}`).value;
@@ -9273,7 +9274,7 @@ function loadPunchJobs(){
   }
 
   ['mech','elec','tyre','weld'].forEach(d=>{
-    const jobs=ins.jobs[d]||[];
+    const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo[d];
     const etdMissing=!deptEtdIsSet(ins.id,d);
@@ -9316,14 +9317,14 @@ function punchStartJob(insId,dept,idx){
   if(!ins.deptStaff[dept]) ins.deptStaff[dept]=curPunchWorker; // also credit as department mechanic if none assigned yet
 
   S.workerPunches[curPunchWorker]={
-    status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo, dept, jobDesc:ins.jobs[dept][idx].desc,
+    status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo, dept, jobDesc:(ins.jobs||{})[dept][idx].desc,
     since:new Date().toISOString()
   };
-  logWorkerEvent(curPunchWorker,'working',{truckNo:ins.truckNo,bayNo:ins.bayNo,dept,jobDesc:ins.jobs[dept][idx].desc});
+  logWorkerEvent(curPunchWorker,'working',{truckNo:ins.truckNo,bayNo:ins.bayNo,dept,jobDesc:(ins.jobs||{})[dept][idx].desc});
   save();
   loadPunchJobs();
   refreshWorkerBoard();
-  toast('🔧 '+curPunchWorker+' started: '+ins.jobs[dept][idx].desc,'ok');
+  toast('🔧 '+curPunchWorker+' started: '+(ins.jobs||{})[dept][idx].desc,'ok');
 }
 
 function punchCompleteJob(insId,dept,idx){
@@ -9344,7 +9345,7 @@ function punchCompleteJob(insId,dept,idx){
   save();
   loadPunchJobs();
   refreshWorkerBoard();
-  toast('✅ '+curPunchWorker+' completed: '+ins.jobs[dept][idx].desc,'ok');
+  toast('✅ '+curPunchWorker+' completed: '+(ins.jobs||{})[dept][idx].desc,'ok');
 }
 
 // Checks whether the truck currently in a given bay still has incomplete jobs.
@@ -9355,7 +9356,7 @@ function bayHasOpenJobs(bayNo,dept){
   if(!ins)return false;
   let total=0, done=0;
   (dept?[dept]:['mech','elec','tyre','weld']).forEach(d=>{
-    (ins.jobs[d]||[]).forEach((j,i)=>{
+    ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
       total++;
       if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) done++;
     });
@@ -9428,7 +9429,7 @@ function getOpenJobLocksFor(workerName){
     const e=S.entries.find(x=>x.id===ins.entryId);
     if(!e || e.exitTime) return; // truck already left, nothing open here
     ['mech','elec','tyre','weld'].forEach(d=>{
-      const jobs=ins.jobs[d]||[];
+      const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assigned=(ins.deptStaff||{})[d];
       if(assigned!==workerName) return;
