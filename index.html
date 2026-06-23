@@ -4420,7 +4420,7 @@ function saveSupervisorEntry(){
 
   const tripKms=document.getElementById('supTripKms').value?parseInt(document.getElementById('supTripKms').value):null;
   const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseInt(document.getElementById('supBaseOdo').value):null;
-  const lastOdoRecord=getLastLockedOdo(S.entries.find(e=>e.id==id)&&.find(e=>e.id==id).truckNo);
+  const lastOdoRecord=getLastLockedOdo((S.entries.find(e=>e.id==id)||{truckNo:''}).truckNo);
   // Manual base overrides locked record; if both trip + base given, sum them
   const lockedOdo=manualBaseOdo?(tripKms?manualBaseOdo+tripKms:manualBaseOdo):(tripKms?(lastOdoRecord?lastOdoRecord.odo+tripKms:tripKms):null);
 
@@ -4428,7 +4428,7 @@ function saveSupervisorEntry(){
   const ins={
     id:Date.now(),
     entryId:parseInt(id),
-    truckNo:S.entries.find(e=>e.id==id)&&.find(e=>e.id==id).truckNo,
+    truckNo:(S.entries.find(e=>e.id==id)||{truckNo:''}).truckNo,
     trailerNo,
     jobType,
     driverName,
