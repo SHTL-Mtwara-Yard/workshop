@@ -3740,7 +3740,7 @@ function refreshSecurityPanel(){
   // Merge hardcoded HTML options with any new names from Firebase roster
   const sel = document.getElementById('securityOfficerName');
   if(sel){
-    const rosterStaff = (S.staffRoster?.security || STAFF['security'] || []).slice().sort();
+    const rosterStaff = ((S.staffRoster&&S.staffRoster.security) || STAFF['security'] || []).slice().sort();
     const existing = Array.from(sel.options).map(o=>o.value).filter(v=>v);
     rosterStaff.forEach(name=>{
       if(!existing.includes(name)){
@@ -3893,13 +3893,13 @@ function checkDriverMatch(){
   const entryId = document.getElementById('dv_entryId').value;
   const ins = S.inspections.find(i => i.entryId == entryId);
   const enteredName = (document.getElementById('dv_driverName').value||'').trim().toUpperCase();
-  const arrivalName = (ins?.driverName||'').toUpperCase();
+  const arrivalName = ((ins&&ins.driverName)||'').toUpperCase();
   const result = document.getElementById('dv_matchResult');
   if(!enteredName){ result.innerHTML=''; return; }
   const match = arrivalName && enteredName && (enteredName===arrivalName || arrivalName.includes(enteredName) || enteredName.includes(arrivalName));
   result.innerHTML = match
     ? `<div class="alert alert-ok text-xs"><i class="ti ti-check" aria-hidden="true"></i> Name matches arrival record ✅</div>`
-    : `<div class="alert alert-warn text-xs"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Name does NOT match arrival record (${ins?.driverName||'—'}). Verify carefully.</div>`;
+    : `<div class="alert alert-warn text-xs"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Name does NOT match arrival record (${(ins&&ins.driverName)||'—'}). Verify carefully.</div>`;
 }
 
 function confirmVerifiedExit(outcome){
@@ -3915,9 +3915,9 @@ function confirmVerifiedExit(outcome){
     if(!S.notifications) S.notifications = [];
     S.notifications.push({
       id: Date.now(),
-      message: `🚫 HOLD — ${e.truckNo}: Security stopped exit. Driver name mismatch. Arrival: ${ins?.driverName||'—'}. Presented: ${collectingName||'—'}. Mobile: ${collectingMobile||'—'}. Verified by: ${_securityOfficerName||'Security'}.`,
+      message: `🚫 HOLD — ${e.truckNo}: Security stopped exit. Driver name mismatch. Arrival: ${(ins&&ins.driverName)||'—'}. Presented: ${collectingName||'—'}. Mobile: ${collectingMobile||'—'}. Verified by: ${_securityOfficerName||'Security'}.`,
       truckLink: e.truckNo,
-      bayLink: ins?.bayNo||'',
+      bayLink: (ins&&ins.bayNo)||'',
       sentAt: new Date().toISOString(),
       read: false, readAt: null, reply: null
     });
@@ -3942,7 +3942,7 @@ function confirmVerifiedExit(outcome){
     if(!S.notifications) S.notifications = [];
     S.notifications.push({
       id: Date.now(),
-      message: `⚠️ Different driver collected ${e.truckNo}. Arrival: ${ins?.driverName||'—'} (${ins?.driverMobile||'—'}). Collected by: ${collectingName} (${collectingMobile}). Verified by: ${_securityOfficerName||'Security'}.`,
+      message: `⚠️ Different driver collected ${e.truckNo}. Arrival: ${(ins&&ins.driverName)||'—'} (${(ins&&ins.driverMobile)||'—'}). Collected by: ${collectingName} (${collectingMobile}). Verified by: ${_securityOfficerName||'Security'}.`,
       truckLink: e.truckNo,
       sentAt: new Date().toISOString(),
       read: false, readAt: null, reply: null
@@ -4414,13 +4414,13 @@ function saveSupervisorEntry(){
   const jobs={};
   ['mech','elec','tyre','weld'].forEach(d=>{
     jobs[d]=Array.from(document.querySelectorAll(`#rows-${d} .job-row`)).map((r,i)=>({
-      sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:r.querySelector('.job-source')?.value||'driver',done:false,doneBy:null,doneTime:null,addedBy:null
+      sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:(r.querySelector('.job-source')||{value:'driver'}).value||'driver',done:false,doneBy:null,doneTime:null,addedBy:null
     })).filter(j=>j.desc.trim());
   });
 
   const tripKms=document.getElementById('supTripKms').value?parseInt(document.getElementById('supTripKms').value):null;
-  const manualBaseOdo=document.getElementById('supBaseOdo')?.value?parseInt(document.getElementById('supBaseOdo').value):null;
-  const lastOdoRecord=getLastLockedOdo(S.entries.find(e=>e.id==id)?.truckNo);
+  const manualBaseOdo=(document.getElementById('supBaseOdo')||{}).value?parseInt(document.getElementById('supBaseOdo').value):null;
+  const lastOdoRecord=getLastLockedOdo(S.entries.find(e=>e.id==id)&&.find(e=>e.id==id).truckNo);
   // Manual base overrides locked record; if both trip + base given, sum them
   const lockedOdo=manualBaseOdo?(tripKms?manualBaseOdo+tripKms:manualBaseOdo):(tripKms?(lastOdoRecord?lastOdoRecord.odo+tripKms:tripKms):null);
 
@@ -4428,7 +4428,7 @@ function saveSupervisorEntry(){
   const ins={
     id:Date.now(),
     entryId:parseInt(id),
-    truckNo:S.entries.find(e=>e.id==id)?.truckNo,
+    truckNo:S.entries.find(e=>e.id==id)&&.find(e=>e.id==id).truckNo,
     trailerNo,
     jobType,
     driverName,
@@ -4520,7 +4520,7 @@ let curCarryForwardId=null;
 function openCarryForwardModal(id){
   curCarryForwardId=id;
   const ins=S.inspections.find(i=>i.id==id);
-  document.getElementById('cfTruckNo').textContent=ins?.truckNo||'';
+  document.getElementById('cfTruckNo').textContent=(ins&&ins.truckNo)||'';
   // Default new ETD = tomorrow 08:00
   const tomorrow=new Date();
   tomorrow.setDate(tomorrow.getDate()+1);
@@ -4565,7 +4565,7 @@ function saveCarryForward(){
   toast('🌙 Carry Forward saved — new ETD: '+new Date(newETD).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),'ok');
 }
 
-function openDelayModal(id){curDelayId=id;const ins=S.inspections.find(i=>i.id==id);document.getElementById('delayTruckNo').textContent=ins?.truckNo||'';document.getElementById('delayModal').classList.add('open');}
+function openDelayModal(id){curDelayId=id;const ins=S.inspections.find(i=>i.id==id);document.getElementById('delayTruckNo').textContent=(ins&&ins.truckNo)||'';document.getElementById('delayModal').classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function saveDelay(){
   const reason=document.getElementById('delayReason').value.trim();
@@ -5324,9 +5324,9 @@ function saveDeptETD(insId,dept){
 
 // ─── INCHARGE VISIT 24H SYNC ───
 function syncInchargeVisit(){
-  const hh=document.getElementById('iat_visit_hh')?.value;
-  const mm=document.getElementById('iat_visit_mm')?.value;
-  const dd=document.getElementById('iat_visit_dd')?.value;
+  const hh=(document.getElementById('iat_visit_hh')||{}).value;
+  const mm=(document.getElementById('iat_visit_mm')||{}).value;
+  const dd=(document.getElementById('iat_visit_dd')||{}).value;
   if(!dd) return;
   const h=parseInt(hh)||0; const m=parseInt(mm)||0;
   if(h<0||h>23||m<0||m>59) return;
@@ -5339,9 +5339,9 @@ function syncInchargeVisit(){
 
 // ─── SUPERVISOR ETD 24H SYNC ───
 function syncSupETD(){
-  const hh=document.getElementById('supETD_hh')?.value;
-  const mm=document.getElementById('supETD_mm')?.value;
-  const dd=document.getElementById('supETD_dd')?.value;
+  const hh=(document.getElementById('supETD_hh')||{}).value;
+  const mm=(document.getElementById('supETD_mm')||{}).value;
+  const dd=(document.getElementById('supETD_dd')||{}).value;
   if(!dd) return;
   const h=parseInt(hh)||0; const m=parseInt(mm)||0;
   const pad=n=>String(n).padStart(2,'0');
@@ -5374,7 +5374,7 @@ function calcInchargeOdo(){
 // ─── SUPERVISOR ODO CALC ───
 function calcSupOdo(){
   const trip=parseInt(document.getElementById('supTripKms').value)||0;
-  const manualBase=parseInt(document.getElementById('supBaseOdo')?.value)||0;
+  const manualBase=parseInt((document.getElementById('supBaseOdo')||{}).value)||0;
   const block=document.getElementById('supOdoCalcBlock');
   const result=document.getElementById('supOdoCalcResult');
   const formula=document.getElementById('supOdoCalcFormula');
@@ -5453,9 +5453,9 @@ function todayDateValue(){
 
 // Combines the three separate HH / MM / date fields into a datetime-local value and saves
 function syncETDFromParts(insId,dept){
-  const hh=document.getElementById('detd_hh_'+dept)?.value;
-  const mm=document.getElementById('detd_mm_'+dept)?.value;
-  const dd=document.getElementById('detd_dd_'+dept)?.value;
+  const hh=document.getElementById('detd_hh_'+dept)).value;
+  const mm=(document.getElementById('detd_mm_'+dept).value;
+  const dd=document.getElementById('detd_dd_'+dept).value;
   if(hh===''||mm===''||!dd) return; // wait until all three are filled
   const hhN=parseInt(hh); const mmN=parseInt(mm);
   if(isNaN(hhN)||hhN<0||hhN>23) return toast('⚠️ Hour must be 00–23','warn');
@@ -6231,7 +6231,7 @@ function refreshOverview(){
     const ins=actIns.find(i=>i.bayNo===b);
     if(!ins)return `<div class="bay-cell empty" title="Tap to go to Ground Team" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Free</div></div>`;
     const e=S.entries.find(x=>x.id===ins.entryId);
-    const mainD=Object.entries(ins.jobs||{}).find(([d,j])=>j.length)?.[0]||'mech';
+    const mainD=Object.entries(ins.jobs||{}).find(([d,j])=>j.length)&&[0]||'mech';
     const isDel=new Date(ins.etd)<now;
     const isReady = e && e.readyToLeave;
     return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
@@ -6670,7 +6670,7 @@ function savePostponeRecord(){
 }
 
 function refreshPostponeHistory(){
-  const search=(document.getElementById('postponeSearch')?.value||'').toUpperCase();
+  const search=((document.getElementById('postponeSearch')||{}).value||'').toUpperCase();
   const records=(S.postponeRecords||[]).filter(r=>!search||r.truckNo.includes(search))
     .sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt));
   const list=document.getElementById('postponeHistoryList');
@@ -6896,7 +6896,7 @@ function startSupportJob(type){
 
   // Save to Firebase as in-progress job
   if(!S.supportJobs) S.supportJobs=[];
-  const jobObj={id:Date.now(),type,truckNo:entry?.truckNo||'—',name,job,priority,
+  const jobObj={id:Date.now(),type,truckNo:(entry&&entry.truckNo)||'—',name,job,priority,
     startTime:startISO,endTime:null,durationSecs:null,dur:'—',
     status:'in_progress',date:new Date().toDateString(),loggedAt:startISO};
   S.supportJobs.push(jobObj);
@@ -6908,10 +6908,10 @@ function startSupportJob(type){
   const banner=document.getElementById((type==='washing'?'wash':p)+'ActiveJob')||document.getElementById(type==='washing'?'washActiveJob':p+'ActiveJob');
   const info=document.getElementById((type==='washing'?'wash':p)+'ActiveJobInfo')||document.getElementById(type==='washing'?'washActiveJobInfo':p+'ActiveJobInfo');
   if(banner) banner.style.display='block';
-  if(info) info.textContent=entry?.truckNo+' · '+name+' · Started '+startTime+(job?' · '+job:'');
+  if(info) info.textContent=(entry&&entry.truckNo)+' · '+name+' · Started '+startTime+(job?' · '+job:'');
 
   refreshSupportLogs();
-  toast('▶️ Job started — '+entry?.truckNo,'ok');
+  toast('▶️ Job started — '+(entry&&entry.truckNo),'ok');
 }
 
 function endSupportJob(type){
@@ -7250,7 +7250,7 @@ function refreshStoresPage(){
   // Issued log
   const iLog=document.getElementById('storesIssuedLog');
   if(iLog){
-    const search=(document.getElementById('storesIssuedSearch')?.value||'').trim().toUpperCase();
+    const search=((document.getElementById('storesIssuedSearch')||{}).value||'').trim().toUpperCase();
     let issued=S.spareRequests.filter(r=>r.status==='issued').reverse();
     if(search) issued=issued.filter(r=>r.truckNo.includes(search)||r.partName.includes(search));
     if(!issued.length){iLog.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr>';}
@@ -7294,7 +7294,7 @@ function raiseSpareRequest(){
   const ins=S.inspections.find(i=>i.id==truckSel.value);
   if(!S.spareRequests) S.spareRequests=[];
   S.spareRequests.push({
-    id:Date.now(), truckNo:ins?.truckNo||'—', bayNo:ins?.bayNo||'—',
+    id:Date.now(), truckNo:(ins&&ins.truckNo)||'—', bayNo:(ins&&ins.bayNo)||'—',
     dept, partName:part, partNo, qty, priority, notes,
     requestedBy:reqBy, requestedAt:new Date().toISOString(),
     status:'pending'
@@ -7310,7 +7310,7 @@ function raiseSpareRequest(){
   truckSel.value='';
   refreshStoresPage();
   showStoresTab('pending',document.getElementById('stab-pending'));
-  toast('📤 Request sent to Stores — '+ins?.truckNo,'ok');
+  toast('📤 Request sent to Stores — '+(ins&&ins.truckNo),'ok');
 }
 
 function markSpareReady(id){
@@ -7329,8 +7329,8 @@ function markSpareReady(id){
 function issueSpare(id){
   const req=(S.spareRequests||[]).find(r=>r.id==id);
   if(!req) return;
-  const oldPart=document.getElementById('oldpart-'+id)?.value;
-  const issuedBy=document.getElementById('issuedby-'+id)?.value.trim().toUpperCase();
+  const oldPart=document.getElementById('oldpart-'+id).value;
+  const issuedBy=document.getElementById('issuedby-'+id).value.trim().toUpperCase();
   if(!oldPart) return toast('⚠️ Select old part condition','warn');
   if(!issuedBy) return toast('⚠️ Enter store staff name','warn');
   req.status='issued';
@@ -7570,7 +7570,7 @@ function refreshLeaderboard(){
     const top5=withJobs.slice(0,5);
     // Bottom 5 — those with fewest jobs (or zero)
     const allRanked=[...withJobs,...noJobs.map(n=>({name:n,jobs:0,hrs:0}))];
-    const bottom5=[...allRanked].reverse().slice(0,5).filter(r=>r.jobs===0||r.jobs<=withJobs[Math.max(0,withJobs.length-1)]?.jobs);
+    const bottom5=[...allRanked].reverse().slice(0,5).filter(r=>r.jobs===0||r.jobs<=withJobs[Math.max(0,withJobs.length-1)]&&withJobs[withJobs.length-1].jobs);
 
     const topRows=top5.length?top5.map((r,i)=>`
       <div class="lb-row lb-top">
@@ -7758,7 +7758,7 @@ function printJobCard(insId){
     jobs.forEach((j,i)=>{
       const upd=S.jobUpdates[`${ins.id}_${d}_${i}`]||{};
       const done=upd.done||j.done;
-      const mechanic=upd.assignedTo||j.assignedTo||ins.deptStaff?.[d]||'—';
+      const mechanic=upd.assignedTo||j.assignedTo||((ins.deptStaff||{})[d])||'—';
       jobHtml+=`<tr>
         <td>${i+1}. ${j.desc}</td>
         <td>${mechanic}</td>
@@ -7779,9 +7779,9 @@ function printJobCard(insId){
       <tr><td style="width:30%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:30%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
       <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
       <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
-      <tr><td style="font-weight:bold">Gate In (T0)</td><td>${fmtDt(e?.entryTime)}</td><td style="font-weight:bold">ETD Set (T1)</td><td>${fmtDt(ins.t1_allocated)}</td></tr>
+      <tr><td style="font-weight:bold">Gate In (T0)</td><td>${fmtDt((e&&e.entryTime))}</td><td style="font-weight:bold">ETD Set (T1)</td><td>${fmtDt(ins.t1_allocated)}</td></tr>
       <tr><td style="font-weight:bold">Work Start (T2)</td><td>${fmtDt(ins.t2_etdSet)}</td><td style="font-weight:bold">QC Done (T4)</td><td>${fmtDt(ins.t4_qcDone)}</td></tr>
-      <tr><td style="font-weight:bold">Gate Out (T5)</td><td>${fmtDt(e?.exitTime)}</td><td style="font-weight:bold">ODO on Arrival</td><td>${ins.lockedOdo?ins.lockedOdo.toLocaleString()+' km':'—'}</td></tr>
+      <tr><td style="font-weight:bold">Gate Out (T5)</td><td>${fmtDt((e&&e.exitTime))}</td><td style="font-weight:bold">ODO on Arrival</td><td>${ins.lockedOdo?ins.lockedOdo.toLocaleString()+' km':'—'}</td></tr>
     </table>
 
     <h3>Jobs by Department</h3>
@@ -7806,7 +7806,7 @@ function printGatePass(insId){
   const e=S.entries.find(x=>x.id===ins.entryId);
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-  const isDifferentDriver=e?.driverOutcome==='different';
+  const isDifferentDriver=(e&&e.driverOutcome)==='different';
   const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
   let workSummary='';
   ['mech','elec','tyre','weld'].forEach(d=>{
@@ -7818,17 +7818,17 @@ function printGatePass(insId){
     <div class="print-header">
       <h1>SHTL MTWARA WORKSHOP</h1>
       <h2>VEHICLE GATE PASS</h2>
-      <p>Pass No: GP-${ins.id?.toString().slice(-6)} &nbsp;|&nbsp; Date: ${now.toLocaleDateString('en-GB')}</p>
+      <p>Pass No: GP-${ins.(id&&id.toString)().slice(-6)} &nbsp;|&nbsp; Date: ${now.toLocaleDateString('en-GB')}</p>
     </div>
 
     <table>
       <tr><td style="width:40%;font-weight:bold">Truck Number</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td></tr>
       <tr><td style="font-weight:bold">Arrival Driver</td><td>${ins.driverName||'—'} · ${ins.driverMobile||'—'}</td></tr>
-      ${isDifferentDriver?`<tr><td style="font-weight:bold;color:red">⚠️ Collecting Driver</td><td style="color:red;font-weight:bold">${e?.collectingDriverName||'—'} · ${e?.collectingDriverMobile||'—'} (DIFFERENT DRIVER — RECORDED)</td></tr>`:''}
-      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt(e?.entryTime)}</td></tr>
+      ${isDifferentDriver?`<tr><td style="font-weight:bold;color:red">⚠️ Collecting Driver</td><td style="color:red;font-weight:bold">${(e&&e.collectingDriverName)||'—'} · ${(e&&e.collectingDriverMobile)||'—'} (DIFFERENT DRIVER — RECORDED)</td></tr>`:''}
+      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt((e&&e.entryTime))}</td></tr>
       <tr><td style="font-weight:bold">Work Completed</td><td>${fmtDt(ins.t4_qcDone)}</td></tr>
-      <tr><td style="font-weight:bold">Supervisor Remark</td><td>${ins.supervisorRemark?.reason||'Work completed'}</td></tr>
-      <tr><td style="font-weight:bold">Verified by Security</td><td>${e?.verifiedBy||'—'}</td></tr>
+      <tr><td style="font-weight:bold">Supervisor Remark</td><td>${ins.(supervisorRemark&&supervisorRemark.reason)||'Work completed'}</td></tr>
+      <tr><td style="font-weight:bold">Verified by Security</td><td>${(e&&e.verifiedBy)||'—'}</td></tr>
     </table>
 
     <h3 style="margin-top:16px">Work Completed Summary</h3>
@@ -7878,7 +7878,7 @@ function printInspectionSheet(insId){
       <tr><td style="width:35%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:25%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
       <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
       <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
-      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt(e?.entryTime)}</td><td style="font-weight:bold">ETD</td><td>${ins.etd?formatETD24h(ins.etd)+' '+formatETDDate(ins.etd):'—'}</td></tr>
+      <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt((e&&e.entryTime))}</td><td style="font-weight:bold">ETD</td><td>${ins.etd?formatETD24h(ins.etd)+' '+formatETDDate(ins.etd):'—'}</td></tr>
     </table>
     <h3 style="margin-top:16px">Defects / Jobs Found</h3>
     <table>
@@ -7908,7 +7908,7 @@ function printDailySummary(){
     const fmtT=v=>v?new Date(v).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
     const dur=e.exitTime?Math.round((new Date(e.exitTime)-new Date(e.entryTime))/60000):'In yard';
     const durStr=typeof dur==='number'?Math.floor(dur/60)+'h '+dur%60+'m':dur;
-    const status=e.exitTime?'<span class="badge badge-green">EXITED</span>':ins?.parked?'<span class="badge badge-yellow">PARKING</span>':'<span class="badge badge-red">IN YARD</span>';
+    const status=e.exitTime?'<span class="badge badge-green">EXITED</span>':(ins&&ins.parked)?'<span class="badge badge-yellow">PARKING</span>':'<span class="badge badge-red">IN YARD</span>';
     return `<tr><td>${e.truckNo}</td><td>${e.origin||'—'}</td><td>${fmtT(e.entryTime)}</td><td>${fmtT(e.exitTime)}</td><td>${durStr}</td><td>${status}</td></tr>`;
   }).join('');
 
@@ -8214,7 +8214,7 @@ async function saveNewDataPin(){
 }
 
 function refreshFalseHistory(){
-  const search=(document.getElementById('falseSearch')?.value||'').toUpperCase();
+  const search=((document.getElementById('falseSearch')||{}).value||'').toUpperCase();
   const list=document.getElementById('falseHistoryList');
   const records=(S.falseComplaintHistory||[]).filter(f=>{
     if(!search) return true;
@@ -9460,7 +9460,7 @@ function refreshWorkerBoard(){
     const locks=getOpenJobLocksFor(name);
     const selfPunch=S.workerPunches[name];
     if(locks.length){
-      return {name, status:'working', locks, since: selfPunch?.since || new Date().toISOString()};
+      return {name, status:'working', locks, since: (selfPunch&&selfPunch.since) || new Date().toISOString()};
     }
     if(selfPunch && selfPunch.status==='assisting'){
       return {name, status:'assisting', bayNo:selfPunch.bayNo, dept:selfPunch.dept, since:selfPunch.since};
