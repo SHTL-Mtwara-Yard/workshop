@@ -2884,21 +2884,22 @@ fbRoot.on('value', snapshot=>{
 });
 setConnIndicator('connecting');
 
-// Load cache immediately so data shows while Firebase connects
-(function loadCacheOnStartup(){
+// ── INSTANT STARTUP FROM CACHE ──
+// Load last saved data immediately so app is usable while Firebase connects
+(function(){
   try{
     const c=localStorage.getItem('shtl_v3_cache');
     if(c){
-      const cached=JSON.parse(c);
-      S=cached;
-      if(!S.staffRoster||!Object.keys(S.staffRoster).length) S.staffRoster=JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED));
+      S=JSON.parse(c);
+      if(!S.staffRoster||!Object.keys(S.staffRoster||{}).length)
+        S.staffRoster=JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED));
       STAFF=S.staffRoster;
       ALL_STAFF=[...new Set(Object.values(STAFF).flat())].sort();
       _fbReady=true;
       runInitialRender();
-      setConnIndicator('connecting'); // still connecting to Firebase for live sync
+      refreshCurrentPage();
     }
-  }catch(e){}
+  }catch(e){ console.warn('Cache load failed:',e); }
 })();
 
 // Re-render whichever page/sub-page is currently active, so live updates from
@@ -9671,7 +9672,17 @@ const origExitSelect = document.getElementById('exitTruckSelect');
 // Runs once, after the first Firebase snapshot arrives (see fbRoot.on('value', ...) above).
 // Until then, the connection indicator shows "Connecting..." in the nav.
 function runInitialRender(){
-  refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();
+  try{
+    refreshSecurityLog();
+    refreshDropdowns();
+    refreshEodList();
+    updateBadge();
+    refreshInchargePage();
+    refreshSupervisorPage();
+    refreshGroundPage();
+    refreshOverview();
+    refreshStoresPage();
+  }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
 </body>
