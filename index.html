@@ -5803,7 +5803,7 @@ function refreshMgrJobCards(){
       <td class="text-xs">${t2}</td>
       <td class="text-xs">${t4}</td>
       <td>${r.isDone?'<span class="tag tag-green">COMPLETE</span>':'<span class="tag tag-red">PENDING</span>'}</td>
-      <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${r.(ins.jobs||{})[r.d].indexOf(r.j)})">🔩 Part N/A</button>`:'—'}</td>
+      <td>${!r.isDone?`<button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="openSparePartModal('${r.ins.id}','${r.d}',${(r.ins.jobs||{})[r.d]?r.ins.jobs[r.d].indexOf(r.j):0})">🔩 Part N/A</button>`:'—'}</td>
       <td><button class="btn btn-ghost btn-sm" style="font-size:10px;padding:4px 8px" onclick="printJobCard('${r.ins.id}')">🖨️</button></td>
     </tr>`;
   }).join('');
