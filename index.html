@@ -3240,7 +3240,7 @@ function getLastVisitForTruck(truckNo){
 }
 
 function checkAptLastVisit(){
-  const tn=fmtTruckdocument.getElementById('iat_truckNo').value||'');
+  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
   const banner=document.getElementById('iat_lastVisitBanner');
   const lastOdoEl=document.getElementById('iat_lastOdo');
 
@@ -3287,7 +3287,7 @@ function checkAptLastVisit(){
 function submitAppointment(){
   const who=document.getElementById('inchargeName').value;
   if(!who) return toast('⚠️ Select your name first','warn');
-  const tn=fmtTruckdocument.getElementById('iat_truckNo').value||'');
+  const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
   if(!tn) return toast('⚠️ Enter truck number','warn');
   const visit=document.getElementById('iat_visit').value;
   if(!visit) return toast('⚠️ Set planned visit date & time','warn');
@@ -3569,7 +3569,7 @@ function saveEditApt(){
   const id=parseIntdocument.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=fmtTruckdocument.getElementById('ea_truckNo').value||'');
+  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
@@ -3629,7 +3629,7 @@ function confirmReraise(){
 
 function punchEntry(){
   if(_punchEntryInProgress)return; // guards against rapid double-click/double-tap creating duplicate entries
-  const tn=fmtTruckdocument.getElementById('truckNo').value.trim());
+  const tn=fmtTruck(document.getElementById('truckNo').value.trim());
   const org=document.getElementById('truckOrigin').value;
   const fuel=document.getElementById('fuelSelected').value;
   if(!tn)return toast('⚠️ Enter truck number','warn');
@@ -8341,7 +8341,7 @@ function saveMgrAptFromModal(){
   const id=parseIntdocument.getElementById('editAptId').value);
   const apt=S.appointments.find(a=>a.id===id);
   if(!apt) return;
-  apt.truckNo=fmtTruckdocument.getElementById('ea_truckNo').value||'');
+  apt.truckNo=fmtTruck(document.getElementById('ea_truckNo').value||'');
   apt.plannedVisit=document.getElementById('ea_visit').value;
   apt.driverName=document.getElementById('ea_driverName').value.trim();
   apt.driverMobile=document.getElementById('ea_driverMobile').value.trim();
