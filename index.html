@@ -2862,9 +2862,14 @@ function loadLocalCache(){
   }catch(e){}
 }
 
+let _saving=false;
 const save=()=>{
   cacheLocally();
-  fbRoot.set(S).catch(err=>{
+  _saving=true;
+  fbRoot.set(S).then(()=>{
+    _saving=false;
+  }).catch(err=>{
+    _saving=false;
     console.error('Firebase write failed:',err);
     toast('⚠️ Sync failed — check connection','warn');
   });
@@ -2872,6 +2877,7 @@ const save=()=>{
 
 // Live listener: any device's change lands here and re-renders the current page
 fbRoot.on('value', snapshot=>{
+  if(_saving) return; // Don't overwrite mid-save
   const data=snapshot.val();
   if(data){
     S = {
