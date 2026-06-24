@@ -2442,6 +2442,7 @@ tr:hover td { background: var(--surface2); }
     <button class="subtab" id="stab-ready" onclick="showStoresTab('ready',this)">✅ Ready to Issue</button>
     <button class="subtab" id="stab-issued" onclick="showStoresTab('issued',this)">📦 Issued Log</button>
     <button class="subtab" id="stab-raise" onclick="showStoresTab('raise',this)" style="color:var(--accent)">➕ Raise Request</button>
+    <button class="subtab" id="stab-requisition" onclick="showStoresTab('requisition',this)" style="color:#1a6fb5">📋 Requisition Slip</button>
   </div>
 
   <!-- PENDING REQUESTS -->
@@ -2533,6 +2534,107 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
   </div>
+  <!-- REQUISITION SLIP TAB -->
+  <div id="stores-requisition" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#1a6fb5"></span>📋 Spare Requisition Slip — SHTL</div>
+
+      <!-- HEADER FIELDS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:11px;color:var(--text2)">SERIAL NO (AUTO)</label>
+          <input type="text" id="req-serial" readonly style="background:var(--surface2);font-weight:700;color:#1a6fb5">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">DATE</label>
+          <input type="text" id="req-date" readonly style="background:var(--surface2)">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">TRUCK NO</label>
+          <select id="req-truck" onchange="reqTruckChanged()" style="width:100%">
+            <option value="">-- Select Truck --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">TRAILER NO</label>
+          <input type="text" id="req-trailer" placeholder="e.g. T195 DZV" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">JOB SHEET NO</label>
+          <input type="text" id="req-jobsheet" placeholder="e.g. JS-001" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">APPOINTMENT NO</label>
+          <input type="text" id="req-appointment" placeholder="e.g. APT-001" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">REG. DATE</label>
+          <input type="text" id="req-regdate" placeholder="e.g. 24/06/2026" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">TYPE</label>
+          <select id="req-type" style="width:100%">
+            <option value="General">General</option>
+            <option value="Breakdown">Breakdown</option>
+            <option value="Accident">Accident</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ITEMS TABLE -->
+      <div style="overflow-x:auto;margin-bottom:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--surface2)">
+              <th style="padding:6px;border:1px solid var(--border);width:35px">Srl</th>
+              <th style="padding:6px;border:1px solid var(--border);min-width:160px">Item Description</th>
+              <th style="padding:6px;border:1px solid var(--border);width:60px">Req Qty<br>Truck</th>
+              <th style="padding:6px;border:1px solid var(--border);width:60px">Req Qty<br>Trailer</th>
+              <th style="padding:6px;border:1px solid var(--border);width:50px">Normal<br>Wear</th>
+              <th style="padding:6px;border:1px solid var(--border);width:50px">Driver<br>Neglig.</th>
+              <th style="padding:6px;border:1px solid var(--border);width:50px">Mechanic<br>Neglig.</th>
+              <th style="padding:6px;border:1px solid var(--border);width:70px">Route<br>Condition</th>
+              <th style="padding:6px;border:1px solid var(--border);width:60px">Parts<br>Returned</th>
+              <th style="padding:6px;border:1px solid var(--border);width:70px">Last Issue<br>Date</th>
+              <th style="padding:6px;border:1px solid var(--border);width:60px">Life<br>Km</th>
+            </tr>
+          </thead>
+          <tbody id="req-items-body">
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="addReqRow()" style="margin-bottom:14px">➕ Add Row</button>
+
+      <!-- FOOTER SIGNATORIES -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:11px;color:var(--text2)">REQUESTED BY / SUPERVISOR</label>
+          <input type="text" id="req-requestedby" placeholder="Supervisor name" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">APPROVED BY / WORKSHOP INCHARGE</label>
+          <input type="text" id="req-approvedby" placeholder="Incharge name" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text2)">ISSUED BY / STORE SUPERVISOR</label>
+          <input type="text" id="req-issuedby" placeholder="Store supervisor name" style="width:100%">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="saveRequisition()" style="flex:1">💾 Save Requisition</button>
+        <button class="btn btn-ghost" onclick="printRequisitionSlip()" style="flex:1">🖨️ Print Slip</button>
+      </div>
+    </div>
+
+    <!-- SAVED REQUISITIONS LOG -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-title"><span class="dot" style="background:#1a6fb5"></span>📁 Requisition History</div>
+      <div id="req-history-list"><div style="color:var(--text2);font-size:13px">No requisitions yet.</div></div>
+    </div>
+  </div>
+
+
 </div>
 
 <div class="page" id="page-fleet">
@@ -2913,7 +3015,8 @@ fbRoot.on('value', snapshot=>{
       deletionLog: data.deletionLog || [],
       supportJobs: data.supportJobs || [],
       tripLog: data.tripLog || [],
-      spareRequests: data.spareRequests || []
+      spareRequests: data.spareRequests || [],
+      spareRequisitions: data.spareRequisitions || []
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -7225,12 +7328,14 @@ function logTrip(){
 // ══════════════════════════════════════════
 
 function showStoresTab(tab, btn){
-  ['pending','ready','issued','raise'].forEach(t=>{
-    document.getElementById('stores-'+t).style.display=t===tab?'block':'none';
+  ['pending','ready','issued','raise','requisition'].forEach(t=>{
+    const el=document.getElementById('stores-'+t);
+    if(el) el.style.display=t===tab?'block':'none';
     const b=document.getElementById('stab-'+t);
     if(b){b.classList.toggle('active',t===tab);}
   });
-  refreshStoresPage();
+  if(tab==='requisition') initRequisitionForm();
+  else refreshStoresPage();
 }
 
 function refreshStoresPage(){
@@ -9870,6 +9975,256 @@ function speakSequence(messages, idx){
   window.speechSynthesis.speak(utt);
 }
 
+
+// ─── SPARE REQUISITION SLIP ─────────────────────────────────────
+
+function getReqSerial(){
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2,'0');
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var yy = String(today.getFullYear()).slice(-2);
+  var dateKey = dd+mm+yy;
+  // Get today's count from saved requisitions
+  var reqs = S.spareRequisitions||[];
+  var todayReqs = reqs.filter(function(r){ return r.dateKey===dateKey; });
+  var seq = String(todayReqs.length+1).padStart(3,'0');
+  return 'MTW-'+dateKey+'-'+seq;
+}
+
+function initRequisitionForm(){
+  // Set serial and date
+  document.getElementById('req-serial').value = getReqSerial();
+  var today = new Date();
+  document.getElementById('req-date').value = today.toLocaleDateString('en-GB');
+  document.getElementById('req-regdate').value = today.toLocaleDateString('en-GB');
+
+  // Populate truck dropdown
+  var sel = document.getElementById('req-truck');
+  var trucks = [];
+  (S.entries||[]).forEach(function(e){ if(e.truckNo && !e.exitTime && trucks.indexOf(e.truckNo)<0) trucks.push(e.truckNo); });
+  sel.innerHTML = '<option value="">-- Select Truck --</option>'
+    + trucks.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+
+  // Init rows if empty
+  var tbody = document.getElementById('req-items-body');
+  if(!tbody.children.length){
+    for(var i=0;i<5;i++) addReqRow();
+  }
+
+  // Load history
+  refreshReqHistory();
+}
+
+function reqTruckChanged(){
+  var truck = document.getElementById('req-truck').value;
+  if(!truck) return;
+  var ins = (S.inspections||[]).find(function(i){ return i.truckNo===truck && !i.parked; });
+  if(ins){
+    document.getElementById('req-trailer').value = ins.trailerNo||'';
+  }
+}
+
+function addReqRow(){
+  var tbody = document.getElementById('req-items-body');
+  var rowCount = tbody.children.length+1;
+  if(rowCount>10) return toast('Maximum 10 items per slip','warn');
+  var tr = document.createElement('tr');
+  tr.innerHTML =
+    '<td style="padding:4px;border:1px solid var(--border);text-align:center;font-weight:700">'+rowCount+'</td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="text" style="width:100%;border:none;background:transparent" placeholder="Item description"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="number" min="0" style="width:100%;border:none;background:transparent;text-align:center" placeholder="0"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="number" min="0" style="width:100%;border:none;background:transparent;text-align:center" placeholder="0"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border);text-align:center"><input type="checkbox"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border);text-align:center"><input type="checkbox"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border);text-align:center"><input type="checkbox"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="text" style="width:100%;border:none;background:transparent" placeholder=""></td>'
+    +'<td style="padding:4px;border:1px solid var(--border);text-align:center"><input type="checkbox"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="text" style="width:100%;border:none;background:transparent" placeholder="dd/mm/yy"></td>'
+    +'<td style="padding:4px;border:1px solid var(--border)"><input type="text" style="width:100%;border:none;background:transparent" placeholder="km"></td>';
+  tbody.appendChild(tr);
+}
+
+function collectReqRows(){
+  var rows = [];
+  var tbody = document.getElementById('req-items-body');
+  Array.from(tbody.children).forEach(function(tr,idx){
+    var inputs = tr.querySelectorAll('input');
+    var desc = inputs[0].value.trim();
+    if(!desc) return;
+    rows.push({
+      sno: idx+1,
+      desc: desc,
+      qtyTruck: inputs[1].value||'',
+      qtyTrailer: inputs[2].value||'',
+      normalWear: inputs[3].checked,
+      driverNegligence: inputs[4].checked,
+      mechanicNegligence: inputs[5].checked,
+      routeCondition: inputs[6].value||'',
+      partsReturned: inputs[7].checked,
+      lastIssueDate: inputs[8].value||'',
+      lifeKm: inputs[9].value||''
+    });
+  });
+  return rows;
+}
+
+function saveRequisition(){
+  var truck = document.getElementById('req-truck').value;
+  if(!truck) return toast('Select a truck first','warn');
+  var rows = collectReqRows();
+  if(!rows.length) return toast('Add at least one item','warn');
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2,'0');
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var yy = String(today.getFullYear()).slice(-2);
+
+  var req = {
+    id: Date.now(),
+    serial: document.getElementById('req-serial').value,
+    dateKey: dd+mm+yy,
+    date: document.getElementById('req-date').value,
+    truckNo: truck,
+    trailerNo: document.getElementById('req-trailer').value,
+    jobSheet: document.getElementById('req-jobsheet').value,
+    appointmentNo: document.getElementById('req-appointment').value,
+    regDate: document.getElementById('req-regdate').value,
+    type: document.getElementById('req-type').value,
+    items: rows,
+    requestedBy: document.getElementById('req-requestedby').value,
+    approvedBy: document.getElementById('req-approvedby').value,
+    issuedBy: document.getElementById('req-issuedby').value,
+    savedAt: new Date().toISOString()
+  };
+
+  if(!S.spareRequisitions) S.spareRequisitions=[];
+  S.spareRequisitions.push(req);
+  save();
+  toast('✅ Requisition '+req.serial+' saved','ok');
+  refreshReqHistory();
+  // Reset form for next entry
+  document.getElementById('req-items-body').innerHTML='';
+  for(var i=0;i<5;i++) addReqRow();
+  document.getElementById('req-serial').value = getReqSerial();
+}
+
+function refreshReqHistory(){
+  var list = document.getElementById('req-history-list');
+  if(!list) return;
+  var reqs = (S.spareRequisitions||[]).slice().reverse();
+  if(!reqs.length){ list.innerHTML='<div style="color:var(--text2);font-size:13px">No requisitions yet.</div>'; return; }
+  list.innerHTML = reqs.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;flex-wrap:wrap">'
+      +'<span style="font-weight:800;color:#1a6fb5">'+r.serial+'</span>'
+      +'<span style="font-weight:700">'+r.truckNo+'</span>'
+      +(r.trailerNo?'<span style="color:var(--text2);font-size:12px">/ '+r.trailerNo+'</span>':'')
+      +'<span style="font-size:12px;color:var(--text2)">'+r.date+'</span>'
+      +'<span style="font-size:12px">'+r.type+'</span>'
+      +'<span style="font-size:12px;color:var(--text2)">'+r.items.length+' item'+(r.items.length>1?'s':'')+'</span>'
+      +'<span style="flex:1"></span>'
+      +'<button class="btn btn-ghost btn-sm" onclick="printRequisitionSlipById('+r.id+')">🖨️ Print</button>'
+      +'</div>';
+  }).join('');
+}
+
+function printRequisitionSlip(){
+  var truck = document.getElementById('req-truck').value;
+  if(!truck) return toast('Select a truck first','warn');
+  var rows = collectReqRows();
+  var serial = document.getElementById('req-serial').value;
+  var date = document.getElementById('req-date').value;
+  var trailer = document.getElementById('req-trailer').value;
+  var jobsheet = document.getElementById('req-jobsheet').value;
+  var apptno = document.getElementById('req-appointment').value;
+  var regdate = document.getElementById('req-regdate').value;
+  var type = document.getElementById('req-type').value;
+  var reqby = document.getElementById('req-requestedby').value;
+  var appby = document.getElementById('req-approvedby').value;
+  var issby = document.getElementById('req-issuedby').value;
+  openRequisitionPrint({serial,date,truckNo:truck,trailerNo:trailer,jobSheet:jobsheet,appointmentNo:apptno,regDate:regdate,type,items:rows,requestedBy:reqby,approvedBy:appby,issuedBy:issby});
+}
+
+function printRequisitionSlipById(id){
+  var r = (S.spareRequisitions||[]).find(function(x){ return x.id===id; });
+  if(!r) return toast('Requisition not found','warn');
+  openRequisitionPrint(r);
+}
+
+function openRequisitionPrint(r){
+  var rows = r.items||[];
+  // Pad to 10 rows
+  while(rows.length<10) rows.push({sno:rows.length+1,desc:'',qtyTruck:'',qtyTrailer:'',normalWear:false,driverNegligence:false,mechanicNegligence:false,routeCondition:'',partsReturned:false,lastIssueDate:'',lifeKm:''});
+
+  var html = '<!DOCTYPE html><html><head><title>Requisition '+r.serial+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}'
+    +'.header{text-align:center;margin-bottom:10px}'
+    +'.title{font-size:16px;font-weight:900;letter-spacing:1px}'
+    +'.subtitle{font-size:13px;font-weight:700;margin-top:2px}'
+    +'.serial{font-size:22px;font-weight:900;color:#1a3f7a;margin-top:4px}'
+    +'table{width:100%;border-collapse:collapse;margin:10px 0}'
+    +'th,td{border:1px solid #333;padding:4px 5px;font-size:10px}'
+    +'th{background:#e8e8e8;font-weight:700;text-align:center}'
+    +'.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px}'
+    +'.info-item{display:flex;gap:4px;font-size:11px}'
+    +'.info-label{font-weight:700;white-space:nowrap}'
+    +'.footer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:16px}'
+    +'.sign-box{border-top:1px solid #333;padding-top:4px;text-align:center;font-size:10px;font-weight:700}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<div class="header">'
+    +'<div class="title">SPECIALISED HAULIERS (T) LIMITED</div>'
+    +'<div class="subtitle">SPARE REQUISITION SLIP</div>'
+    +'<div class="serial">'+r.serial+'</div>'
+    +'</div>'
+    +'<div class="info-grid">'
+    +'<div class="info-item"><span class="info-label">Truck No:</span> '+r.truckNo+'</div>'
+    +'<div class="info-item"><span class="info-label">Trailer No:</span> '+(r.trailerNo||'—')+'</div>'
+    +'<div class="info-item"><span class="info-label">Job Sheet No:</span> '+(r.jobSheet||'—')+'</div>'
+    +'<div class="info-item"><span class="info-label">Appointment No:</span> '+(r.appointmentNo||'—')+'</div>'
+    +'<div class="info-item"><span class="info-label">Reg. Date:</span> '+(r.regDate||r.date)+'</div>'
+    +'<div class="info-item"><span class="info-label">Type:</span> '+(r.type||'General')+'</div>'
+    +'</div>'
+    +'<table><thead><tr>'
+    +'<th style="width:30px">Srl<br>No.</th>'
+    +'<th>Item Description</th>'
+    +'<th>Req Qty<br>Truck</th>'
+    +'<th>Req Qty<br>Trailer</th>'
+    +'<th>Normal<br>Wear/Tear</th>'
+    +'<th>Driver<br>Negligence</th>'
+    +'<th>Mechanic<br>Negligence</th>'
+    +'<th>Route<br>Condition</th>'
+    +'<th>Parts<br>Returned</th>'
+    +'<th>Last Issue<br>Date</th>'
+    +'<th>Life<br>Km</th>'
+    +'</tr></thead><tbody>'
+    +rows.map(function(row,i){
+      return '<tr style="height:22px">'
+        +'<td style="text-align:center">'+(i+1)+'</td>'
+        +'<td>'+( row.desc||'')+'</td>'
+        +'<td style="text-align:center">'+(row.qtyTruck||'')+'</td>'
+        +'<td style="text-align:center">'+(row.qtyTrailer||'')+'</td>'
+        +'<td style="text-align:center">'+(row.normalWear?'✓':'')+'</td>'
+        +'<td style="text-align:center">'+(row.driverNegligence?'✓':'')+'</td>'
+        +'<td style="text-align:center">'+(row.mechanicNegligence?'✓':'')+'</td>'
+        +'<td style="text-align:center">'+(row.routeCondition||'')+'</td>'
+        +'<td style="text-align:center">'+(row.partsReturned?'✓':'')+'</td>'
+        +'<td style="text-align:center">'+(row.lastIssueDate||'')+'</td>'
+        +'<td style="text-align:center">'+(row.lifeKm||'')+'</td>'
+        +'</tr>';
+    }).join('')
+    +'</tbody></table>'
+    +'<div class="footer-grid">'
+    +'<div class="sign-box">Requested By / Supervisor<br><br>'+(r.requestedBy||'')+'</div>'
+    +'<div class="sign-box">Approved By / Workshop Incharge<br><br>'+(r.approvedBy||'')+'</div>'
+    +'<div class="sign-box">Issued By / Store Supervisor/Incharge<br><br>'+(r.issuedBy||'')+'</div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:12px"><button onclick="window.print()">🖨️ Print</button></div>'
+    +'</body></html>';
+
+  var w = window.open('','_blank','width=900,height=700');
+  w.document.write(html);
+  w.document.close();
+}
+
 // ─── YARD ALERTS ───────────────────────────────────────────────
 const ALERT_TYPES = {
   stop:   { label:'🛑 STOP AT SECURITY GATE', cls:'type-stop' },
@@ -9976,6 +10331,7 @@ function runInitialRender(){
     refreshYardAlerts();
     populateAlertTruckSelect();
     updateLangBtn();
+    refreshReqHistory();
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
