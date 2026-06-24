@@ -10748,7 +10748,7 @@ function renderMechanicRevisits(revisits){
       +(critical.length?'<span style="background:var(--red);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🔴 '+critical.length+' Critical</span>':'')
       +(monitor.length?'<span style="background:var(--yellow);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🟡 '+monitor.length+' Monitor</span>':'')
       +(good.length?'<span style="background:var(--green);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🟢 '+good.length+' Good</span>':'')
-      +'<button class="btn btn-sm" style="margin-left:auto;background:var(--red);color:#fff;border:none;font-size:11px" onclick="notifyIncharge(''+mech+'')">📋 Report to Incharge</button>'
+      +'<button class="btn btn-sm" style="margin-left:auto;background:var(--red);color:#fff;border:none;font-size:11px" onclick="notifyIncharge(\''+mech+'\')">📋 Report to Incharge</button>'
       +'</div>'
       +recs.map(function(r){
         var kmColor=r.km<5000?'var(--red)':r.km<10000?'var(--yellow)':'var(--green)';
