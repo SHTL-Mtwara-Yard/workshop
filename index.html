@@ -2441,7 +2441,6 @@ tr:hover td { background: var(--surface2); }
     <button class="subtab active" id="stab-pending" onclick="showStoresTab('pending',this)">⏳ Pending Requests</button>
     <button class="subtab" id="stab-ready" onclick="showStoresTab('ready',this)">✅ Ready to Issue</button>
     <button class="subtab" id="stab-issued" onclick="showStoresTab('issued',this)">📦 Issued Log</button>
-    <button class="subtab" id="stab-raise" onclick="showStoresTab('raise',this)" style="color:var(--accent)">➕ Raise Request</button>
     <button class="subtab" id="stab-requisition" onclick="showStoresTab('requisition',this)" style="color:#1a6fb5">📋 Requisition Slip</button>
   </div>
 
@@ -10109,23 +10108,158 @@ function saveRequisition(){
   document.getElementById('req-serial').value = getReqSerial();
 }
 
+function fmtTime(iso){ if(!iso) return '—'; var d=new Date(iso); return d.toLocaleDateString('en-GB')+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+
+function collectReqByTruck(){
+  var reqs = (S.spareRequisitions||[]).slice().reverse();
+  // Group by truck
+  var map = {};
+  reqs.forEach(function(r){
+    if(!map[r.truckNo]) map[r.truckNo]=[];
+    map[r.truckNo].push(r);
+  });
+  return map;
+}
+
+function markCollected(reqId){
+  var name = prompt('Enter your name (mechanic collecting parts):');
+  if(!name || !name.trim()) return;
+  var reqs = S.spareRequisitions||[];
+  var r = reqs.find(function(x){ return x.id===reqId; });
+  if(!r) return toast('Requisition not found','warn');
+  r.collectedBy = name.trim();
+  r.collectedAt = new Date().toISOString();
+  r.status = 'collected';
+  save();
+  toast('✅ Collection recorded — '+name.trim(),'ok');
+}
+
+function markPartsReady(reqId){
+  var reqs = S.spareRequisitions||[];
+  var r = reqs.find(function(x){ return x.id===reqId; });
+  if(!r) return;
+  r.partsReadyAt = new Date().toISOString();
+  r.status = 'ready';
+  save();
+  // Announce
+  var msgEN = 'Attention Ground Team. Parts ready for '+r.truckNo+'. Please collect from Stores.';
+  var msgSW = 'Tahadhari Timu ya Ardhi. Vipande vya '+r.truckNo+' viko tayari. Tafadhali kuja dukani.';
+  var messages = _announceLang==='en'?[msgEN]:_announceLang==='sw'?[msgSW]:[msgEN,msgSW];
+  if(window.speechSynthesis){ window.speechSynthesis.cancel(); speakSequence(messages,0); }
+  toast('🔊 Parts marked ready — Ground Team notified','ok');
+}
+
 function refreshReqHistory(){
   var list = document.getElementById('req-history-list');
   if(!list) return;
   var reqs = (S.spareRequisitions||[]).slice().reverse();
-  if(!reqs.length){ list.innerHTML='<div style="color:var(--text2);font-size:13px">No requisitions yet.</div>'; return; }
-  list.innerHTML = reqs.map(function(r){
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px;flex-wrap:wrap">'
-      +'<span style="font-weight:800;color:#1a6fb5">'+r.serial+'</span>'
-      +'<span style="font-weight:700">'+r.truckNo+'</span>'
-      +(r.trailerNo?'<span style="color:var(--text2);font-size:12px">/ '+r.trailerNo+'</span>':'')
-      +'<span style="font-size:12px;color:var(--text2)">'+r.date+'</span>'
-      +'<span style="font-size:12px">'+r.type+'</span>'
-      +'<span style="font-size:12px;color:var(--text2)">'+r.items.length+' item'+(r.items.length>1?'s':'')+'</span>'
-      +'<span style="flex:1"></span>'
-      +'<button class="btn btn-ghost btn-sm" onclick="printRequisitionSlipById('+r.id+')">🖨️ Print</button>'
-      +'</div>';
-  }).join('');
+  if(!reqs.length){ list.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No requisitions yet.</div>'; return; }
+
+  // Group by truck for summary
+  var trucks = {};
+  reqs.forEach(function(r){ if(!trucks[r.truckNo]) trucks[r.truckNo]=[]; trucks[r.truckNo].push(r); });
+
+  var html = '';
+
+  // Per-truck summary cards
+  Object.keys(trucks).forEach(function(truck){
+    var tReqs = trucks[truck];
+    var total = tReqs.reduce(function(s,r){ return s+(r.items?r.items.length:0); },0);
+    var collected = tReqs.filter(function(r){ return r.status==='collected'; }).length;
+    var ready = tReqs.filter(function(r){ return r.status==='ready'; }).length;
+    var pending = tReqs.filter(function(r){ return !r.status||r.status==='saved'; }).length;
+
+    html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">';
+    // Truck header
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);flex-wrap:wrap">';
+    html += '<span style="font-size:16px;font-weight:800">'+truck+'</span>';
+    html += '<span style="font-size:12px;color:var(--text2)">'+tReqs.length+' slip'+(tReqs.length>1?'s':'')+' · '+total+' items</span>';
+    if(pending>0) html += '<span style="background:#ef4444;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">⏳ '+pending+' pending</span>';
+    if(ready>0) html += '<span style="background:#f59e0b;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">📦 '+ready+' ready — not collected</span>';
+    if(collected>0) html += '<span style="background:#16a34a;color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">✅ '+collected+' collected</span>';
+    html += '</div>';
+
+    // Each requisition timeline
+    tReqs.forEach(function(r){
+      var statusColor = r.status==='collected'?'#16a34a':r.status==='ready'?'#f59e0b':'#6b7280';
+      var statusLabel = r.status==='collected'?'✅ Collected':r.status==='ready'?'📦 Ready — awaiting collection':'⏳ Pending';
+
+      html += '<div style="padding:12px 14px;border-top:1px solid var(--border)">';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">';
+      html += '<span style="font-weight:700;color:#1a6fb5">'+r.serial+'</span>';
+      html += '<span style="font-size:12px;color:var(--text2)">'+r.date+'</span>';
+      html += '<span style="font-size:12px">'+r.type+'</span>';
+      html += '<span style="font-size:12px;color:var(--text2)">'+r.items.length+' item'+(r.items.length>1?'s':'')+'</span>';
+      html += '<span style="background:'+statusColor+';color:#fff;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:auto">'+statusLabel+'</span>';
+      html += '</div>';
+
+      // TIMELINE
+      html += '<div style="display:flex;flex-direction:column;gap:4px;font-size:12px;margin-bottom:8px;padding:8px;background:var(--surface2);border-radius:6px">';
+
+      // T1 - Submitted
+      html += '<div style="display:flex;gap:8px;align-items:center">';
+      html += '<span style="color:#1a6fb5;font-weight:700;min-width:16px">①</span>';
+      html += '<span style="color:var(--text2)">Submitted</span>';
+      html += '<span style="font-weight:600">'+fmtTime(r.savedAt)+'</span>';
+      html += '<span style="color:var(--text2)">by '+( r.requestedBy||'Supervisor')+'</span>';
+      html += '</div>';
+
+      // T2 - Parts Ready
+      html += '<div style="display:flex;gap:8px;align-items:center">';
+      html += '<span style="color:'+(r.partsReadyAt?'#f59e0b':'#ccc')+';font-weight:700;min-width:16px">②</span>';
+      html += '<span style="color:var(--text2)">Parts Ready</span>';
+      if(r.partsReadyAt){
+        html += '<span style="font-weight:600">'+fmtTime(r.partsReadyAt)+'</span>';
+        html += '<span style="color:var(--text2)">by Stores</span>';
+      } else {
+        html += '<span style="color:#ef4444">Not yet marked ready</span>';
+      }
+      html += '</div>';
+
+      // T3 - Collected
+      html += '<div style="display:flex;gap:8px;align-items:center">';
+      html += '<span style="color:'+(r.collectedAt?'#16a34a':'#ccc')+';font-weight:700;min-width:16px">③</span>';
+      html += '<span style="color:var(--text2)">Collected</span>';
+      if(r.collectedAt){
+        html += '<span style="font-weight:600">'+fmtTime(r.collectedAt)+'</span>';
+        html += '<span style="color:#16a34a;font-weight:600">by '+r.collectedBy+'</span>';
+        // Time taken after ready
+        if(r.partsReadyAt){
+          var diff = Math.round((new Date(r.collectedAt)-new Date(r.partsReadyAt))/60000);
+          html += '<span style="color:var(--text2)">('+diff+' min after ready)</span>';
+        }
+      } else if(r.partsReadyAt) {
+        // Parts ready but not collected — show waiting time
+        var waiting = Math.round((Date.now()-new Date(r.partsReadyAt))/60000);
+        html += '<span style="color:#ef4444;font-weight:600">⚠️ Not collected — waiting '+waiting+' min</span>';
+      } else {
+        html += '<span style="color:#ccc">Waiting for parts</span>';
+      }
+      html += '</div>';
+      html += '</div>'; // end timeline
+
+      // Items list
+      html += '<div style="font-size:11px;color:var(--text2);margin-bottom:8px">';
+      html += r.items.map(function(it,i){ return (i+1)+'. '+it.desc+(it.qtyTruck?' (Truck: '+it.qtyTruck+')':'')+(it.qtyTrailer?' (Trailer: '+it.qtyTrailer+')':''); }).join(' &nbsp;·&nbsp; ');
+      html += '</div>';
+
+      // Action buttons
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="btn btn-ghost btn-sm" onclick="printRequisitionSlipById('+r.id+')">🖨️ Print</button>';
+      if(!r.partsReadyAt){
+        html += '<button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none" onclick="markPartsReady('+r.id+')">📦 Mark Parts Ready</button>';
+      }
+      if(r.partsReadyAt && !r.collectedAt){
+        html += '<button class="btn btn-sm" style="background:#16a34a;color:#fff;border:none" onclick="markCollected('+r.id+')">✅ Mark Collected</button>';
+      }
+      html += '</div>';
+      html += '</div>'; // end req
+    });
+
+    html += '</div>'; // end truck card
+  });
+
+  list.innerHTML = html;
 }
 
 function printRequisitionSlip(){
@@ -10326,52 +10460,19 @@ function markRequisitionReady(){
   if(!truck) return toast('Select a truck first','warn');
   var rows = collectReqRows();
   if(!rows.length) return toast('Add at least one item first','warn');
-
-  // Save first if not saved
+  // Save and mark ready
   saveRequisition();
-
-  // Build item list for announcement
-  var items = rows.filter(function(r){ return r.desc && r.desc.trim(); });
-  var itemNames = items.slice(0,3).map(function(r){ return r.desc.trim(); });
-  var moreCount = items.length > 3 ? items.length - 3 : 0;
-
-  // English announcement
-  var msgEN = 'Attention Ground Team. Spare parts are now ready for collection. '
-    + 'Truck ' + truck + '. '
-    + 'Items ready: ' + itemNames.join(', ')
-    + (moreCount > 0 ? ', and ' + moreCount + ' more items' : '')
-    + '. Please collect from the Stores counter immediately.';
-
-  // Swahili announcement
-  var msgSW = 'Tahadhari Timu ya Ardhi. Vipande vya gari viko tayari kukusanywa. '
-    + 'Lori ' + truck + '. '
-    + 'Vitu vilivyo tayari: ' + itemNames.join(', ')
-    + (moreCount > 0 ? ', na vitu ' + moreCount + ' zaidi' : '')
-    + '. Tafadhali kuja dukani sasa hivi.';
-
-  var messages = _announceLang === 'en' ? [msgEN]
-               : _announceLang === 'sw' ? [msgSW]
-               : [msgEN, msgSW];
-
-  if(!window.speechSynthesis) return toast('⚠️ Browser does not support audio','warn');
-  window.speechSynthesis.cancel();
-  speakSequence(messages, 0);
-
-  // Also send a notification to ground team via Firebase
-  var notif = {
-    id: Date.now(),
-    message: '🔊 PARTS READY for ' + truck + ': ' + itemNames.join(', ') + (moreCount>0?' +'+moreCount+' more':'') + ' — collect from Stores',
-    truckLink: truck,
-    bayLink: '',
-    sentAt: new Date().toISOString(),
-    read: false
-  };
-  var notifs = (S.notifications || []).slice();
-  notifs.push(notif);
-  S.notifications = notifs;
-  save();
-
-  toast('✅ Parts marked ready — announcement sent to Ground Team 🔊', 'ok');
+  // Mark the latest saved req for this truck as ready
+  var reqs = S.spareRequisitions||[];
+  var latest = null;
+  for(var i=reqs.length-1;i>=0;i--){ if(reqs[i].truckNo===truck){ latest=reqs[i]; break; } }
+  if(latest){ latest.partsReadyAt=new Date().toISOString(); latest.status='ready'; save(); }
+  // Short announcement
+  var msgEN = 'Attention Ground Team. Parts ready for '+truck+'. Please collect from Stores.';
+  var msgSW = 'Tahadhari Timu ya Ardhi. Vipande vya '+truck+' viko tayari. Tafadhali kuja dukani.';
+  var messages = _announceLang==='en'?[msgEN]:_announceLang==='sw'?[msgSW]:[msgEN,msgSW];
+  if(window.speechSynthesis){ window.speechSynthesis.cancel(); speakSequence(messages,0); }
+  toast('✅ Parts marked ready — Ground Team notified 🔊','ok');
 }
 
 function runInitialRender(){
