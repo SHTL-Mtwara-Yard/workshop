@@ -545,9 +545,11 @@ tr:hover td { background: var(--surface2); }
     <span class="conn-indicator" id="connIndicator">🟡 Connecting...</span>
     <span class="clock" id="clockDisplay">--:--:--</span>
     <span class="badge-pill" id="waitingBadge">0 waiting</span>
-    <button id="langToggleBtn" onclick="cycleLang()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:3px 8px;border-radius:12px;cursor:pointer;font-size:12px;white-space:nowrap">🇬🇧 EN</button>
   </div>
 </nav>
+<!-- LANG TOGGLE FLOATING BUTTON -->
+<button id="langToggleBtn" onclick="cycleLang()" title="Change announcement language" style="position:fixed;bottom:18px;right:18px;z-index:9998;background:#1a6fb5;border:none;color:#fff;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,0.3);white-space:nowrap">🇬🇧 EN</button>
+
 <!-- YARD ALERT BANNER -->
 <div id="yardAlertBanner"></div>
 
