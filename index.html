@@ -2052,6 +2052,46 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+
+  <!-- PUNCH ON BEHALF -->
+  <div class="subpage" id="sub-mgr-punch" style="display:none">
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>👊 Punch on Behalf — Manager Override</div>
+      <div class="text-xs text2 mb-12">Use this when ground team forgot to punch. Select mechanic, truck, department and job — then mark complete.</div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">MECHANIC NAME</label>
+          <select id="mgrPunchWorker" style="width:100%" onchange="mgrPunchLoadJobs()">
+            <option value="">-- Select Mechanic --</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">TRUCK</label>
+          <select id="mgrPunchTruck" style="width:100%" onchange="mgrPunchLoadJobs()">
+            <option value="">-- Select Truck --</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:140px">
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">DEPARTMENT</label>
+          <select id="mgrPunchDept" style="width:100%" onchange="mgrPunchLoadJobs()">
+            <option value="">-- Select Dept --</option>
+            <option value="mech">Mechanical</option>
+            <option value="elec">Electrician</option>
+            <option value="tyre">Tyre</option>
+            <option value="weld">Welding</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="mgrPunchJobList" style="margin-bottom:12px">
+        <div style="color:var(--text2);font-size:13px">Select mechanic, truck and department to see jobs.</div>
+      </div>
+
+      <div id="mgrPunchResult"></div>
+    </div>
+  </div>
+
 <!-- ════════════════ OVERVIEW ════════════════ -->
 <div class="page" id="page-overview">
   <div class="page-title">📊 Overview — Fleet Dashboard</div>
@@ -10359,6 +10399,92 @@ function openRequisitionPrint(r){
   var w = window.open('','_blank','width=900,height=700');
   w.document.write(html);
   w.document.close();
+}
+
+
+// ─── MANAGER PUNCH ON BEHALF ───────────────────────────────────
+function initMgrPunch(){
+  // Populate mechanic dropdown - all staff from roster
+  var sel = document.getElementById('mgrPunchWorker');
+  if(!sel) return;
+  var all = [];
+  var roster = S.staffRoster || {};
+  ['mech','elec','tyre','weld'].forEach(function(d){
+    (roster[d]||[]).forEach(function(n){ if(n && all.indexOf(n)<0) all.push(n); });
+  });
+  all.sort();
+  sel.innerHTML = '<option value="">-- Select Mechanic --</option>'
+    + all.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+
+  // Populate truck dropdown - active inspections only
+  var tsel = document.getElementById('mgrPunchTruck');
+  var activeIns = (S.inspections||[]).filter(function(i){
+    return !i.parked && !(S.entries||[]).find(function(e){ return e.id===i.entryId && e.exitTime; });
+  });
+  tsel.innerHTML = '<option value="">-- Select Truck --</option>'
+    + activeIns.map(function(i){ return '<option value="'+i.id+'">'+i.truckNo+' ('+i.bayNo+')</option>'; }).join('');
+
+  document.getElementById('mgrPunchJobList').innerHTML = '<div style="color:var(--text2);font-size:13px">Select mechanic, truck and department to see jobs.</div>';
+}
+
+function mgrPunchLoadJobs(){
+  var worker = document.getElementById('mgrPunchWorker').value;
+  var insId = document.getElementById('mgrPunchTruck').value;
+  var dept = document.getElementById('mgrPunchDept').value;
+  var listEl = document.getElementById('mgrPunchJobList');
+  if(!worker || !insId || !dept){ listEl.innerHTML='<div style="color:var(--text2);font-size:13px">Select all three fields above.</div>'; return; }
+
+  var ins = (S.inspections||[]).find(function(i){ return i.id==insId; });
+  if(!ins){ listEl.innerHTML='<div style="color:var(--red)">Inspection not found.</div>'; return; }
+
+  var jobs = (ins.jobs||{})[dept]||[];
+  if(!jobs.length){ listEl.innerHTML='<div style="color:var(--text2);font-size:13px">No jobs in this department for this truck.</div>'; return; }
+
+  var html = '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Jobs for '+ins.truckNo+' — '+(dept==='mech'?'Mechanical':dept==='elec'?'Electrician':dept==='tyre'?'Tyre':'Welding')+'</div>';
+  html += jobs.map(function(j,i){
+    var key = insId+'_'+dept+'_'+i;
+    var upd = (S.jobUpdates||{})[key];
+    var done = upd && upd.done;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:6px;margin-bottom:6px">'
+      +'<span style="font-weight:700;min-width:20px">'+(i+1)+'.</span>'
+      +'<span style="flex:1;'+(done?'text-decoration:line-through;color:var(--text2)':'')+'">'+j.desc+'</span>'
+      +(done
+        ? '<span style="color:var(--green);font-size:12px">✅ Done by '+upd.doneBy+' at '+upd.time+'</span>'
+        : '<button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none" onclick="mgrPunchComplete(''+insId+'',''+dept+'','+i+')">👊 Mark Complete</button>'
+      )
+      +'</div>';
+  }).join('');
+
+  listEl.innerHTML = html;
+}
+
+function mgrPunchComplete(insId, dept, jobIdx){
+  var worker = document.getElementById('mgrPunchWorker').value;
+  if(!worker) return toast('Select mechanic name first','warn');
+
+  var ins = (S.inspections||[]).find(function(i){ return i.id==insId; });
+  if(!ins) return;
+
+  var key = insId+'_'+dept+'_'+jobIdx;
+  var now = new Date();
+  var timeStr = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  S.jobUpdates[key] = { done:true, doneBy:worker, time:timeStr, punchedByManager:true };
+
+  // Log worker event
+  logWorkerEvent(worker, 'working', {truckNo:ins.truckNo, bayNo:ins.bayNo, dept:dept, jobDesc:(ins.jobs[dept][jobIdx]||{}).desc, punchedByManager:true});
+  logWorkerEvent(worker, 'available', {reason:'job complete', bayNo:ins.bayNo, dept:dept, punchedByManager:true});
+
+  // Update workerPunches
+  if(!S.workerPunches) S.workerPunches={};
+  S.workerPunches[worker] = { status:'available', since:now.toISOString() };
+
+  if(!ins.t4_qcDone) ins.t4_qcDone = now.toISOString();
+  checkAutoCompletion(insId);
+
+  save();
+  toast('✅ Punched for '+worker+' — job marked complete','ok');
+  mgrPunchLoadJobs(); // Refresh job list
 }
 
 // ─── YARD ALERTS ───────────────────────────────────────────────
