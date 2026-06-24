@@ -2625,6 +2625,11 @@ tr:hover td { background: var(--surface2); }
         <button class="btn btn-primary" onclick="saveRequisition()" style="flex:1">💾 Save Requisition</button>
         <button class="btn btn-ghost" onclick="printRequisitionSlip()" style="flex:1">🖨️ Print Slip</button>
       </div>
+      <div style="margin-top:8px">
+        <button class="btn btn-primary" onclick="markRequisitionReady()" style="width:100%;background:#16a34a;border-color:#16a34a;font-size:14px;padding:12px">
+          🔊 Mark Parts Ready &amp; Announce to Ground Team
+        </button>
+      </div>
     </div>
 
     <!-- SAVED REQUISITIONS LOG -->
@@ -10024,7 +10029,7 @@ function reqTruckChanged(){
 function addReqRow(){
   var tbody = document.getElementById('req-items-body');
   var rowCount = tbody.children.length+1;
-  if(rowCount>10) return toast('Maximum 10 items per slip','warn');
+  if(rowCount>20) return toast('Maximum 20 items per slip','warn');
   var tr = document.createElement('tr');
   tr.innerHTML =
     '<td style="padding:4px;border:1px solid var(--border);text-align:center;font-weight:700">'+rowCount+'</td>'
@@ -10312,6 +10317,61 @@ function populateAlertTruckSelect(){
   (S.entries||[]).forEach(function(e){ if(e.truckNo && trucks.indexOf(e.truckNo)<0) trucks.push(e.truckNo); });
   sel.innerHTML='<option value="">-- Select Truck --</option>'
     +trucks.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+}
+
+
+// ─── REQUISITION READY ANNOUNCEMENT ───────────────────────────
+function markRequisitionReady(){
+  var truck = document.getElementById('req-truck').value;
+  if(!truck) return toast('Select a truck first','warn');
+  var rows = collectReqRows();
+  if(!rows.length) return toast('Add at least one item first','warn');
+
+  // Save first if not saved
+  saveRequisition();
+
+  // Build item list for announcement
+  var items = rows.filter(function(r){ return r.desc && r.desc.trim(); });
+  var itemNames = items.slice(0,3).map(function(r){ return r.desc.trim(); });
+  var moreCount = items.length > 3 ? items.length - 3 : 0;
+
+  // English announcement
+  var msgEN = 'Attention Ground Team. Spare parts are now ready for collection. '
+    + 'Truck ' + truck + '. '
+    + 'Items ready: ' + itemNames.join(', ')
+    + (moreCount > 0 ? ', and ' + moreCount + ' more items' : '')
+    + '. Please collect from the Stores counter immediately.';
+
+  // Swahili announcement
+  var msgSW = 'Tahadhari Timu ya Ardhi. Vipande vya gari viko tayari kukusanywa. '
+    + 'Lori ' + truck + '. '
+    + 'Vitu vilivyo tayari: ' + itemNames.join(', ')
+    + (moreCount > 0 ? ', na vitu ' + moreCount + ' zaidi' : '')
+    + '. Tafadhali kuja dukani sasa hivi.';
+
+  var messages = _announceLang === 'en' ? [msgEN]
+               : _announceLang === 'sw' ? [msgSW]
+               : [msgEN, msgSW];
+
+  if(!window.speechSynthesis) return toast('⚠️ Browser does not support audio','warn');
+  window.speechSynthesis.cancel();
+  speakSequence(messages, 0);
+
+  // Also send a notification to ground team via Firebase
+  var notif = {
+    id: Date.now(),
+    message: '🔊 PARTS READY for ' + truck + ': ' + itemNames.join(', ') + (moreCount>0?' +'+moreCount+' more':'') + ' — collect from Stores',
+    truckLink: truck,
+    bayLink: '',
+    sentAt: new Date().toISOString(),
+    read: false
+  };
+  var notifs = (S.notifications || []).slice();
+  notifs.push(notif);
+  S.notifications = notifs;
+  save();
+
+  toast('✅ Parts marked ready — announcement sent to Ground Team 🔊', 'ok');
 }
 
 function runInitialRender(){
