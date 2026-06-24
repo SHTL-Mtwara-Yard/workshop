@@ -521,6 +521,8 @@ tr:hover td { background: var(--surface2); }
 .yard-alert-item .alert-time { font-size:11px; opacity:0.8; white-space:nowrap; }
 .yard-alert-item .alert-ack { background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.5); color:#fff; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
 .yard-alert-item .alert-ack:hover { background:rgba(255,255,255,0.4); }
+
+#langToggleBtn:hover { background:rgba(255,255,255,0.25) !important; }
 </style>
 </head>
 <body>
@@ -543,6 +545,7 @@ tr:hover td { background: var(--surface2); }
     <span class="conn-indicator" id="connIndicator">🟡 Connecting...</span>
     <span class="clock" id="clockDisplay">--:--:--</span>
     <span class="badge-pill" id="waitingBadge">0 waiting</span>
+    <button id="langToggleBtn" onclick="cycleLang()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:3px 8px;border-radius:12px;cursor:pointer;font-size:12px;white-space:nowrap">🇬🇧 EN</button>
   </div>
 </nav>
 <!-- YARD ALERT BANNER -->
@@ -6229,11 +6232,9 @@ function checkETDAnnouncements(){
       if(_lastAnnounced[key]===currentMinuteBucket) return; // already announced this 15-min window
       _lastAnnounced[key]=currentMinuteBucket;
       const mechanic=(ins.deptStaff||{})[d]||'Ground Team';
-      const deptName={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
-      const jobList=pending.slice(0,2).map(j=>j.desc).join(' and ');
-      const minsText=minsLeft<=5?'less than 5 minutes':minsLeft<=15?'15 minutes':minsLeft<=30?'30 minutes':'1 hour';
-      const msg=`Attention. ${mechanic}, please be informed. Truck ${ins.truckNo}, ${deptName} department. ETD in ${minsText}. Pending job${pending.length>1?'s':''}: ${jobList}${pending.length>2?'. And '+(pending.length-2)+' more':''}.`;
-      speakAnnouncement(msg);
+      const messages=buildETDMessage(ins.truckNo,d,mechanic,minsLeft,pending,_announceLang);
+      window.speechSynthesis.cancel();
+      speakSequence(messages,0);
     });
   });
 }
@@ -6241,9 +6242,7 @@ function checkETDAnnouncements(){
 function speakAnnouncement(text){
   if(!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const utt=new SpeechSynthesisUtterance(text);
-  utt.rate=0.88; utt.pitch=1; utt.volume=1;
-  window.speechSynthesis.speak(utt);
+  speakSequence([text], 0);
 }
 
 function refreshOverview(){
@@ -7365,9 +7364,10 @@ function markSpareReady(id){
   req.readyAt=new Date().toISOString();
   save();
   refreshStoresPage();
-  // Announce on speaker
-  const msg=`Attention. Spare part ready for ${req.truckNo}. Bay ${req.bayNo}. ${req.partName}. Please collect from store.`;
-  speakAnnouncement(msg);
+  // Announce on speaker (multilang)
+  const storeMsgs=buildStoresMessage(req.truckNo, req.partName, _announceLang);
+  window.speechSynthesis.cancel();
+  speakSequence(storeMsgs,0);
   toast('✅ Part marked ready — announcement sent 🔊','ok');
 }
 
@@ -9751,6 +9751,102 @@ const origExitSelect = document.getElementById('exitTruckSelect');
 // Runs once, after the first Firebase snapshot arrives (see fbRoot.on('value', ...) above).
 // Until then, the connection indicator shows "Connecting..." in the nav.
 
+
+// ─── MULTI-LANGUAGE ANNOUNCEMENT SYSTEM ────────────────────────
+// Langs: 'en' = English (default), 'sw' = Swahili, 'both' = English then Swahili
+var _announceLang = localStorage.getItem('shtl_announce_lang') || 'en';
+
+var LANG_OPTIONS = [
+  { key:'en',   label:'🇬🇧 EN',   name:'English' },
+  { key:'sw',   label:'🇹🇿 SW',   name:'Kiswahili' },
+  { key:'both', label:'🔀 EN+SW', name:'Both' }
+];
+
+function cycleLang(){
+  var idx = LANG_OPTIONS.findIndex(function(l){ return l.key===_announceLang; });
+  _announceLang = LANG_OPTIONS[(idx+1) % LANG_OPTIONS.length].key;
+  localStorage.setItem('shtl_announce_lang', _announceLang);
+  updateLangBtn();
+  var name = LANG_OPTIONS.find(function(l){ return l.key===_announceLang; }).name;
+  toast('🔊 Announcements: '+name, 'ok');
+}
+
+function updateLangBtn(){
+  var btn = document.getElementById('langToggleBtn');
+  if(!btn) return;
+  var opt = LANG_OPTIONS.find(function(l){ return l.key===_announceLang; });
+  if(opt) btn.textContent = opt.label;
+}
+
+// Swahili translations
+var SW = {
+  attention: 'Tahadhari',
+  please_note: 'tafadhali kumbuka',
+  truck: 'Lori',
+  dept: { mech:'Uhandisi wa Injini', elec:'Umeme', tyre:'Matairi', weld:'Uunganishaji' },
+  etd_in: 'Muda wa kutoka katika',
+  mins5: 'dakika chini ya tano',
+  mins15: 'dakika kumi na tano',
+  mins30: 'dakika thelathini',
+  hour1: 'saa moja',
+  pending_job: 'Kazi inayosubiri',
+  pending_jobs: 'Kazi zinazongoja',
+  and_more: 'na zaidi',
+  part_ready: 'Sehemu iko tayari kukusanywa',
+  truck_word: 'Lori',
+  stores: 'dukani',
+  gate_entry: 'Lori imeingia geiti',
+  gate_exit: 'Lori imetoka geiti'
+};
+
+function buildETDMessage(truckNo, deptKey, mechanic, minsLeft, pendingJobs, lang){
+  var deptEN = {mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[deptKey];
+  var minsTextEN = minsLeft<=5?'less than 5 minutes':minsLeft<=15?'15 minutes':minsLeft<=30?'30 minutes':'1 hour';
+  var minsTextSW = minsLeft<=5?SW.mins5:minsLeft<=15?SW.mins15:minsLeft<=30?SW.mins30:SW.hour1;
+  var jobListEN = pendingJobs.slice(0,2).map(function(j){return j.desc;}).join(' and ');
+  var jobListSW = pendingJobs.slice(0,2).map(function(j){return j.desc;}).join(' na ');
+  var moreEN = pendingJobs.length>2?' And '+(pendingJobs.length-2)+' more':'';
+  var moreSW = pendingJobs.length>2?' Na '+(pendingJobs.length-2)+' '+SW.and_more:'';
+
+  var msgEN = 'Attention. '+mechanic+', please be informed. Truck '+truckNo+', '+deptEN+' department. ETD in '+minsTextEN+'. Pending job'+(pendingJobs.length>1?'s':'')+': '+jobListEN+moreEN+'.';
+  var msgSW = SW.attention+'. '+mechanic+', '+SW.please_note+'. '+SW.truck+' '+truckNo+', idara ya '+SW.dept[deptKey]+'. '+SW.etd_in+' '+minsTextSW+'. '+(pendingJobs.length>1?SW.pending_jobs:SW.pending_job)+': '+jobListSW+moreSW+'.';
+
+  if(lang==='en') return [msgEN];
+  if(lang==='sw') return [msgSW];
+  return [msgEN, msgSW]; // both
+}
+
+function buildStoresMessage(truckNo, partDesc, lang){
+  var msgEN = 'Attention Ground Team. Part ready for collection. Truck '+truckNo+' — '+partDesc+' is now ready at the Stores counter.';
+  var msgSW = SW.attention+'. '+SW.part_ready+'. '+SW.truck+' '+truckNo+' — '+partDesc+' iko tayari '+SW.stores+'.';
+  if(lang==='en') return [msgEN];
+  if(lang==='sw') return [msgSW];
+  return [msgEN, msgSW];
+}
+
+function buildGateMessage(truckNo, direction, lang){
+  var msgEN = direction==='in'?'Truck '+truckNo+' has entered the gate. Supervisor please check.':'Truck '+truckNo+' has exited the gate.';
+  var msgSW = direction==='in'?SW.gate_entry+'. '+SW.truck+' '+truckNo+'. Msimamizi tafadhali angalia.':SW.gate_exit+'. '+SW.truck+' '+truckNo+'.';
+  if(lang==='en') return [msgEN];
+  if(lang==='sw') return [msgSW];
+  return [msgEN, msgSW];
+}
+
+function speakSequence(messages, idx){
+  if(!idx) idx=0;
+  if(idx>=messages.length) return;
+  var utt = new SpeechSynthesisUtterance(messages[idx]);
+  utt.rate=0.88; utt.pitch=1; utt.volume=1;
+  // Use Swahili voice if available for SW messages
+  if(idx>0 || _announceLang==='sw'){
+    var voices = window.speechSynthesis.getVoices();
+    var swVoice = voices.find(function(v){ return v.lang && v.lang.indexOf('sw')===0; });
+    if(swVoice) utt.voice = swVoice;
+  }
+  utt.onend = function(){ speakSequence(messages, idx+1); };
+  window.speechSynthesis.speak(utt);
+}
+
 // ─── YARD ALERTS ───────────────────────────────────────────────
 const ALERT_TYPES = {
   stop:   { label:'🛑 STOP AT SECURITY GATE', cls:'type-stop' },
@@ -9856,6 +9952,7 @@ function runInitialRender(){
     refreshStoresPage();
     refreshYardAlerts();
     populateAlertTruckSelect();
+    updateLangBtn();
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
