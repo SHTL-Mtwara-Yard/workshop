@@ -10489,7 +10489,7 @@ function mgrPunchLoadJobs(){
       +'<span style="flex:1;'+(done?'text-decoration:line-through;color:var(--text2)':'')+'">'+j.desc+'</span>'
       +(done
         ? '<span style="color:var(--green);font-size:12px">✅ Done by '+upd.doneBy+' at '+upd.time+'</span>'
-        : '<button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none" onclick="mgrPunchComplete(''+insId+'',''+dept+'','+i+')">👊 Mark Complete</button>'
+        : '<button class="btn btn-sm" style="background:var(--accent);color:#fff;border:none" onclick="mgrPunchComplete('+JSON.stringify(insId)+','+JSON.stringify(dept)+','+i+')">👊 Mark Complete</button>'
       )
       +'</div>';
   }).join('');
