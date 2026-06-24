@@ -508,6 +508,19 @@ tr:hover td { background: var(--surface2); }
 .worker-card.assisting { border-color: var(--purple); background: rgba(188,140,255,.08); }
 .punch-job-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border-top:1px solid var(--border); flex-wrap:wrap; }
 .punch-owner-tag { font-size:10.5px; color: var(--text2); }
+
+/* ── YARD ALERTS ── */
+#yardAlertBanner { display:none; position:sticky; top:0; z-index:9999; }
+.yard-alert-item { display:flex; align-items:center; gap:10px; padding:10px 16px; font-size:13px; font-weight:600; border-bottom:1px solid rgba(0,0,0,0.1); }
+.yard-alert-item.type-stop { background:#ff4444; color:#fff; }
+.yard-alert-item.type-park { background:#e6a817; color:#fff; }
+.yard-alert-item.type-report { background:#e07b00; color:#fff; }
+.yard-alert-item.type-check { background:#1a6fb5; color:#fff; }
+.yard-alert-item .alert-truck { font-size:15px; font-weight:800; }
+.yard-alert-item .alert-note { flex:1; opacity:0.92; }
+.yard-alert-item .alert-time { font-size:11px; opacity:0.8; white-space:nowrap; }
+.yard-alert-item .alert-ack { background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.5); color:#fff; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
+.yard-alert-item .alert-ack:hover { background:rgba(255,255,255,0.4); }
 </style>
 </head>
 <body>
@@ -532,6 +545,9 @@ tr:hover td { background: var(--surface2); }
     <span class="badge-pill" id="waitingBadge">0 waiting</span>
   </div>
 </nav>
+<!-- YARD ALERT BANNER -->
+<div id="yardAlertBanner"></div>
+
 
 <!-- ════════════════ INCHARGE ════════════════ -->
 <div class="page" id="page-incharge">
@@ -1436,7 +1452,36 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+  
+  <!-- YARD ALERTS SECTION -->
+  <div class="card" style="border-top:3px solid var(--red);margin-bottom:12px">
+    <div class="card-title"><span class="dot" style="background:var(--red)"></span> 🚨 Yard Alerts — Send to Supervisor & Security</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+      <div style="flex:1;min-width:140px">
+        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">TRUCK</label>
+        <select id="alertTruckSelect" style="width:100%">
+          <option value="">-- Select Truck --</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:160px">
+        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">ALERT TYPE</label>
+        <select id="alertTypeSelect" style="width:100%">
+          <option value="stop">🛑 STOP at Security Gate</option>
+          <option value="park">🅿️ Parked Outside — Check Required</option>
+          <option value="report">🚨 Driver Reported Issue</option>
+          <option value="check">🔍 Check Required — Supervisor</option>
+        </select>
+      </div>
+      <div style="flex:2;min-width:180px">
+        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">NOTE (optional)</label>
+        <input type="text" id="alertNote" placeholder="Add details..." style="width:100%">
+      </div>
+      <button class="btn btn-primary" style="background:var(--red);border-color:var(--red)" onclick="sendYardAlert()">🚨 Send Alert</button>
+    </div>
+    <div id="activeAlertsList" style="margin-top:6px"></div>
+  </div>
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('mech')">🖨️ Mechanical Dept</button>
     <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('elec')">🖨️ Electrician Dept</button>
     <button class="btn btn-ghost btn-sm" onclick="printDeptPerformance('tyre')">🖨️ Tyre Dept</button>
@@ -2827,7 +2872,7 @@ fbRoot.on('value', snapshot=>{
     S = {
       entries:data.entries||[], inspections:data.inspections||[], revisits:data.revisits||[],
       eodBalance:data.eodBalance||[], jobUpdates:data.jobUpdates||{}, deptETDs:data.deptETDs||{},
-      notifications:data.notifications||[], breakdowns:data.breakdowns||[], workerPunches:data.workerPunches||{},
+      notifications:data.notifications||[], breakdowns:data.breakdowns||[], yardAlerts:data.yardAlerts||[], workerPunches:data.workerPunches||{},
       staffRoster: data.staffRoster || JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED)),
       assistingWorkers: data.assistingWorkers || {},
       workerLog: data.workerLog || [],
@@ -9705,6 +9750,99 @@ const origExitSelect = document.getElementById('exitTruckSelect');
 // ═══ INIT ═══
 // Runs once, after the first Firebase snapshot arrives (see fbRoot.on('value', ...) above).
 // Until then, the connection indicator shows "Connecting..." in the nav.
+
+// ─── YARD ALERTS ───────────────────────────────────────────────
+const ALERT_TYPES = {
+  stop:   { label:'🛑 STOP AT SECURITY GATE', cls:'type-stop' },
+  park:   { label:'🅿️ PARKED OUTSIDE',        cls:'type-park' },
+  report: { label:'🚨 DRIVER REPORTED ISSUE', cls:'type-report' },
+  check:  { label:'🔍 CHECK REQUIRED',         cls:'type-check' }
+};
+
+function sendYardAlert(){
+  var truck = document.getElementById('alertTruckSelect').value;
+  var type  = document.getElementById('alertTypeSelect').value;
+  var note  = (document.getElementById('alertNote').value||'').trim();
+  if(!truck) return toast('Select a truck first','warn');
+  var alert = {
+    id: Date.now(),
+    truck: truck,
+    type: type,
+    note: note,
+    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    date: new Date().toLocaleDateString('en-GB'),
+    acked: false,
+    ackedBy: ''
+  };
+  var alerts = (S.yardAlerts||[]).slice();
+  alerts.push(alert);
+  fbRoot.child('yardAlerts').set(alerts, function(err){
+    if(err) return toast('Failed to send alert','error');
+    toast('🚨 Alert sent to all screens','success');
+    document.getElementById('alertNote').value='';
+  });
+}
+
+function clearYardAlert(id){
+  var alerts = (S.yardAlerts||[]).filter(function(a){ return a.id!=id; });
+  fbRoot.child('yardAlerts').set(alerts.length?alerts:null);
+}
+
+function ackYardAlert(id){
+  var alerts = (S.yardAlerts||[]).map(function(a){
+    if(a.id==id){ a.acked=true; a.ackedBy='Security'; }
+    return a;
+  });
+  fbRoot.child('yardAlerts').set(alerts);
+}
+
+function refreshYardAlerts(){
+  var alerts = (S.yardAlerts||[]).filter(function(a){ return !a.acked; });
+  var banner = document.getElementById('yardAlertBanner');
+  if(!banner) return;
+  if(!alerts.length){ banner.style.display='none'; banner.innerHTML=''; return; }
+  banner.style.display='block';
+  banner.innerHTML = alerts.map(function(a){
+    var t = ALERT_TYPES[a.type]||ALERT_TYPES.check;
+    return '<div class="yard-alert-item '+t.cls+'">'
+      +'<span style="font-size:18px">'+t.label.split(' ')[0]+'</span>'
+      +'<span class="alert-truck">'+a.truck+'</span>'
+      +'<span class="alert-note">'+t.label.replace(/^\S+\s/,'')+(a.note?' — '+a.note:'')+'</span>'
+      +'<span class="alert-time">'+a.time+' '+a.date+'</span>'
+      +'<button class="alert-ack" onclick="ackYardAlert('+a.id+')">✓ Acknowledge</button>'
+      +'<button class="alert-ack" onclick="clearYardAlert('+a.id+')" style="background:rgba(0,0,0,0.2)">✕ Clear</button>'
+      +'</div>';
+  }).join('');
+
+  // Also refresh active alerts list in manager tab
+  var list = document.getElementById('activeAlertsList');
+  if(list){
+    var all = S.yardAlerts||[];
+    if(!all.length){ list.innerHTML='<div style="color:var(--text2);font-size:12px">No active alerts</div>'; return; }
+    list.innerHTML='<div style="font-size:11px;color:var(--text2);margin-bottom:6px">ACTIVE ALERTS ('+all.length+')</div>'
+      +all.map(function(a){
+        var t=ALERT_TYPES[a.type]||ALERT_TYPES.check;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px">'
+          +'<span>'+t.label.split(' ')[0]+'</span>'
+          +'<span style="font-weight:700">'+a.truck+'</span>'
+          +'<span style="flex:1;font-size:12px;color:var(--text2)">'+t.label.replace(/^\S+\s/,'')+(a.note?' — '+a.note:'')+'</span>'
+          +'<span style="font-size:11px;color:var(--text2)">'+a.time+(a.acked?' ✓ Acked':'')+'</span>'
+          +'<button class="btn btn-sm" style="background:var(--red);color:#fff;font-size:11px;padding:2px 8px" onclick="clearYardAlert('+a.id+')">Clear</button>'
+          +'</div>';
+      }).join('');
+  }
+}
+
+function populateAlertTruckSelect(){
+  var sel = document.getElementById('alertTruckSelect');
+  if(!sel) return;
+  // All trucks from entries + common fleet
+  var trucks = [];
+  (S.entries||[]).forEach(function(e){ if(e.truckNo && trucks.indexOf(e.truckNo)<0) trucks.push(e.truckNo); });
+  sel.innerHTML='<option value="">-- Select Truck --</option>'
+    +trucks.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+}
+
 function runInitialRender(){
   try{
     refreshSecurityLog();
@@ -9716,6 +9854,8 @@ function runInitialRender(){
     refreshGroundPage();
     refreshOverview();
     refreshStoresPage();
+    refreshYardAlerts();
+    populateAlertTruckSelect();
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
