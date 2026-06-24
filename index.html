@@ -523,6 +523,22 @@ tr:hover td { background: var(--surface2); }
 .yard-alert-item .alert-ack:hover { background:rgba(255,255,255,0.4); }
 
 #langToggleBtn:hover { background:rgba(255,255,255,0.25) !important; }
+
+/* ── FAULT TAGS ── */
+.fault-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.fault-tag { font-size:18px; padding:4px 10px; border-radius:20px; cursor:pointer; border:2px solid transparent; transition:all 0.15s; background:var(--surface2); user-select:none; }
+.fault-tag:hover { transform:scale(1.15); }
+.fault-tag.selected { border-color:var(--accent); background:var(--accent); transform:scale(1.1); box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+.fault-tag span { font-size:10px; font-weight:700; color:var(--text2); display:block; text-align:center; line-height:1.2; }
+.fault-tag.selected span { color:#fff; }
+
+/* ── REVISIT ACCOUNTABILITY ── */
+.rev-mechanic-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.rev-mechanic-head { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--surface2); flex-wrap:wrap; }
+.rev-zone-red { border-left:4px solid var(--red); }
+.rev-zone-yellow { border-left:4px solid var(--yellow); }
+.rev-zone-green { border-left:4px solid var(--green); }
+.incentive-badge { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:700; }
 </style>
 </head>
 <body>
@@ -1379,72 +1395,70 @@ tr:hover td { background: var(--surface2); }
 <!-- ════════════════ REVISIT ════════════════ -->
 <div class="page" id="page-revisit">
   <div class="page-title">🔁 Revisit Tracker</div>
-  <div class="page-sub">Trucks returning within 5,000 km and 10,000 km — root cause analysis</div>
+  <div class="page-sub">Auto-detected from supervisor job cards · Accountability by fault type · Incentive tracking</div>
 
+  <!-- SUMMARY CARDS -->
   <div class="revisit-summary">
     <div class="revisit-card lt5">
       <div class="revisit-big" id="lt5Count" style="color:var(--red)">0</div>
-      <div style="font-size:13px;font-weight:600;margin-top:4px">Trucks revisited &lt; 5,000 km</div>
-      <div class="text-xs text2 mt-8">🔴 High priority — investigate root cause</div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">Under 5,000 km 🔴</div>
+      <div class="text-xs text2 mt-8">Critical — workmanship focus</div>
     </div>
     <div class="revisit-card lt10">
       <div class="revisit-big" id="lt10Count" style="color:var(--yellow)">0</div>
-      <div style="font-size:13px;font-weight:600;margin-top:4px">Trucks revisited &lt; 10,000 km</div>
-      <div class="text-xs text2 mt-8">🟡 Monitor closely — recurring issue risk</div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">5,000–10,000 km 🟡</div>
+      <div class="text-xs text2 mt-8">Monitor closely</div>
+    </div>
+    <div class="revisit-card" style="background:var(--surface);border:1px solid var(--green)">
+      <div class="revisit-big" id="gt10Count" style="color:var(--green)">0</div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">Over 10,000 km 🟢</div>
+      <div class="text-xs text2 mt-8">Quality work — incentive eligible</div>
     </div>
   </div>
 
-  <div class="grid-2">
-    <div>
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--red)"></span>Log Revisit</div>
-        <div class="form-row cols-2">
-          <div><label>Truck No</label><input type="text" id="rvTruck" placeholder="e.g. T456 ABC" oninput="onTruckInput(this)"></div>
-          <div><label>KM Since Last Service</label><input type="number" id="rvKm" placeholder="e.g. 3200"></div>
-        </div>
-        <div class="form-row cols-2">
-          <div><label>Department</label><select id="rvDept"><option>Mechanical</option><option>Electrician</option><option>Tyre</option><option>Welding</option></select></div>
-          <div><label>Repeat Issue</label><input type="text" id="rvIssue" placeholder="e.g. Engine oil leak"></div>
-        </div>
-        <button class="btn btn-primary" onclick="logRevisit()">+ Log Revisit</button>
-      </div>
+  <!-- FAULT BREAKDOWN -->
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title"><span class="dot"></span>📊 Fault Type Breakdown</div>
+    <div id="faultBreakdown" style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 0"></div>
+  </div>
 
-      <div class="card" style="border-top:3px solid var(--red)">
-        <div class="card-title"><span class="dot" style="background:var(--red)"></span>Revisits &lt; 5,000 km</div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Truck</th><th>KM</th><th>Dept</th><th>Issue</th><th>Date</th></tr></thead>
-            <tbody id="lt5Table"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  <!-- TABS -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="subtab active" id="rtab-mechanic" onclick="showRevTab('mechanic',this)">🔧 Mechanic Performance</button>
+    <button class="subtab" id="rtab-driver" onclick="showRevTab('driver',this)">👨‍✈️ Driver Report</button>
+    <button class="subtab" id="rtab-incentive" onclick="showRevTab('incentive',this)">🏆 Incentive Report</button>
+    <button class="subtab" id="rtab-all" onclick="showRevTab('all',this)">📋 All Revisits</button>
+  </div>
 
-    <div>
-      <div class="card" style="border-top:3px solid var(--yellow)">
-        <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Revisits &lt; 10,000 km</div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Truck</th><th>KM</th><th>Dept</th><th>Issue</th><th>Date</th></tr></thead>
-            <tbody id="lt10Table"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr></tbody>
-          </table>
-        </div>
-      </div>
+  <!-- MECHANIC PERFORMANCE -->
+  <div id="rev-mechanic">
+    <div id="mechanicRevisitList"><div style="color:var(--text2);font-size:13px;padding:12px">No revisits recorded yet.</div></div>
+  </div>
 
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>7-Day Trend — Trucks Reported vs Revisits</div>
-        <div class="flex gap-12 mb-8">
-          <div class="flex items-center gap-6"><div style="width:10px;height:10px;background:var(--accent);border-radius:2px"></div><span class="text-xs text2">Total Trucks</span></div>
-          <div class="flex items-center gap-6"><div style="width:10px;height:10px;background:var(--red);border-radius:2px"></div><span class="text-xs text2">Revisits</span></div>
-        </div>
-        <div id="trendChart"></div>
-        <div id="trendLabels" style="display:flex;gap:6px;padding:4px 0 0"></div>
-      </div>
+  <!-- DRIVER REPORT -->
+  <div id="rev-driver" style="display:none">
+    <div id="driverRevisitList"><div style="color:var(--text2);font-size:13px;padding:12px">No driver-fault revisits.</div></div>
+  </div>
+
+  <!-- INCENTIVE REPORT -->
+  <div id="rev-incentive" style="display:none">
+    <div class="card" style="border-top:3px solid var(--green)">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>🏆 Incentive Eligible Mechanics</div>
+      <div class="text-xs text2 mb-12">Mechanics with all revisits above 10,000 km — recommend to management for incentive</div>
+      <div id="incentiveList"><div style="color:var(--text2);font-size:13px">Calculating...</div></div>
     </div>
   </div>
+
+  <!-- ALL REVISITS -->
+  <div id="rev-all" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>📋 All Revisit Records</div>
+      <div id="allRevisitList"></div>
+    </div>
+  </div>
+
 </div>
 
-<!-- ════════════════ MANAGER ════════════════ -->
 <div class="page" id="page-manager">
   <div class="flex justify-between items-center flex-wrap gap-8">
     <div>
@@ -4374,6 +4388,14 @@ function addJobRow(d){
   <div class="job-row-bottom">
     <select class="job-source" title="Who reported this?"><option value="driver">🗣️ Driver Complaint</option><option value="supervisor">🔍 Supervisor Found</option></select>
     <button class="btn btn-danger btn-sm" onclick="this.closest('.job-row').remove()">✕ Remove</button>
+  </div>
+  <div class="fault-tags">
+    <div class="fault-tag" data-fault="mechanic" onclick="selectFault(this)" title="Mechanic workmanship">🔧<span>Mechanic</span></div>
+    <div class="fault-tag" data-fault="driver" onclick="selectFault(this)" title="Driver negligence">👨‍✈️<span>Driver</span></div>
+    <div class="fault-tag" data-fault="route" onclick="selectFault(this)" title="Route/road condition">🛣️<span>Route</span></div>
+    <div class="fault-tag" data-fault="accident" onclick="selectFault(this)" title="Accident/stone hit">💥<span>External</span></div>
+    <div class="fault-tag" data-fault="spare" onclick="selectFault(this)" title="Spare part failure">⚙️<span>Spare</span></div>
+    <div class="fault-tag" data-fault="wear" onclick="selectFault(this)" title="Normal wear & tear">🔄<span>Wear</span></div>
   </div>`;
   c.appendChild(row);
 }
@@ -4629,7 +4651,7 @@ function saveSupervisorEntry(){
   const jobs={};
   ['mech','elec','tyre','weld'].forEach(d=>{
     jobs[d]=Array.from(document.querySelectorAll(`#rows-${d} .job-row`)).map((r,i)=>({
-      sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:(r.querySelector('.job-source')||{value:'driver'}).value||'driver',done:false,doneBy:null,doneTime:null,addedBy:null
+      sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:(r.querySelector('.job-source')||{value:'driver'}).value||'driver',fault:(r.querySelector('.fault-tag.selected')||{dataset:{}}).dataset.fault||'mechanic',done:false,doneBy:null,doneTime:null,addedBy:null
     })).filter(j=>j.desc.trim());
   });
 
@@ -4668,6 +4690,7 @@ function saveSupervisorEntry(){
   S.inspections=S.inspections.filter(i=>i.entryId!==parseInt(id));
   S.inspections.push(ins);
   window._lastInsId=ins.id;
+  detectRevisits(ins); // Auto-detect revisits
   const pb=document.getElementById('supPrintBtn');
   if(pb) pb.style.display='inline-flex';
   save();
@@ -10526,6 +10549,326 @@ function mgrPunchComplete(insId, dept, jobIdx){
   mgrPunchLoadJobs(); // Refresh job list
 }
 
+
+// ─── FAULT TAG SOUNDS ──────────────────────────────────────────
+const FAULT_SOUNDS = {
+  mechanic: { en:'Mechanic workmanship', sw:'Fundi', freq:440, type:'square' },
+  driver:   { en:'Driver negligence',    sw:'Dereva', freq:330, type:'sawtooth' },
+  route:    { en:'Route condition',      sw:'Hali ya Barabara', freq:520, type:'sine' },
+  accident: { en:'External damage',      sw:'Uharibifu wa Nje', freq:200, type:'square' },
+  spare:    { en:'Spare part failure',   sw:'Hitilafu ya Spea', freq:480, type:'triangle' },
+  wear:     { en:'Normal wear and tear', sw:'Uchakavu wa Kawaida', freq:600, type:'sine' }
+};
+
+function playFaultSound(fault){
+  try{
+    var ctx = new (window.AudioContext||window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    var s = FAULT_SOUNDS[fault]||FAULT_SOUNDS.mechanic;
+    osc.type = s.type; osc.frequency.value = s.freq;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.3);
+    osc.start(); osc.stop(ctx.currentTime+0.3);
+  }catch(e){}
+}
+
+function selectFault(el){
+  // Deselect all in same row
+  var row = el.closest('.fault-tags');
+  row.querySelectorAll('.fault-tag').forEach(function(t){ t.classList.remove('selected'); });
+  el.classList.add('selected');
+  var fault = el.dataset.fault;
+  // Play sound
+  playFaultSound(fault);
+  // Speak label
+  var s = FAULT_SOUNDS[fault];
+  if(s && window.speechSynthesis){
+    var label = _announceLang==='sw' ? s.sw : s.en;
+    var utt = new SpeechSynthesisUtterance(label);
+    utt.rate=1.1; utt.volume=0.8;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utt);
+  }
+}
+
+// ─── AUTO REVISIT DETECTION ────────────────────────────────────
+function detectRevisits(newIns){
+  // Called after supervisor submits inspection
+  // Check if this truck had a previous inspection with similar jobs
+  var truck = newIns.truckNo;
+  var prevInsList = (S.inspections||[]).filter(function(i){
+    return i.truckNo===truck && i.id!==newIns.id;
+  });
+  if(!prevInsList.length) return;
+
+  prevInsList.forEach(function(prev){
+    // Get km difference
+    var newOdo = newIns.lockedOdo;
+    var prevOdo = prev.lockedOdo;
+    if(!newOdo||!prevOdo) return;
+    var kmDiff = newOdo - prevOdo;
+    if(kmDiff<=0||kmDiff>15000) return; // only flag within 15000km
+
+    // Check for matching jobs
+    var allNewJobs = [];
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      ((newIns.jobs||{})[d]||[]).forEach(function(j){ allNewJobs.push({dept:d,job:j}); });
+    });
+
+    allNewJobs.forEach(function(item){
+      var fault = item.job.fault||'mechanic';
+      // Only flag mechanic and spare faults as revisits
+      if(fault!=='mechanic'&&fault!=='spare') return;
+
+      // Check similarity with previous jobs
+      var prevJobs = [];
+      ['mech','elec','tyre','weld'].forEach(function(d){
+        ((prev.jobs||{})[d]||[]).forEach(function(j){ prevJobs.push({dept:d,job:j}); });
+      });
+
+      var similar = prevJobs.find(function(p){
+        var a = (item.job.desc||'').toLowerCase();
+        var b = (p.job.desc||'').toLowerCase();
+        // Check if first 6 chars match or key words match
+        var words = a.split(' ').filter(function(w){ return w.length>4; });
+        return words.some(function(w){ return b.indexOf(w)>=0; });
+      });
+
+      if(similar){
+        // Auto create revisit record
+        var mechanic = (prev.deptStaff||{})[item.dept]||'Unknown';
+        var revisit = {
+          id: Date.now()+Math.random(),
+          truck: truck,
+          km: kmDiff,
+          dept: item.dept,
+          issue: item.job.desc,
+          fault: fault,
+          mechanic: mechanic,
+          prevDate: prev.inspectedAt,
+          prevInsId: prev.id,
+          newInsId: newIns.id,
+          date: new Date().toDateString(),
+          ts: Date.now(),
+          autoDetected: true,
+          actionTaken: '',
+          notified: false
+        };
+        if(!S.revisits) S.revisits=[];
+        // Avoid duplicates
+        var exists = S.revisits.find(function(r){ return r.truck===truck && r.issue===item.job.desc && r.newInsId===newIns.id; });
+        if(!exists){
+          S.revisits.push(revisit);
+          // Notify via toast
+          var zone = kmDiff<5000?'🔴 CRITICAL':'🟡 MONITOR';
+          toast(zone+' Revisit detected: '+truck+' — '+item.job.desc+' ('+kmDiff.toLocaleString()+' km)','warn');
+        }
+      }
+    });
+  });
+  save();
+}
+
+// ─── REVISIT TAB RENDERING ─────────────────────────────────────
+function showRevTab(tab, el){
+  ['mechanic','driver','incentive','all'].forEach(function(t){
+    var el2 = document.getElementById('rev-'+t);
+    if(el2) el2.style.display = t===tab?'block':'none';
+    var btn = document.getElementById('rtab-'+t);
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
+  refreshRevisitTab(tab);
+}
+
+function refreshRevisit(){
+  var revisits = S.revisits||[];
+  var lt5 = revisits.filter(function(r){ return r.km<5000 && (r.fault==='mechanic'||r.fault==='spare'); });
+  var lt10 = revisits.filter(function(r){ return r.km>=5000&&r.km<10000 && (r.fault==='mechanic'||r.fault==='spare'); });
+  var gt10 = revisits.filter(function(r){ return r.km>=10000 && (r.fault==='mechanic'||r.fault==='spare'); });
+
+  var lt5El=document.getElementById('lt5Count');
+  var lt10El=document.getElementById('lt10Count');
+  var gt10El=document.getElementById('gt10Count');
+  if(lt5El) lt5El.textContent=lt5.length;
+  if(lt10El) lt10El.textContent=lt10.length;
+  if(gt10El) gt10El.textContent=gt10.length;
+
+  // Fault breakdown
+  var faultEl=document.getElementById('faultBreakdown');
+  if(faultEl){
+    var faultMap={mechanic:0,driver:0,route:0,accident:0,spare:0,wear:0};
+    revisits.forEach(function(r){ if(faultMap[r.fault]!==undefined) faultMap[r.fault]++; });
+    var FEMOJI={mechanic:'🔧',driver:'👨‍✈️',route:'🛣️',accident:'💥',spare:'⚙️',wear:'🔄'};
+    faultEl.innerHTML=Object.keys(faultMap).map(function(f){
+      return '<div style="text-align:center;padding:8px 14px;background:var(--surface2);border-radius:8px">'
+        +'<div style="font-size:22px">'+FEMOJI[f]+'</div>'
+        +'<div style="font-size:18px;font-weight:800">'+faultMap[f]+'</div>'
+        +'<div style="font-size:10px;color:var(--text2)">'+f+'</div>'
+        +'</div>';
+    }).join('');
+  }
+
+  refreshRevisitTab('mechanic');
+}
+
+function refreshRevisitTab(tab){
+  var revisits = S.revisits||[];
+  if(tab==='mechanic') renderMechanicRevisits(revisits);
+  else if(tab==='driver') renderDriverRevisits(revisits);
+  else if(tab==='incentive') renderIncentiveReport(revisits);
+  else if(tab==='all') renderAllRevisits(revisits);
+}
+
+function renderMechanicRevisits(revisits){
+  var el=document.getElementById('mechanicRevisitList');
+  if(!el) return;
+  var mechRevisits=revisits.filter(function(r){ return r.fault==='mechanic'||r.fault==='spare'; });
+  if(!mechRevisits.length){ el.innerHTML='<div style="color:var(--green);font-size:13px;padding:12px">✅ No mechanic-fault revisits recorded.</div>'; return; }
+
+  // Group by mechanic
+  var byMech={};
+  mechRevisits.forEach(function(r){
+    var name=r.mechanic||'Unknown';
+    if(!byMech[name]) byMech[name]=[];
+    byMech[name].push(r);
+  });
+
+  el.innerHTML=Object.keys(byMech).map(function(mech){
+    var recs=byMech[mech];
+    var critical=recs.filter(function(r){ return r.km<5000; });
+    var monitor=recs.filter(function(r){ return r.km>=5000&&r.km<10000; });
+    var good=recs.filter(function(r){ return r.km>=10000; });
+    var zoneClass=critical.length?'rev-zone-red':monitor.length?'rev-zone-yellow':'rev-zone-green';
+
+    return '<div class="rev-mechanic-card '+zoneClass+'">'
+      +'<div class="rev-mechanic-head">'
+      +'<span style="font-size:16px;font-weight:800">'+mech+'</span>'
+      +(critical.length?'<span style="background:var(--red);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🔴 '+critical.length+' Critical</span>':'')
+      +(monitor.length?'<span style="background:var(--yellow);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🟡 '+monitor.length+' Monitor</span>':'')
+      +(good.length?'<span style="background:var(--green);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">🟢 '+good.length+' Good</span>':'')
+      +'<button class="btn btn-sm" style="margin-left:auto;background:var(--red);color:#fff;border:none;font-size:11px" onclick="notifyIncharge(''+mech+'')">📋 Report to Incharge</button>'
+      +'</div>'
+      +recs.map(function(r){
+        var kmColor=r.km<5000?'var(--red)':r.km<10000?'var(--yellow)':'var(--green)';
+        var daysSince=r.prevDate?Math.round((Date.now()-new Date(r.prevDate))/86400000):null;
+        return '<div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">'
+          +'<span style="font-size:20px">'+(r.fault==='spare'?'⚙️':'🔧')+'</span>'
+          +'<div style="flex:1">'
+          +'<div style="font-weight:700">'+r.truck+' — '+r.issue+'</div>'
+          +'<div style="font-size:12px;color:var(--text2)">Dept: '+r.dept+' · '+r.date+(daysSince!==null?' · '+daysSince+' days ago':'')+'</div>'
+          +'</div>'
+          +'<span style="font-weight:800;font-size:15px;color:'+kmColor+'">'+r.km.toLocaleString()+' km</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }).join('');
+}
+
+function renderDriverRevisits(revisits){
+  var el=document.getElementById('driverRevisitList');
+  if(!el) return;
+  var driverRevs=revisits.filter(function(r){ return r.fault==='driver'; });
+  if(!driverRevs.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No driver-fault revisits.</div>'; return; }
+  el.innerHTML='<div class="card">'+driverRevs.map(function(r){
+    return '<div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      +'<span style="font-size:20px">👨‍✈️</span>'
+      +'<div style="flex:1"><div style="font-weight:700">'+r.truck+' — '+r.issue+'</div>'
+      +'<div style="font-size:12px;color:var(--text2)">'+r.date+' · '+r.km.toLocaleString()+' km</div></div>'
+      +'</div>';
+  }).join('')+'</div>';
+}
+
+function renderIncentiveReport(revisits){
+  var el=document.getElementById('incentiveList');
+  if(!el) return;
+  var mechRevisits=revisits.filter(function(r){ return r.fault==='mechanic'||r.fault==='spare'; });
+
+  // Get all mechanics from roster
+  var allMechs=[];
+  var roster=S.staffRoster||{};
+  ['mech','elec','tyre','weld'].forEach(function(d){
+    (roster[d]||[]).forEach(function(n){ if(n&&allMechs.indexOf(n)<0) allMechs.push(n); });
+  });
+
+  var html='';
+  // Incentive eligible: mechanics with 0 critical revisits
+  var eligible=allMechs.filter(function(m){
+    var myRevs=mechRevisits.filter(function(r){ return r.mechanic===m; });
+    return myRevs.length===0 || myRevs.every(function(r){ return r.km>=10000; });
+  });
+
+  if(eligible.length){
+    html+='<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:700">✅ ELIGIBLE FOR INCENTIVE</div>';
+    html+=eligible.map(function(m){
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px">'
+        +'<span style="font-weight:700;flex:1">'+m+'</span>'
+        +'<span class="incentive-badge">🏆 Incentive Eligible</span>'
+        +'</div>';
+    }).join('');
+    html+='</div>';
+    html+='<button class="btn btn-primary" style="background:var(--green);border-color:var(--green)" onclick="printIncentiveReport()">🖨️ Print Incentive Report for Management</button>';
+  } else {
+    html='<div style="color:var(--text2);font-size:13px">No mechanics eligible yet — all have recent revisits under 10,000 km.</div>';
+  }
+  el.innerHTML=html;
+}
+
+function renderAllRevisits(revisits){
+  var el=document.getElementById('allRevisitList');
+  if(!el) return;
+  if(!revisits.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No revisits yet.</div>'; return; }
+  var FEMOJI={mechanic:'🔧',driver:'👨‍✈️',route:'🛣️',accident:'💥',spare:'⚙️',wear:'🔄'};
+  el.innerHTML=revisits.slice().reverse().map(function(r){
+    var kmColor=r.km<5000?'var(--red)':r.km<10000?'var(--yellow)':'var(--green)';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);flex-wrap:wrap">'
+      +'<span style="font-size:18px">'+(FEMOJI[r.fault]||'🔧')+'</span>'
+      +'<span style="font-weight:700">'+r.truck+'</span>'
+      +'<span style="flex:1;font-size:13px">'+r.issue+'</span>'
+      +'<span style="font-size:12px;color:var(--text2)">'+r.mechanic+'</span>'
+      +'<span style="font-weight:700;color:'+kmColor+'">'+r.km.toLocaleString()+' km</span>'
+      +'<span style="font-size:11px;color:var(--text2)">'+r.date+'</span>'
+      +'</div>';
+  }).join('');
+}
+
+function notifyIncharge(mechanic){
+  var revisits=(S.revisits||[]).filter(function(r){ return r.mechanic===mechanic&&(r.fault==='mechanic'||r.fault==='spare'); });
+  var critical=revisits.filter(function(r){ return r.km<5000; });
+  var msg='⚠️ REVISIT REPORT: '+mechanic+' has '+revisits.length+' revisit(s)'+(critical.length?' — '+critical.length+' CRITICAL (under 5,000 km)':'')+'. Manager attention required.';
+  var notif={id:Date.now(),message:msg,truckLink:'',bayLink:'',sentAt:new Date().toISOString(),read:false};
+  S.notifications=(S.notifications||[]).concat([notif]);
+  save();
+  toast('📋 Report sent to Incharge notifications','ok');
+}
+
+function printIncentiveReport(){
+  var roster=S.staffRoster||{};
+  var allMechs=[];
+  ['mech','elec','tyre','weld'].forEach(function(d){
+    (roster[d]||[]).forEach(function(n){ if(n) allMechs.push(n); });
+  });
+  var mechRevisits=(S.revisits||[]).filter(function(r){ return r.fault==='mechanic'||r.fault==='spare'; });
+  var eligible=allMechs.filter(function(m){
+    var myRevs=mechRevisits.filter(function(r){ return r.mechanic===m; });
+    return myRevs.length===0||myRevs.every(function(r){ return r.km>=10000; });
+  });
+  var w=window.open('','_blank');
+  var today=new Date().toLocaleDateString('en-GB');
+  w.document.write('<html><head><title>Incentive Report</title><style>body{font-family:Arial;padding:30px}h2{color:#333}table{width:100%;border-collapse:collapse}th,td{padding:10px;border:1px solid #ccc;text-align:left}th{background:#f5f5f5}</style></head><body>');
+  w.document.write('<h2>🏆 SHTL Mtwara — Mechanic Incentive Report</h2>');
+  w.document.write('<p>Date: '+today+' &nbsp;|&nbsp; Prepared by: Workshop Manager</p>');
+  w.document.write('<table><tr><th>#</th><th>Mechanic Name</th><th>Revisits</th><th>Status</th></tr>');
+  eligible.forEach(function(m,i){
+    w.document.write('<tr><td>'+(i+1)+'</td><td>'+m+'</td><td>0 critical</td><td>✅ Eligible</td></tr>');
+  });
+  w.document.write('</table><br><p>Recommended for incentive approval by management.</p>');
+  w.document.write('<br><br><p>Workshop Manager: _________________ &nbsp;&nbsp; Date: _________</p>');
+  w.document.write('</body></html>');
+  w.print();
+}
+
 // ─── YARD ALERTS ───────────────────────────────────────────────
 const ALERT_TYPES = {
   stop:   { label:'🛑 STOP AT SECURITY GATE', cls:'type-stop' },
@@ -10654,6 +10997,7 @@ function runInitialRender(){
     refreshYardAlerts();
     populateAlertTruckSelect();
     updateLangBtn();
+    refreshRevisit();
     refreshReqHistory();
   }catch(e){ console.warn('Initial render error:',e); }
 }
