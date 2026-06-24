@@ -548,7 +548,7 @@ tr:hover td { background: var(--surface2); }
   </div>
 </nav>
 <!-- LANG TOGGLE FLOATING BUTTON -->
-<button id="langToggleBtn" onclick="cycleLang()" title="Change announcement language" style="position:fixed;bottom:18px;right:18px;z-index:9998;background:#1a6fb5;border:none;color:#fff;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,0.3);white-space:nowrap">🇬🇧 EN</button>
+<button id="langToggleBtn" onclick="cycleLang()" title="Change announcement language" style="position:fixed;bottom:18px;right:18px;z-index:9998;background:#e65c00;border:2px solid #fff;color:#fff;padding:10px 16px;border-radius:24px;cursor:pointer;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,0.45);white-space:nowrap;letter-spacing:0.5px">🔊 🇬🇧 EN</button>
 
 <!-- YARD ALERT BANNER -->
 <div id="yardAlertBanner"></div>
@@ -9776,8 +9776,8 @@ function cycleLang(){
 function updateLangBtn(){
   var btn = document.getElementById('langToggleBtn');
   if(!btn) return;
-  var opt = LANG_OPTIONS.find(function(l){ return l.key===_announceLang; });
-  if(opt) btn.textContent = opt.label;
+  var labels = { en:'🔊 🇬🇧 EN', sw:'🔊 🇹🇿 SW', both:'🔊 🔀 EN+SW' };
+  btn.textContent = labels[_announceLang] || '🔊 🇬🇧 EN';
 }
 
 // Swahili translations
