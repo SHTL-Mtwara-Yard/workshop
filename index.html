@@ -2948,18 +2948,15 @@ const fbDb = firebase.database();
 // ── OFFLINE PERSISTENCE ──────────────────────────────────────
 // Saves all data locally on device. If internet drops, all actions
 // queue up and auto-sync the moment connection returns.
-fbDb.enablePersistence().catch(function(err){
-  if(err.code==='failed-precondition'){
-    // Multiple tabs open — persistence only works in one tab
-    console.warn('Offline persistence: multiple tabs open');
-  } else if(err.code==='unimplemented'){
-    // Browser doesn't support it (very old Chrome)
-    console.warn('Offline persistence not supported on this browser');
-  }
-});
+// Offline persistence — safe attempt, won't block connection if unsupported
+try {
+  fbDb.enablePersistence({synchronizeTabs:false}).catch(function(err){
+    console.warn('Offline persistence skipped:', err.code);
+  });
+} catch(e){ console.warn('Persistence not available'); }
 
 const fbRoot = fbDb.ref('shtl_v3');
-fbRoot.keepSynced(true); // Always keep local copy fresh
+try { fbRoot.keepSynced(true); } catch(e){}
 
 function setConnIndicator(status){
   const el=document.getElementById('connIndicator');
