@@ -6491,7 +6491,15 @@ function refreshOverview(){
   const todayE=S.entries.filter(e=>new Date(e.entryTime).toDateString()===today);
   const exited=todayE.filter(e=>e.exitTime);
 
-  const actIns=S.inspections.filter(i=>!i.parked && inYard.find(e=>e.id==i.entryId));
+  // Debug: log what we have
+  console.log('inYard:', inYard.map(e=>e.truckNo+' id='+e.id+' type='+typeof e.id));
+  console.log('inspections:', S.inspections.map(i=>i.truckNo+' entryId='+i.entryId+' type='+typeof i.entryId+' parked='+i.parked));
+  const actIns=S.inspections.filter(i=>{
+    if(i.parked) return false;
+    const match = inYard.find(e=>String(e.id)===String(i.entryId));
+    console.log('inspection '+i.truckNo+' entryId='+i.entryId+' match='+!!match);
+    return !!match;
+  });
   const delayed=actIns.filter(i=>new Date(i.etd)<now);
   const uninsp=inYard.filter(e=>!S.inspections.some(i=>i.entryId==e.id));
 
