@@ -2985,26 +2985,6 @@ tr:hover td { background: var(--surface2); }
 // Dept helpers — declared first so available everywhere
 function dC(d){return ({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';}
 function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;}
-// State variables — declared first to prevent hoisting errors
-var _inchargeNameSession = localStorage.getItem('shtl_incharge_name') || '';
-var _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
-var _secAudioEnabled = false;
-var _secAudioCtx = null;
-var _lastAnnounced = {};
-var _completionAlertCurrentId = null;
-var _completionAlertQueue = [];
-var _etdAnnouncementsEnabled = false;
-var _etdAnnounceInterval = null;
-var _fbReady = false;
-var _saving = false;
-var _punchEntryInProgress = false;
-var _dvAlertId = null;
-var _photoViewerCache = {};
-var _supportEditUnlocked = false;
-var _supportEditLockTimer = null;
-var _fbSuppressNextSnapshot = false;
-var curPunchWorker = '';
-var _announceLang = localStorage.getItem('shtl_announce_lang') || 'en';
 </script>
 <script>
 // ═══ STATE ═══
@@ -3012,8 +2992,8 @@ var _announceLang = localStorage.getItem('shtl_announce_lang') || 'en';
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
 let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[] };
-let _fbReady=false;
-let _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
+var _fbReady=false;
+var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
 const firebaseConfig = {
   apiKey: "AIzaSyBHU2zbjMAfXxGddiKwAjy4nCzAYFO5yGg",
@@ -3059,7 +3039,7 @@ function loadLocalCache(){
   }catch(e){}
 }
 
-let _saving=false;
+var _saving=false;
 const save=()=>{
   cacheLocally();
   _saving=true;
@@ -3408,12 +3388,12 @@ function resetPhotoSlots(){
 }
 
 // ═══ SECURITY: ENTRY ═══
-let _punchEntryInProgress=false;
+var _punchEntryInProgress=false;
 // ═══════════════════════════════════════════════════
 // INCHARGE TAB — Appointment / Arrival Request System
 // ═══════════════════════════════════════════════════
 
-let _inchargeNameSession = localStorage.getItem('shtl_incharge_name') || '';
+var _inchargeNameSession = localStorage.getItem('shtl_incharge_name') || '';
 
 function saveInchargeName(){
   const v=document.getElementById('inchargeName').value;
@@ -3951,7 +3931,7 @@ function resetSecForm(){
 // SECURITY PAGE — Yard Status, Parking, Alerts
 // ═══════════════════════════════════════════════
 
-let _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
+var _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
 let _secAudioEnabled = false;
 let _secAudioCtx = null;
 
@@ -5413,8 +5393,8 @@ function checkAutoCompletion(insId){
 // Any inspection that is parked, has no supervisor remark yet, and whose truck
 // hasn't exited counts as "needs the popup". We check this queue whenever the
 // Supervisor page becomes active and whenever live data changes while they're on it.
-let _completionAlertQueue=[];
-let _completionAlertCurrentId=null;
+var _completionAlertQueue=[];
+var _completionAlertCurrentId=null;
 
 function checkCompletionAlertQueue(){
   _completionAlertQueue = S.inspections.filter(ins=>{
@@ -6447,9 +6427,9 @@ function refreshFleet(){
 
 // ─── ETD ANNOUNCEMENT SYSTEM ───
 // Speaks aloud every 15 min when a truck's ETD is within 1 hour, naming the mechanic and jobs
-let _etdAnnouncementsEnabled=false;
-let _etdAnnounceInterval=null;
-let _lastAnnounced={}; // {insId_dept: lastAnnouncedMinute} prevents repeat within same 15-min window
+var _etdAnnouncementsEnabled=false;
+var _etdAnnounceInterval=null;
+var _lastAnnounced={}; // {insId_dept: lastAnnouncedMinute} prevents repeat within same 15-min window
 
 function toggleETDAnnouncements(){
   if(_etdAnnouncementsEnabled){
