@@ -3019,7 +3019,7 @@ try {
 } catch(e){ console.warn('Persistence not available'); }
 
 const fbRoot = fbDb.ref('shtl_v3');
-try { fbRoot.keepSynced(true); } catch(e){}
+// keepSynced removed — was causing excessive Firebase downloads
 
 function setConnIndicator(status){
   const el=document.getElementById('connIndicator');
