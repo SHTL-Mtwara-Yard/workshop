@@ -4446,6 +4446,16 @@ function refreshSupBayOptions(){
 
 function loadTruckForSup(){
   const id=document.getElementById('supTruckSelect').value;
+  // Clear all previous fields first
+  ['supTrailer','supDriverName','supDriverMobile','supTripKms','supBaseOdo','supETD_hh','supETD_mm'].forEach(function(fid){
+    var el=document.getElementById(fid); if(el) el.value='';
+  });
+  var bayEl=document.getElementById('supBaySelect'); if(bayEl) bayEl.value='';
+  var jobTypeEl=document.getElementById('supJobType'); if(jobTypeEl) jobTypeEl.value='';
+  var prioEl=document.getElementById('supPriority'); if(prioEl) prioEl.value='Normal';
+  var dispEl=document.getElementById('supETD_display'); if(dispEl) dispEl.textContent='';
+  var odoEl=document.getElementById('supOdoCalcBlock'); if(odoEl) odoEl.style.display='none';
+  if(!id) return;
   const e=S.entries.find(x=>x.id==id);
   if(!e)return;
   document.getElementById('supOrigin').value=e.origin;
