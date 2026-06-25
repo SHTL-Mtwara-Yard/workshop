@@ -2985,6 +2985,26 @@ tr:hover td { background: var(--surface2); }
 // Dept helpers — declared first so available everywhere
 function dC(d){return ({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';}
 function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;}
+// State variables — declared first to prevent hoisting errors
+var _inchargeNameSession = localStorage.getItem('shtl_incharge_name') || '';
+var _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
+var _secAudioEnabled = false;
+var _secAudioCtx = null;
+var _lastAnnounced = {};
+var _completionAlertCurrentId = null;
+var _completionAlertQueue = [];
+var _etdAnnouncementsEnabled = false;
+var _etdAnnounceInterval = null;
+var _fbReady = false;
+var _saving = false;
+var _punchEntryInProgress = false;
+var _dvAlertId = null;
+var _photoViewerCache = {};
+var _supportEditUnlocked = false;
+var _supportEditLockTimer = null;
+var _fbSuppressNextSnapshot = false;
+var curPunchWorker = '';
+var _announceLang = localStorage.getItem('shtl_announce_lang') || 'en';
 </script>
 <script>
 // ═══ STATE ═══
