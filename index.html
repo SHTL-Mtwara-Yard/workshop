@@ -3720,10 +3720,30 @@ function renderInchargeQueue(){
   }
 
   const ql=document.getElementById('inchargeQueueList');
-  const pending=active.filter(a=>aptStatusClass(a)!=='overdue');
   document.getElementById('inchargeQueueCount').textContent=active.length+' requests';
-  ql.innerHTML=active.length ? active.map(a=>renderAptCard(a)).join('') :
-    '<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:13px">No active requests</div>';
+
+  // Split into sections: Action Needed / In Yard / Completed
+  const today=new Date().toDateString();
+  const actionNeeded=active.filter(a=>!a.reportedEntryId); // not yet arrived
+  const inYard=active.filter(a=>a.reportedEntryId && !S.entries.find(e=>e.id==a.reportedEntryId&&e.exitTime)); // arrived, not exited
+  const completed=active.filter(a=>a.reportedEntryId && S.entries.find(e=>e.id==a.reportedEntryId&&e.exitTime)); // exited
+
+  var html='';
+  if(actionNeeded.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--red);margin:8px 0 4px;padding:4px 8px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL ('+actionNeeded.length+')</div>';
+    html+=actionNeeded.map(a=>renderAptCard(a)).join('');
+  }
+  if(inYard.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin:8px 0 4px;padding:4px 8px;background:#fffbeb;border-radius:6px">🟡 IN YARD ('+inYard.length+')</div>';
+    html+=inYard.map(a=>renderAptCard(a)).join('');
+  }
+  if(completed.length){
+    html+='<details style="margin-top:8px"><summary style="font-size:11px;font-weight:700;color:var(--green);padding:4px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+completed.length+') — tap to show</summary>';
+    html+=completed.map(a=>renderAptCard(a)).join('');
+    html+='</details>';
+  }
+  if(!html) html='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:13px">No active requests</div>';
+  ql.innerHTML=html;
 
   const hl=document.getElementById('inchargeHistoryList');
   document.getElementById('inchargeHistoryCount').textContent='('+history.length+')';
