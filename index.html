@@ -9962,8 +9962,8 @@ function removeStaffMember(section,name){
 }
 
 // ═══ HELPERS ═══
-const dC=d=>({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';
-const dL=d=>({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
+var dC=function(d){return ({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';};
+var dL=function(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;};
 
 function toast(msg,type='ok'){
   const t=document.createElement('div');t.textContent=msg;
