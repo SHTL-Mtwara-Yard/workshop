@@ -5247,10 +5247,9 @@ function loadBayJobs(){
     const deptComplete = jobs.length>0 && doneC===jobs.length;
     // Once a mechanic is assigned, the assignment locks — Ground Team cannot reassign it.
     // It only unlocks once every job in this department is marked done, or via Manager's Edit Records.
-    const etdSet = deptEtdIsSet(ins.id,d);
-    const staffAssignedAt = (ins.deptStaffAssignedAt||{})[d]||null;
-    const gracePeriodOver = staffAssignedAt && (Date.now()-new Date(staffAssignedAt).getTime()) > 60000;
-    const isLocked = assignedStaff && !deptComplete && etdSet && gracePeriodOver;
+        const staffAssignedAt = (ins.deptStaffAssignedAt||{})[d]||null;
+    const gracePeriodOver = !staffAssignedAt || (Date.now()-new Date(staffAssignedAt).getTime()) > 60000;
+    const isLocked = assignedStaff && !deptComplete && gracePeriodOver;
     const assistNames=assistingNamesForDept(bay,d);
     const assistHtml=assistNames.length?` <span class="text-xs text2">+ 🤝 ${assistNames.join(', ')}</span>`:'';
     const staffControlHtml = isLocked
@@ -5912,7 +5911,7 @@ function saveDeptStaff(insId,dept){
   save();
   loadBayJobs();
   if(v){
-    toast('✅ '+v+' assigned to '+dL(dept)+' — set ETD within 1 minute to lock','ok');
+    toast('✅ '+v+' assigned to '+dL(dept)+' — you have 1 minute to correct if needed','ok');
     // Auto-refresh after 1 min to apply lock
     setTimeout(function(){ loadBayJobs(); }, 61000);
   }
