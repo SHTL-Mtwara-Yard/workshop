@@ -7853,19 +7853,19 @@ function refreshLeaderboard(){
     const allRanked=[...withJobs,...noJobs.map(n=>({name:n,jobs:0,hrs:0}))];
     const bottom5=[...allRanked].reverse().slice(0,5).filter(r=>r.jobs===0||r.jobs<=withJobs[Math.max(0,withJobs.length-1)]&&withJobs[withJobs.length-1].jobs);
 
-    const topRows=top5.length?top5.map((r,i)=>`
+    const topRows=top5.filter(r=>r.name).length?top5.filter(r=>r.name).map((r,i)=>`
       <div class="lb-row lb-top">
         <span class="lb-rank">${medals[i]||i+1}</span>
-        <span class="lb-name">${r.name.split(' ')[0]} ${(r.name.split(' ')[1]||'').charAt(0)}.</span>
+        <span class="lb-name">${(r.name||'Unknown').split(' ')[0]} ${((r.name||'').split(' ')[1]||'').charAt(0)}.</span>
         <div class="lb-bar-wrap"><div class="progress-bar" style="height:5px"><div style="height:5px;background:${dept.color};border-radius:3px;width:${Math.round(r.jobs/maxJobs*100)}%"></div></div></div>
         <span class="lb-stat">${r.jobs}j${r.hrs>0?' · '+(r.hrs/60).toFixed(1)+'h':''}</span>
       </div>`).join('')
       :`<div class="lb-row"><span style="font-size:11px;color:var(--text2);padding:4px 0">No jobs punched today</span></div>`;
 
-    const bottomRows=bottom5.length?bottom5.filter(r=>!top5.find(t=>t.name===r.name)).slice(0,5).map((r,i)=>`
+    const bottomRows=bottom5.length?bottom5.filter(r=>r.name && !top5.find(t=>t.name===r.name)).slice(0,5).map((r,i)=>`
       <div class="lb-row lb-bottom">
         <span class="lb-rank" style="color:var(--red)">↓${i+1}</span>
-        <span class="lb-name" style="color:var(--text2)">${r.name.split(' ')[0]} ${(r.name.split(' ')[1]||'').charAt(0)}.</span>
+        <span class="lb-name" style="color:var(--text2)">${(r.name||'Unknown').split(' ')[0]} ${((r.name||'').split(' ')[1]||'').charAt(0)}.</span>
         <span class="lb-stat" style="margin-left:auto">${r.jobs===0?'No punches':r.jobs+' job'+(r.jobs!==1?'s':'')}</span>
       </div>`).join(''):'';
 
