@@ -11288,9 +11288,9 @@ function refreshYardAlerts(){
 function populateAlertTruckSelect(){
   var sel = document.getElementById('alertTruckSelect');
   if(!sel) return;
-  // All trucks from entries + common fleet
+  // Only trucks currently in yard (no exit time)
   var trucks = [];
-  (S.entries||[]).forEach(function(e){ if(e.truckNo && trucks.indexOf(e.truckNo)<0) trucks.push(e.truckNo); });
+  (S.entries||[]).filter(function(e){ return !e.exitTime; }).forEach(function(e){ if(e.truckNo && trucks.indexOf(e.truckNo)<0) trucks.push(e.truckNo); });
   sel.innerHTML='<option value="">-- Select Truck --</option>'
     +trucks.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
 }
