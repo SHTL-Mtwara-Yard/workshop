@@ -2982,6 +2982,11 @@ tr:hover td { background: var(--surface2); }
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <script>
+// Dept helpers — declared first so available everywhere
+function dC(d){return ({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';}
+function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;}
+</script>
+<script>
 // ═══ STATE ═══
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
@@ -9962,8 +9967,8 @@ function removeStaffMember(section,name){
 }
 
 // ═══ HELPERS ═══
-var dC=function(d){return ({mech:'blue',elec:'yellow',tyre:'green',weld:'purple'})[d]||'blue';};
-var dL=function(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;};
+
+
 
 function toast(msg,type='ok'){
   const t=document.createElement('div');t.textContent=msg;
