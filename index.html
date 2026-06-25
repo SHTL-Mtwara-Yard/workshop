@@ -5549,9 +5549,12 @@ function checkCompletionAlertQueue(){
   }).map(ins=>ins.id);
 
   const modal=document.getElementById('completionAlertModal');
+  // Only show on Supervisor tab AND only if supervisor name is set
   const onSupervisorPage = document.getElementById('page-supervisor').classList.contains('active');
+  const supName = (document.getElementById('supName')||{}).value || _inchargeNameSession || '';
+  const isSupervisorDevice = onSupervisorPage;
 
-  if(_completionAlertQueue.length && onSupervisorPage){
+  if(_completionAlertQueue.length && isSupervisorDevice){
     // Show the modal for the first unresolved item; if already showing the same one, leave it be
     if(!modal.classList.contains('open') || !_completionAlertQueue.includes(_completionAlertCurrentId)){
       showCompletionAlert(_completionAlertQueue[0]);
