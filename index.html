@@ -10025,7 +10025,19 @@ function saveBayAssignment(name, bay){
 
 // Get the fixed bay for a worker (used in Punch Status auto-select)
 function getWorkerFixedBay(name){
-  return (S.bayAssignments||{})[name]||null;
+  // First check manual assignment
+  if((S.bayAssignments||{})[name]) return S.bayAssignments[name];
+  // Auto-detect: find active inspection where this mechanic is assigned
+  var activeIns = (S.inspections||[]).filter(function(i){
+    if(i.parked) return false;
+    var entry = (S.entries||[]).find(function(e){ return e.id==i.entryId && !e.exitTime; });
+    if(!entry) return false;
+    // Check if mechanic is in deptStaff
+    var staff = i.deptStaff||{};
+    return Object.values(staff).some(function(s){ return s===name; });
+  });
+  if(activeIns.length) return activeIns[0].bayNo;
+  return null;
 }
 
 // ── ROSTER MANAGER CONFIRMATION ──
