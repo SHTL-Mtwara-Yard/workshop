@@ -2991,7 +2991,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-let S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[] };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -3192,8 +3192,8 @@ const STAFF_SECTION_LABELS = {
 // They get reassigned every time Firebase data loads (see fbRoot.on('value', ...) below),
 // so any code elsewhere in the app that reads STAFF[dept] or ALL_STAFF always sees Manager's
 // latest add/remove changes without needing to be rewritten.
-let STAFF = DEFAULT_STAFF_SEED;
-let ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
+var STAFF = DEFAULT_STAFF_SEED;
+var ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
 
 // ── INSTANT STARTUP FROM CACHE ──
 (function(){
@@ -3299,7 +3299,7 @@ function toggleDept(d){
 }
 
 // ═══ INVENTORY CHECKLIST ═══
-let invFlags={}; // {itemIndex: qty}
+var invFlags={}; // {itemIndex: qty}
 function renderInventoryGrid(){
   const grid=document.getElementById('invGrid');
   grid.innerHTML=INVENTORY_ITEMS.map((item,i)=>{
@@ -3349,8 +3349,8 @@ function handleCamCapture(e){
 }
 
 // ═══ SUPERVISOR PHOTOS — fixed slot binding ═══
-let curPhotoSlot=0;
-let capturedPhotos={}; // keyed strictly by slot index, reset per-truck
+var curPhotoSlot=0;
+var capturedPhotos={}; // keyed strictly by slot index, reset per-truck
 function capturePhoto(n){
   curPhotoSlot=n;
   document.getElementById('photoInput').click();
@@ -3932,8 +3932,8 @@ function resetSecForm(){
 // ═══════════════════════════════════════════════
 
 var _securityOfficerName = localStorage.getItem('shtl_security_name') || '';
-let _secAudioEnabled = false;
-let _secAudioCtx = null;
+var _secAudioEnabled = false;
+var _secAudioCtx = null;
 
 function saveSecurityOfficerName(){
   const v = document.getElementById('securityOfficerName').value;
@@ -4099,7 +4099,7 @@ function refreshSecurityPanel(){
 }
 
 // Open driver verification modal
-let _dvAlertId = null;
+var _dvAlertId = null;
 function openDriverVerify(insId, alertId){
   _dvAlertId = alertId;
   const ins = S.inspections.find(i => i.id == insId);
@@ -4356,7 +4356,7 @@ function updateBadge(){
 }
 
 // ═══ SUPERVISOR ═══
-let jobCounts={mech:0,elec:0,tyre:0,weld:0};
+var jobCounts={mech:0,elec:0,tyre:0,weld:0};
 
 const deptColors={mech:'var(--blue)',elec:'var(--yellow)',tyre:'var(--green)',weld:'var(--purple)'};
 const deptNames={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
@@ -4758,7 +4758,7 @@ function refreshSupBayTable(){
   }).join('');
 }
 
-let curCarryForwardId=null;
+var curCarryForwardId=null;
 
 function openCarryForwardModal(id){
   curCarryForwardId=id;
@@ -4954,7 +4954,7 @@ function addManagerOvernightRemark(insId, remarkText){
 }
 
 // ═══ GROUND ═══
-let selTeam='A';
+var selTeam='A';
 function selectTeam(t){
   selTeam=t;
   document.getElementById('teamABtn').className='team-btn'+(t==='A'?' active-a':'');
@@ -5010,7 +5010,7 @@ function refreshGroundPage(){
   refreshLeaderboard();
 }
 
-let curGroundInsId=null;
+var curGroundInsId=null;
 function loadBayJobs(){
   const bay=document.getElementById('groundBaySelect').value;
   const notice=document.getElementById('groundAutoCompleteNotice');
@@ -5802,7 +5802,7 @@ function addGroundJob(insId,dept){
 }
 
 // ═══ PHOTO VIEWER (collapsed by default, opens in modal, closes after viewing) ═══
-let _photoViewerCache={}; // temp lookup so we never inline large base64 strings into onclick attributes
+var _photoViewerCache={}; // temp lookup so we never inline large base64 strings into onclick attributes
 function openPhotoViewer(insId){
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins || !ins.photos) return;
@@ -5833,7 +5833,7 @@ function openPhotoFull(idx,label){
 }
 
 // ═══ SECURITY EXIT CONFIRM (two-step) ═══
-let curExitConfirmId=null;
+var curExitConfirmId=null;
 document.addEventListener('DOMContentLoaded',()=>{});
 function maybeConfirmExit(entryId){
   curExitConfirmId=entryId;
@@ -6824,7 +6824,7 @@ function refreshBreakdown(){
   }).join('');
 }
 
-let curBreakdownClosureId=null;
+var curBreakdownClosureId=null;
 function openBreakdownClosure(id){
   curBreakdownClosureId=id;
   const b=S.breakdowns.find(x=>x.id==id);
@@ -7057,8 +7057,8 @@ function refreshSupportPage(){
 }
 
 // ── GREASING TIMER ──
-const _gTimers={1:null,2:null};
-const _gState={1:{active:false,startTime:null,truckId:null,elapsed:0},2:{active:false,startTime:null,truckId:null,elapsed:0}};
+var _gTimers={1:null,2:null};
+var _gState={1:{active:false,startTime:null,truckId:null,elapsed:0},2:{active:false,startTime:null,truckId:null,elapsed:0}};
 const GREASING_DURATION=40*60; // 40 minutes in seconds
 
 function startGreasing(team){
@@ -7153,7 +7153,7 @@ function refreshGreasingLog(){
 
 // ── GENERIC SUPPORT JOB LOG (Panel Beater, Refurbish, Sand Blasting) ──
 // ── Active support job state (in-memory, per tab) ──
-const _activeSupportJob={panelbeater:null, sandblasting:null, washing:null};
+var _activeSupportJob={panelbeater:null, sandblasting:null, washing:null};
 
 function startSupportJob(type){
   const prefixes={panelbeater:'pb',sandblasting:'sb',washing:'wash'};
@@ -7657,8 +7657,8 @@ function exportStoresCSV(){
 
 // ── END STORES ──
 
-let _supportEditUnlocked=false;
-let _supportEditLockTimer=null;
+var _supportEditUnlocked=false;
+var _supportEditLockTimer=null;
 
 function unlockSupportEdit(){
   const entered=(document.getElementById('supportEditNameInput').value||'').trim().toUpperCase();
@@ -7782,7 +7782,7 @@ function refreshTripLog(){
     <td>${t.km||'—'}${t.km?' km':''}</td><td style="font-size:11px">${t.passengers||'—'}</td>
   </tr>`).join('');
 }
-let _lbDay='today';
+var _lbDay='today';
 
 function setLeaderboardDay(day,btn){
   _lbDay=day;
@@ -8223,8 +8223,8 @@ function printDailySummary(){
 }
 
 const DC_PIN_HASH_KEY = 'shtl_dc_pin';
-let _dcUnlocked = false;
-let _dcLockTimer = null;
+var _dcUnlocked = false;
+var _dcLockTimer = null;
 
 function hashPin(pin){ 
   // Simple deterministic hash — not cryptographic but not plain text in Firebase
@@ -9029,7 +9029,7 @@ function exportMechPerfCSV(){
 }
 
 // ═══ HOURS WORKED PER DAY (from Punch Status activity log) ═══
-let _hoursReportData=[];
+var _hoursReportData=[];
 function refreshHoursReport(){
   const dateInput=document.getElementById('hoursDate');
   if(!dateInput.value){
@@ -9157,8 +9157,8 @@ function confirmResetAllData(){
 }
 
 // ═══ MANAGER: EDIT RECORDS (fix mistakes — gate entry, inspection, ground job details) ═══
-let _editRecordsUnlocked=false;
-let _editRecordsLockTimer=null;
+var _editRecordsUnlocked=false;
+var _editRecordsLockTimer=null;
 
 function unlockEditRecords(){
   const entered=(document.getElementById('editRecordsNameInput').value||'').trim().toUpperCase();
@@ -9484,8 +9484,8 @@ function saveEditJob(insId,dept,idx){
 }
 
 // ═══ WORKER PUNCH STATUS (self-service yard-wide tracker) ═══
-let curPunchWorker=null;
-let curPunchTeam='A';
+var curPunchWorker=null;
+var curPunchTeam='A';
 
 function refreshPunchTab(){
   // Populate worker name dropdown from the full staff roster (all departments combined)
@@ -9901,7 +9901,7 @@ function onTruckInput(el){
 }
 
 const MANAGER_NAME = 'JAI SRIMANNARAYANA';
-let _pendingRosterAction = null;
+var _pendingRosterAction = null;
 
 function requireManagerConfirm(desc, action){
   _pendingRosterAction = action;
