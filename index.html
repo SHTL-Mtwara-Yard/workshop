@@ -1160,7 +1160,7 @@ tr:hover td { background: var(--surface2); }
               <div style="font-size:22px;color:var(--text2);padding-top:18px">:</div>
               <div style="flex:1">
                 <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Min (00–59)</div>
-                <input type="number" id="supETD_mm" min="0" max="59" step="5" placeholder="MM" style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="syncSupETD()">
+                <input type="number" id="supETD_mm" min="0" max="59" placeholder="MM" style="width:100%;padding:9px;font-size:18px;font-family:monospace;font-weight:700;text-align:center" oninput="if(this.value.length>=2)syncSupETD()" onblur="syncSupETD()">
               </div>
               <div style="flex:1.5">
                 <div style="font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">Date</div>
