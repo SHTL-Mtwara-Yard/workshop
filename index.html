@@ -4527,21 +4527,19 @@ function addJobRow(d){
   const row=document.createElement('div');
   row.className='job-row';
   row.style.gridTemplateColumns='32px 1fr 130px 100px auto';
-  row.innerHTML=`<div class="job-row-top">
+  row.innerHTML=`<div class="job-row-top" style="flex-wrap:wrap;gap:4px">
     <div class="job-sno">${n}</div>
-    <input type="text" placeholder="Describe defect / job in detail..." style="min-width:0;width:100%;font-size:14px">
+    <input type="text" placeholder="Job description..." style="min-width:0;flex:1;font-size:14px">
+    <select class="job-source" title="Source" style="max-width:130px;font-size:12px"><option value="driver">🗣️ Driver</option><option value="supervisor">🔍 Supervisor</option></select>
+    <button class="btn btn-danger btn-sm" style="padding:4px 8px" onclick="this.closest('.job-row').remove()">✕</button>
   </div>
-  <div class="job-row-bottom">
-    <select class="job-source" title="Who reported this?"><option value="driver">🗣️ Driver Complaint</option><option value="supervisor">🔍 Supervisor Found</option></select>
-    <button class="btn btn-danger btn-sm" onclick="this.closest('.job-row').remove()">✕ Remove</button>
-  </div>
-  <div class="fault-tags">
-    <div class="fault-tag" data-fault="mechanic" onclick="selectFault(this)" title="Mechanic workmanship">🔧<span>Mechanic</span></div>
-    <div class="fault-tag" data-fault="driver" onclick="selectFault(this)" title="Driver negligence">👨‍✈️<span>Driver</span></div>
-    <div class="fault-tag" data-fault="route" onclick="selectFault(this)" title="Route/road condition">🛣️<span>Route</span></div>
-    <div class="fault-tag" data-fault="accident" onclick="selectFault(this)" title="Accident/stone hit">💥<span>External</span></div>
-    <div class="fault-tag" data-fault="spare" onclick="selectFault(this)" title="Spare part failure">⚙️<span>Spare</span></div>
-    <div class="fault-tag" data-fault="wear" onclick="selectFault(this)" title="Normal wear & tear">🔄<span>Wear</span></div>
+  <div class="fault-tags" style="margin-top:4px">
+    <div class="fault-tag" data-fault="mechanic" onclick="selectFault(this)" title="Mechanic workmanship">🔧</div>
+    <div class="fault-tag" data-fault="driver" onclick="selectFault(this)" title="Driver negligence">👨‍✈️</div>
+    <div class="fault-tag" data-fault="route" onclick="selectFault(this)" title="Route condition">🛣️</div>
+    <div class="fault-tag" data-fault="accident" onclick="selectFault(this)" title="External damage">💥</div>
+    <div class="fault-tag" data-fault="spare" onclick="selectFault(this)" title="Spare failure">⚙️</div>
+    <div class="fault-tag" data-fault="wear" onclick="selectFault(this)" title="Normal wear">🔄</div>
   </div>`;
   c.appendChild(row);
 }
@@ -5222,10 +5220,10 @@ function loadBayJobs(){
       jHtml+=`<div class="jc-item ${isDone?'done':''}">
         <input type="checkbox" ${isDone?'checked':''} ${etdMissing&&!isDone?'disabled title="Set department ETD first"':''} onchange="toggleJobGround('${ins.id}','${d}',${i},this)">
         <div class="jc-item-text ${isDone?'struck':''}">${j.sno}. ${j.desc}</div>
-        ${jobSourceTag(j)}
-        ${addedTag}
+        ${j.source==='ground'?'<span class="tag" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-size:10px">🔧 Ground Found</span>':j.source==='supervisor'?'<span class="tag" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;font-size:10px">🔍 Supervisor</span>':'<span class="tag" style="background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font-size:10px">🗣️ Driver</span>'}
+        ${j.fault?`<span style="font-size:14px" title="${j.fault}">${{mechanic:'🔧',driver:'👨‍✈️',route:'🛣️',accident:'💥',spare:'⚙️',wear:'🔄'}[j.fault]||''}</span>`:''}
         <span class="tag tag-${j.priority==='Critical'?'red':j.priority==='Urgent'?'yellow':'green'}">${j.priority}</span>
-        ${isDone?`<span class="jc-done-by">✅ ${upd.doneBy||'Team'}</span>`:''}
+        ${isDone?`<span class="jc-done-by">✅ Done by: ${upd.doneBy||'Team'} at ${upd.time||''}</span>`:''}
       </div>`;
     });
     jHtml+='</div>';
@@ -5254,7 +5252,7 @@ function loadBayJobs(){
     // Once a mechanic is assigned, the assignment locks — Ground Team cannot reassign it.
     // It only unlocks once every job in this department is marked done, or via Manager's Edit Records.
         const staffAssignedAt = (ins.deptStaffAssignedAt||{})[d]||null;
-    const gracePeriodOver = !staffAssignedAt || (Date.now()-new Date(staffAssignedAt).getTime()) > 60000;
+    const gracePeriodOver = !staffAssignedAt || (Date.now()-new Date(staffAssignedAt).getTime()) > 5000;
     const isLocked = assignedStaff && !deptComplete && gracePeriodOver;
     const assistNames=assistingNamesForDept(bay,d);
     const assistHtml=assistNames.length?` <span class="text-xs text2">+ 🤝 ${assistNames.join(', ')}</span>`:'';
@@ -5907,20 +5905,35 @@ function quickSetETDTomorrow8AM(insId,dept){
 
 function saveDeptStaff(insId,dept){
   const v=document.getElementById('staff_'+dept).value;
+  if(!v) {
+    // Clearing name — do directly
+    const ins=S.inspections.find(i=>i.id==insId);
+    if(!ins)return;
+    if(!ins.deptStaff) ins.deptStaff={};
+    ins.deptStaff[dept]='';
+    if(!ins.deptStaffAssignedAt) ins.deptStaffAssignedAt={};
+    ins.deptStaffAssignedAt[dept]=null;
+    save(); loadBayJobs(); return;
+  }
+  // Show confirmation before locking
+  const deptName={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept]||dept;
+  if(!confirm('Confirm assignment:\n\n'+v+'\nfor '+deptName+'\n\nTap OK to confirm — name will lock in 5 seconds.')) {
+    // Reset dropdown to previous value
+    const ins2=S.inspections.find(i=>i.id==insId);
+    document.getElementById('staff_'+dept).value=(ins2&&ins2.deptStaff&&ins2.deptStaff[dept])||'';
+    return;
+  }
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
   if(!ins.deptStaff) ins.deptStaff={};
   ins.deptStaff[dept]=v;
-  // Record assignment time for 1-min grace period
   if(!ins.deptStaffAssignedAt) ins.deptStaffAssignedAt={};
   ins.deptStaffAssignedAt[dept]=v?new Date().toISOString():null;
   save();
   loadBayJobs();
-  if(v){
-    toast('✅ '+v+' assigned to '+dL(dept)+' — you have 1 minute to correct if needed','ok');
-    // Auto-refresh after 1 min to apply lock
-    setTimeout(function(){ loadBayJobs(); }, 61000);
-  }
+  toast('✅ '+v+' confirmed for '+deptName+' — locking in 5 seconds','ok');
+  // Lock after 5 seconds
+  setTimeout(function(){ loadBayJobs(); }, 5000);
 }
 
 // ═══ GROUND TEAM: ADD ADDITIONAL JOB FOUND DURING REPAIR ═══
