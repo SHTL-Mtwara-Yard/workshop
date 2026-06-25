@@ -3756,20 +3756,45 @@ function renderInchargeQueue(){
   const inYard=active.filter(a=>a.reportedEntryId && !S.entries.find(e=>e.id==a.reportedEntryId&&e.exitTime)); // arrived, not exited
   const completed=active.filter(a=>a.reportedEntryId && S.entries.find(e=>e.id==a.reportedEntryId&&e.exitTime)); // exited
 
+  // Split by today vs previous days
+  var todayStr=new Date().toDateString();
+  function isToday(a){ return new Date(a.submittedAt||a.plannedVisit).toDateString()===todayStr; }
+
+  var todayAction=actionNeeded.filter(isToday);
+  var todayYard=inYard.filter(isToday);
+  var todayDone=completed.filter(isToday);
+  var prevAction=actionNeeded.filter(function(a){return !isToday(a);});
+  var prevYard=inYard.filter(function(a){return !isToday(a);});
+  var prevDone=completed.filter(function(a){return !isToday(a);});
+  var prevAll=[].concat(prevAction,prevYard,prevDone);
+
   var html='';
-  if(actionNeeded.length){
-    html+='<div style="font-size:11px;font-weight:700;color:var(--red);margin:8px 0 4px;padding:4px 8px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL ('+actionNeeded.length+')</div>';
-    html+=actionNeeded.map(a=>renderAptCard(a)).join('');
+
+  // TODAY section
+  if(todayAction.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--red);margin:8px 0 4px;padding:4px 8px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL — TODAY ('+todayAction.length+')</div>';
+    html+=todayAction.map(function(a){return renderAptCard(a);}).join('');
   }
-  if(inYard.length){
-    html+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin:8px 0 4px;padding:4px 8px;background:#fffbeb;border-radius:6px">🟡 IN YARD ('+inYard.length+')</div>';
-    html+=inYard.map(a=>renderAptCard(a)).join('');
+  if(todayYard.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin:8px 0 4px;padding:4px 8px;background:#fffbeb;border-radius:6px">🟡 IN YARD — TODAY ('+todayYard.length+')</div>';
+    html+=todayYard.map(function(a){return renderAptCard(a);}).join('');
   }
-  if(completed.length){
-    html+='<details style="margin-top:8px"><summary style="font-size:11px;font-weight:700;color:var(--green);padding:4px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+completed.length+') — tap to show</summary>';
-    html+=completed.map(a=>renderAptCard(a)).join('');
+  if(todayDone.length){
+    html+='<details style="margin-top:6px"><summary style="font-size:11px;font-weight:700;color:var(--green);padding:4px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+todayDone.length+') — tap to show</summary>';
+    html+=todayDone.map(function(a){return renderAptCard(a);}).join('');
     html+='</details>';
   }
+  if(!todayAction.length && !todayYard.length && !todayDone.length){
+    html+='<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:13px">No entries today yet</div>';
+  }
+
+  // PREVIOUS DAYS — collapsed
+  if(prevAll.length){
+    html+='<details style="margin-top:10px"><summary style="font-size:11px;font-weight:700;color:var(--text2);padding:4px 8px;background:var(--surface2);border-radius:6px;cursor:pointer">📅 PREVIOUS DAYS ('+prevAll.length+') — tap to show</summary>';
+    html+=prevAll.map(function(a){return renderAptCard(a);}).join('');
+    html+='</details>';
+  }
+
   if(!html) html='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:13px">No active requests</div>';
   ql.innerHTML=html;
 
