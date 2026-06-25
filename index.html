@@ -585,7 +585,7 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- STATS STRIP -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px" id="inchargeStats">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px" id="inchargeStats">
     <div class="incharge-stat-card" style="border-left:3px solid #f59e0b">
       <div class="isc-val" id="iscPending">0</div>
       <div class="isc-label">Pending</div>
@@ -603,7 +603,19 @@ tr:hover td { background: var(--surface2); }
       <div class="isc-label">Total (3d)</div>
     </div>
   </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+    <span id="iscToday" style="font-size:12px;font-weight:700;color:var(--accent);background:#fff3e0;padding:4px 12px;border-radius:20px;border:1px solid #f59e0b">Today: 0 reported</span>
+    <button class="btn btn-ghost btn-sm" onclick="showInchargeTab('monthly',this)">📊 Monthly Report</button>
+  </div>
 
+  <!-- SUBTABS -->
+  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="subtab active" id="itab-queue" onclick="showInchargeTab('queue',this)">📋 Queue</button>
+    <button class="subtab" id="itab-monthly" onclick="showInchargeTab('monthly',this)">📊 Monthly Report</button>
+  </div>
+
+  <!-- QUEUE SUBTAB -->
+  <div id="incharge-tab-queue">
   <div class="grid-2" style="align-items:start">
     <!-- LEFT: REQUEST FORM -->
     <div>
@@ -1391,6 +1403,22 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div id="jobCardDetail"><div class="alert alert-info">Select a truck above to view its job card.</div></div>
 </div>
+
+  </div><!-- end queue subtab -->
+
+  <!-- MONTHLY REPORT SUBTAB -->
+  <div id="incharge-tab-monthly" style="display:none">
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report</div>
+      <div id="monthlyReportContent"><div style="color:var(--text2);font-size:13px">Loading...</div></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-ghost btn-sm" onclick="printMonthlyReport()">🖨️ Print Report</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 
 <!-- ════════════════ REVISIT ════════════════ -->
 <div class="page" id="page-revisit">
@@ -3772,12 +3800,73 @@ function renderInchargeQueue(){
 function renderInchargeStats(){
   if(!S.appointments){ ['iscPending','iscReported','iscOverdue','iscTotal'].forEach(id=>document.getElementById(id).textContent='0'); return; }
   const now=new Date();
+  const today=now.toDateString();
   const threeDaysAgo=new Date(now-3*24*3600000);
+  const thisMonth=now.getMonth(); const thisYear=now.getFullYear();
   const active=S.appointments.filter(a=>a.status!=='closed' && new Date(a.plannedVisit)>=threeDaysAgo);
+  const todayApts=S.appointments.filter(a=>new Date(a.submittedAt||a.plannedVisit).toDateString()===today);
   document.getElementById('iscPending').textContent=active.filter(a=>aptStatusClass(a)==='pending').length;
   document.getElementById('iscReported').textContent=active.filter(a=>a.status==='reported').length;
   document.getElementById('iscOverdue').textContent=active.filter(a=>aptStatusClass(a)==='overdue').length;
   document.getElementById('iscTotal').textContent=active.length;
+  // Today badge
+  var todayEl=document.getElementById('iscToday');
+  if(todayEl) todayEl.textContent='Today: '+todayApts.length+' reported';
+  // Monthly report
+  refreshMonthlyReport();
+}
+
+function refreshMonthlyReport(){
+  var el=document.getElementById('monthlyReportContent');
+  if(!el) return;
+  var now=new Date();
+  var month=now.getMonth(); var year=now.getFullYear();
+  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var apts=(S.appointments||[]).filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+
+  if(!apts.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No appointments this month yet.</div>'; return; }
+
+  // By Incharge
+  var byIncharge={};
+  apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
+
+  // By Truck
+  var byTruck={};
+  apts.forEach(function(a){ var t=a.truckNo||'Unknown'; byTruck[t]=(byTruck[t]||0)+1; });
+
+  var html='<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text2)">'+monthName+' — '+apts.length+' total appointments</div>';
+
+  // Incharge table
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--accent)">👤 By Incharge</div>';
+  html+='<div style="margin-bottom:14px">';
+  Object.keys(byIncharge).sort(function(a,b){return byIncharge[b]-byIncharge[a];}).forEach(function(name,i){
+    var pct=Math.round(byIncharge[name]/apts.length*100);
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+    html+='<span style="min-width:20px;font-weight:700;color:var(--text2)">'+(i+1)+'.</span>';
+    html+='<span style="flex:1;font-weight:600">'+name+'</span>';
+    html+='<div style="flex:2;background:var(--surface2);border-radius:4px;height:8px">';
+    html+='<div style="width:'+pct+'%;background:var(--accent);height:8px;border-radius:4px"></div></div>';
+    html+='<span style="font-weight:700;min-width:30px;text-align:right">'+byIncharge[name]+'</span>';
+    html+='</div>';
+  });
+  html+='</div>';
+
+  // Truck table
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue)">🚛 By Truck (visits this month)</div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  Object.keys(byTruck).sort(function(a,b){return byTruck[b]-byTruck[a];}).forEach(function(truck){
+    var count=byTruck[truck];
+    var color=count>=3?'var(--red)':count===2?'var(--yellow)':'var(--green)';
+    html+='<div style="padding:4px 10px;border-radius:20px;border:1px solid '+color+';font-size:12px">';
+    html+='<span style="font-weight:700">'+truck+'</span>';
+    html+='<span style="color:'+color+';font-weight:700;margin-left:6px">×'+count+'</span></div>';
+  });
+  html+='</div>';
+
+  el.innerHTML=html;
 }
 
 function openCloseApt(id){
@@ -11014,6 +11103,35 @@ function printSLAReport(){
 </'+'script>
 </body></html>`);
   w.document.close();
+}
+
+
+// ─── INCHARGE TABS ─────────────────────────────────────────────
+function showInchargeTab(tab, el){
+  ['queue','monthly'].forEach(function(t){
+    var d=document.getElementById('incharge-tab-'+t);
+    if(d) d.style.display=t===tab?'block':'none';
+    var b=document.getElementById('itab-'+t);
+    if(b) b.classList.toggle('active',t===tab);
+  });
+  if(tab==='monthly') refreshMonthlyReport();
+}
+
+function printMonthlyReport(){
+  var now=new Date();
+  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var content=document.getElementById('monthlyReportContent');
+  if(!content) return;
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>Monthly Report — '+monthName+'</title>');
+  w.document.write('<style>body{font-family:Arial;padding:30px;font-size:12px}h2{font-size:16px}h3{font-size:13px;margin-top:16px}.bar{height:8px;background:#e8600a;border-radius:4px}.bar-bg{height:8px;background:#f0f0f0;border-radius:4px}.truck{display:inline-block;padding:3px 10px;border:1px solid #ccc;border-radius:20px;margin:3px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border:1px solid #ddd}</style></head><body>');
+  w.document.write('<h2>SHTL Mtwara — Monthly Incharge Report</h2>');
+  w.document.write('<p>'+monthName+' &nbsp;|&nbsp; Printed: '+now.toLocaleDateString('en-GB')+'</p>');
+  w.document.write(content.innerHTML);
+  w.document.write('<br><br><p>Incharge: _________________ &nbsp;&nbsp; Manager: _________________ &nbsp;&nbsp; Date: _________</p>');
+  w.document.write('</body></html>');
+  w.document.close();
+  w.print();
 }
 
 // ─── YARD ALERTS ───────────────────────────────────────────────
