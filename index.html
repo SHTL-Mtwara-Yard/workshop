@@ -2,27 +2,33 @@
 <html lang="en">
 <head>
 <script>
-// Auto-update: check GitHub for latest version every 5 minutes
-var _appVersion = '123';
+// Auto-update: works on old and new Chrome
 function checkForUpdate(){
-  fetch('https://api.github.com/repos/SHTL-Mtwara-Yard/workshop/commits/main?per_page=1')
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      var latestSha = d && d.sha ? d.sha.slice(0,7) : null;
-      var stored = localStorage.getItem('shtl_last_sha');
-      if(latestSha && stored && stored !== latestSha){
-        localStorage.setItem('shtl_last_sha', latestSha);
-        // New version available - reload silently
-        window.location.href = window.location.pathname + '?v=auto&t=' + Date.now();
-      } else if(latestSha && !stored){
-        localStorage.setItem('shtl_last_sha', latestSha);
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://api.github.com/repos/SHTL-Mtwara-Yard/workshop/commits/main?per_page=1', true);
+    xhr.onreadystatechange = function(){
+      if(xhr.readyState === 4 && xhr.status === 200){
+        try {
+          var d = JSON.parse(xhr.responseText);
+          var latestSha = d && d.sha ? d.sha.slice(0,7) : null;
+          var stored = localStorage.getItem('shtl_last_sha');
+          if(latestSha && stored && stored !== latestSha){
+            localStorage.setItem('shtl_last_sha', latestSha);
+            window.location.href = window.location.pathname + '?v=auto&t=' + Date.now();
+          } else if(latestSha && !stored){
+            localStorage.setItem('shtl_last_sha', latestSha);
+          }
+        } catch(e){}
       }
-    }).catch(function(){});
+    };
+    xhr.send();
+  } catch(e){}
 }
 // Check on load and every 5 minutes
 window.addEventListener('load', function(){
-  setTimeout(checkForUpdate, 10000); // 10 sec after load
-  setInterval(checkForUpdate, 300000); // every 5 min
+  setTimeout(checkForUpdate, 10000);
+  setInterval(checkForUpdate, 300000);
 });
 </script>
 <meta charset="UTF-8">
