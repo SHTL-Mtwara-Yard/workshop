@@ -7125,9 +7125,25 @@ function refreshBreakdown(){
     <td style="color:var(--green);font-weight:600">${b.workDone||'<span style="color:var(--text2)">—</span>'}</td>
     <td style="color:var(--accent);font-weight:600">${b.sparesSent||'<span style="color:var(--text2)">—</span>'}</td>
     <td>${resCell}</td>
-    <td><button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button></td>
+    <td style="display:flex;gap:4px">
+      <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit Work Done & Spares Sent">✏️</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button>
+    </td>
   </tr>`;
   }).join('');
+}
+
+function editBreakdownDetails(id){
+  const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
+  const workDone=prompt('Work Done (what was repaired):',b.workDone||'');
+  if(workDone===null) return;
+  const sparesSent=prompt('Spares Sent (parts dispatched):',b.sparesSent||'');
+  if(sparesSent===null) return;
+  b.workDone=workDone.toUpperCase().trim();
+  b.sparesSent=sparesSent.toUpperCase().trim();
+  save();
+  refreshBreakdown();
+  toast('✅ Breakdown details updated','ok');
 }
 
 var curBreakdownClosureId=null;
