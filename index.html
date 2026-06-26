@@ -574,6 +574,7 @@ tr:hover td { background: var(--surface2); }
 .rev-zone-green { border-left:4px solid var(--green); }
 .incentive-badge { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:700; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -1632,7 +1633,7 @@ tr:hover td { background: var(--surface2); }
           <option value="A">Team A Bays</option>
           <option value="B">Team B Bays</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="exportJobCardsCSV()">📥 Export CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportJobCardsCSV()">📥 Export XLSX</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -9317,23 +9318,25 @@ function dateStamp(){
 
 // ═══ EXPORT: ALL JOB CARDS ═══
 function exportJobCardsCSV(){
-  const headers=['JC#','Date','Truck','Bay','Job Type','Department','Mechanic','Fault','Source','T0 In','T1 ETD Set','T2 Start','T4 QC','Status'];
-  const rows=[];
-  let idx=0;
-  S.inspections.forEach(ins=>{
-    const e=S.entries.find(x=>x.id==ins.entryId);
-    ['mech','elec','tyre','weld'].forEach(d=>{
-      ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
+  var headers=['JC#','Date','Truck','Bay','Job Type','Department','Mechanic','Fault','Source','T0 In','T1 ETD Set','T2 Start','T4 QC','Status'];
+  var rows=[];
+  var idx=0;
+  // Group faults by truck for summary sheet
+  var truckMap={};
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
         idx++;
-        const key=`${ins.id}_${d}_${i}`;
-        const upd=S.jobUpdates[key]||{};
-        const isDone=upd.done||j.done;
-        const dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
-        const mechanic=(ins.deptStaff||{})[d]||'';
-        const t0=e?new Date(e.entryTime).toLocaleString('en-GB'):'';
-        const t1=ins.t1_allocated?new Date(ins.t1_allocated).toLocaleString('en-GB'):'';
-        const t2=S.deptETDs[`${ins.id}_${d}`]?new Date(S.deptETDs[`${ins.id}_${d}`]).toLocaleString('en-GB'):'';
-        const t4=ins.t4_qcDone?new Date(ins.t4_qcDone).toLocaleString('en-GB'):'';
+        var key=ins.id+'_'+d+'_'+i;
+        var upd=S.jobUpdates[key]||{};
+        var isDone=upd.done||j.done;
+        var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+        var mechanic=(ins.deptStaff||{})[d]||'';
+        var t0=e?new Date(e.entryTime).toLocaleString('en-GB'):'';
+        var t1=ins.t1_allocated?new Date(ins.t1_allocated).toLocaleString('en-GB'):'';
+        var t2=S.deptETDs[ins.id+'_'+d]?new Date(S.deptETDs[ins.id+'_'+d]).toLocaleString('en-GB'):'';
+        var t4=ins.t4_qcDone?new Date(ins.t4_qcDone).toLocaleString('en-GB'):'';
         rows.push([
           'JC-'+String(idx).padStart(3,'0'),
           e?new Date(e.entryTime).toLocaleDateString('en-GB'):'',
@@ -9342,10 +9345,42 @@ function exportJobCardsCSV(){
           t0, t1, t2, t4,
           isDone?'COMPLETE':'PENDING'
         ]);
+        // accumulate for summary
+        if(!truckMap[ins.truckNo]) truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:[], jobType:ins.jobType||''};
+        truckMap[ins.truckNo].faults.push(j.desc);
       });
     });
   });
-  exportCSV('SHTL_JobCards_'+dateStamp()+'.csv', headers, rows);
+
+  // Build summary rows — one row per truck, faults joined
+  var summaryHeaders=['#','Date','Truck','Bay','Job Type','Faults'];
+  var summaryRows=[];
+  var sIdx=0;
+  Object.keys(truckMap).forEach(function(k){
+    sIdx++;
+    var t=truckMap[k];
+    summaryRows.push([sIdx, t.date, t.truckNo, t.bay, t.jobType, t.faults.join(' , ')]);
+  });
+
+  // Build workbook with two sheets using SheetJS
+  if(typeof XLSX !== 'undefined'){
+    var wb=XLSX.utils.book_new();
+    // Sheet 1 — detailed
+    var ws1=XLSX.utils.aoa_to_sheet([headers].concat(rows));
+    // Auto column widths approx
+    ws1['!cols']=[{wch:8},{wch:12},{wch:12},{wch:6},{wch:16},{wch:14},{wch:22},{wch:45},{wch:12},{wch:20},{wch:20},{wch:20},{wch:20},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Job Cards Detail');
+    // Sheet 2 — by truck summary
+    var ws2=XLSX.utils.aoa_to_sheet([summaryHeaders].concat(summaryRows));
+    ws2['!cols']=[{wch:4},{wch:12},{wch:12},{wch:6},{wch:16},{wch:80}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'By Truck Summary');
+    var fname='SHTL_JobCards_'+dateStamp()+'.xlsx';
+    XLSX.writeFile(wb, fname);
+    toast('📥 '+fname+' downloaded','ok');
+  } else {
+    // Fallback to CSV if SheetJS not loaded
+    exportCSV('SHTL_JobCards_'+dateStamp()+'.csv', headers, rows);
+  }
 }
 
 // ═══ EXPORT: TIME STAMPING ═══
