@@ -77,7 +77,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
 /* ═══ PRINT STYLES ═══ */
 @media print {
   body { background:#fff!important; font-family:'Arial',sans-serif; font-size:11pt; color:#000; }
-  .nav-bar,.page:not(.print-active),.modal-overlay,.toast-container { display:none!important; }
+  .nav-bar,.page:not(.print-active),.modal-overlay,.toast-container,#managerReadyTray { display:none!important; }
   .print-active { display:block!important; padding:0!important; max-width:100%!important; }
   .no-print { display:none!important; }
   .print-page { page-break-after:always; padding:20mm; }
@@ -542,6 +542,10 @@ tr:hover td { background: var(--surface2); }
 /* ── YARD ALERTS ── */
 #yardAlertBanner { display:none; position:sticky; top:0; z-index:9999; }
 .yard-alert-item { display:flex; align-items:center; gap:10px; padding:10px 16px; font-size:13px; font-weight:600; border-bottom:1px solid rgba(0,0,0,0.1); }
+.mgr-ready-pill { pointer-events:auto; display:flex; align-items:center; gap:8px; background:#1a1a2e; color:#fff; border:2px solid var(--accent); border-radius:20px; padding:6px 14px 6px 10px; font-size:12px; font-weight:700; box-shadow:0 3px 12px rgba(0,0,0,0.4); animation:pillSlideIn .25s ease; white-space:nowrap; }
+.mgr-ready-pill .pill-truck { color:var(--accent); font-size:13px; }
+.mgr-ready-pill .pill-bay { color:#aaa; font-size:11px; font-weight:400; }
+@keyframes pillSlideIn { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:translateX(0); } }
 .yard-alert-item.type-stop { background:#ff4444; color:#fff; }
 .yard-alert-item.type-park { background:#e6a817; color:#fff; }
 .yard-alert-item.type-report { background:#e07b00; color:#fff; }
@@ -2958,6 +2962,13 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- ════════════════ MANAGER READY TRAY (non-blocking pills) ════════════════ -->
+<div id="managerReadyTray" style="
+  position:fixed; top:72px; right:12px; z-index:190;
+  display:flex; flex-direction:column; gap:6px; align-items:flex-end;
+  pointer-events:none;
+"></div>
+
 <!-- ════════════════ BLOCKING SUPERVISOR COMPLETION ALERT ════════════════ -->
 <!-- No close button by design — Supervisor must pick a reason to dismiss this -->
 <div class="modal-overlay" id="completionAlertModal">
@@ -3350,6 +3361,8 @@ function showPage(id,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
+  // Clear manager tray when navigating away from manager page
+  if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
   const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage};
   if(map[id])map[id]();
   checkCompletionAlertQueue();
@@ -5658,8 +5671,13 @@ function checkCompletionAlertQueue(){
   const modal=document.getElementById('completionAlertModal');
   // Only show on Supervisor tab AND only if supervisor name is set
   const onSupervisorPage = document.getElementById('page-supervisor').classList.contains('active');
-  const supName = (document.getElementById('supName')||{}).value || _inchargeNameSession || '';
+  const onManagerPage = document.getElementById('page-manager').classList.contains('active');
   const isSupervisorDevice = onSupervisorPage;
+
+  // Manager tray — always refresh when on manager page
+  if(onManagerPage){
+    renderManagerReadyTray();
+  }
 
   if(_completionAlertQueue.length && isSupervisorDevice){
     // Show the modal for the first unresolved item; if already showing the same one, leave it be
@@ -5672,7 +5690,33 @@ function checkCompletionAlertQueue(){
   }
 }
 
-function showCompletionAlert(insId){
+function renderManagerReadyTray(){
+  var tray=document.getElementById('managerReadyTray');
+  if(!tray)return;
+  // Build set of current queue IDs
+  var queueSet=_completionAlertQueue.map(String);
+  // Remove pills no longer in queue
+  Array.from(tray.children).forEach(function(pill){
+    if(!queueSet.includes(pill.dataset.insId)){
+      pill.style.animation='pillSlideIn .2s ease reverse';
+      setTimeout(function(){ if(pill.parentNode)pill.parentNode.removeChild(pill); },200);
+    }
+  });
+  // Add pills for new queue items
+  var existingIds=Array.from(tray.children).map(function(p){ return p.dataset.insId; });
+  _completionAlertQueue.forEach(function(insId){
+    if(existingIds.includes(String(insId)))return;
+    var ins=S.inspections.find(function(i){ return String(i.id)===String(insId); });
+    if(!ins)return;
+    var pill=document.createElement('div');
+    pill.className='mgr-ready-pill';
+    pill.dataset.insId=String(insId);
+    pill.innerHTML='🏁 <span class="pill-truck">'+ins.truckNo+'</span>&nbsp;<span class="pill-bay">Bay '+ins.bayNo+' ready</span>';
+    tray.appendChild(pill);
+  });
+}
+
+
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
   _completionAlertCurrentId=insId;
