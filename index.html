@@ -1703,7 +1703,16 @@ tr:hover td { background: var(--surface2); }
       <div class="form-row cols-2">
         <div>
           <label>Date &amp; Time of Report</label>
-          <input type="datetime-local" id="bdDateTime">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="bdDay" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+            <select id="bdMonth" style="width:100px;font-size:15px;padding:8px"></select>
+            <select id="bdYear" style="width:80px;text-align:center;font-size:15px;padding:8px"></select>
+            <span style="font-weight:700">@</span>
+            <select id="bdHour" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+            <span style="font-weight:700">:</span>
+            <select id="bdMinute" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+            <button class="btn btn-ghost btn-sm" onclick="setBdDateTimeNow()">🕐 Now</button>
+          </div>
         </div>
         <div>
           <label>Truck No / Issue</label>
@@ -1739,6 +1748,16 @@ tr:hover td { background: var(--surface2); }
           <input type="text" id="bdRemarks" placeholder="e.g. Driver not responding">
         </div>
       </div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Work Done <span class="text-xs text2">(fill after repair)</span></label>
+          <input type="text" id="bdWorkDone" placeholder="e.g. Changed wheel stud, fitted spare tyre" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label>Spares Sent <span class="text-xs text2">(parts dispatched)</span></label>
+          <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
       <button class="btn btn-primary" onclick="logBreakdown()">+ Log Breakdown</button>
     </div>
 
@@ -1756,9 +1775,9 @@ tr:hover td { background: var(--surface2); }
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>S.No</th><th>Date/Time</th><th>Truck No</th><th>Contact No</th><th>Location</th><th>Mechanic</th><th>Status</th><th>Remarks</th><th>Resolution</th><th></th>
+            <th>S.No</th><th>Date/Time</th><th>Truck No</th><th>Contact No</th><th>Location</th><th>Mechanic</th><th>Status</th><th>Remarks</th><th>Work Done</th><th>Spares Sent</th><th>Resolution</th><th></th>
           </tr></thead>
-          <tbody id="bdTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
+          <tbody id="bdTable"><tr><td colspan="12" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -6961,8 +6980,54 @@ function sendReply(id){
   });
 })();
 
+function initBdDatePicker(){
+  var now=new Date();
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dayEl=document.getElementById('bdDay');
+  var monEl=document.getElementById('bdMonth');
+  var yrEl=document.getElementById('bdYear');
+  var hrEl=document.getElementById('bdHour');
+  var minEl=document.getElementById('bdMinute');
+  if(!dayEl) return;
+  // Days 1-31
+  dayEl.innerHTML=Array.from({length:31},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+'</option>').join('');
+  // Months
+  monEl.innerHTML=months.map((m,i)=>'<option value="'+(i+1)+'">'+m+'</option>').join('');
+  // Years 2024-2030
+  yrEl.innerHTML=[2024,2025,2026,2027,2028].map(y=>'<option value="'+y+'">'+y+'</option>').join('');
+  // Hours 0-23
+  hrEl.innerHTML=Array.from({length:24},(_,i)=>'<option value="'+i+'">'+(i<10?'0':'')+i+'</option>').join('');
+  // Minutes 0-59
+  minEl.innerHTML=Array.from({length:60},(_,i)=>'<option value="'+i+'">'+(i<10?'0':'')+i+'</option>').join('');
+  setBdDateTimeNow();
+}
+
+function setBdDateTimeNow(){
+  var now=new Date();
+  var dayEl=document.getElementById('bdDay');
+  var monEl=document.getElementById('bdMonth');
+  var yrEl=document.getElementById('bdYear');
+  var hrEl=document.getElementById('bdHour');
+  var minEl=document.getElementById('bdMinute');
+  if(dayEl) dayEl.value=now.getDate();
+  if(monEl) monEl.value=now.getMonth()+1;
+  if(yrEl) yrEl.value=now.getFullYear();
+  if(hrEl) hrEl.value=now.getHours();
+  if(minEl) minEl.value=now.getMinutes();
+}
+
+function getBdDateTime(){
+  var d=document.getElementById('bdDay').value;
+  var m=document.getElementById('bdMonth').value;
+  var y=document.getElementById('bdYear').value;
+  var h=document.getElementById('bdHour').value;
+  var min=document.getElementById('bdMinute').value;
+  var pad=function(n){return String(n).padStart(2,'0');};
+  return y+'-'+pad(m)+'-'+pad(d)+'T'+pad(h)+':'+pad(min);
+}
+
 function logBreakdown(){
-  const dt=document.getElementById('bdDateTime').value;
+  var dt=getBdDateTime();
   const truck=document.getElementById('bdTruckNo').value.trim();
   const contact=document.getElementById('bdContact').value.trim();
   const location=document.getElementById('bdLocation').value.trim();
@@ -6974,6 +7039,8 @@ function logBreakdown(){
   if(!truck)return toast('⚠️ Enter truck no / issue','warn');
   if(!location)return toast('⚠️ Enter location','warn');
 
+  const workDone=(document.getElementById('bdWorkDone')||{value:''}).value||'';
+  const sparesSent=(document.getElementById('bdSparesSent')||{value:''}).value||'';
   S.breakdowns.push({
     id:Date.now(),
     reportedAt:dt,
@@ -6983,11 +7050,14 @@ function logBreakdown(){
     mechanic,
     status,
     remarks,
+    workDone:workDone.toUpperCase(),
+    sparesSent:sparesSent.toUpperCase(),
     loggedAt:new Date().toISOString()
   });
   save();
 
-  ['bdDateTime','bdTruckNo','bdContact','bdLocation','bdMechanic','bdStatus','bdRemarks'].forEach(id=>document.getElementById(id).value='');
+  ['bdTruckNo','bdContact','bdLocation','bdMechanic','bdStatus','bdRemarks','bdWorkDone','bdSparesSent'].forEach(id=>{ var el=document.getElementById(id); if(el) el.value=''; });
+  setBdDateTimeNow();
   refreshBreakdown();
   toast('✅ Breakdown logged','ok');
 }
@@ -7036,7 +7106,7 @@ function refreshBreakdown(){
   });
 
   const tb=document.getElementById('bdTable');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr>';return;}
 
   tb.innerHTML=rows.map((b,i)=>{
     const isResolved=b.resolution==='Resolved';
@@ -7052,6 +7122,8 @@ function refreshBreakdown(){
     <td>${b.mechanic?`<span class="tag tag-green">${b.mechanic}</span>`:'—'}</td>
     <td>${b.status||'—'}</td>
     <td class="text2">${b.remarks||'—'}</td>
+    <td style="color:var(--green);font-weight:600">${b.workDone||'<span style="color:var(--text2)">—</span>'}</td>
+    <td style="color:var(--accent);font-weight:600">${b.sparesSent||'<span style="color:var(--text2)">—</span>'}</td>
     <td>${resCell}</td>
     <td><button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button></td>
   </tr>`;
@@ -11424,6 +11496,7 @@ function runInitialRender(){
     populateAlertTruckSelect();
     updateLangBtn();
     refreshRevisit();
+    initBdDatePicker();
     refreshReqHistory();
   }catch(e){ console.warn('Initial render error:',e); }
 }
