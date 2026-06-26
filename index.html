@@ -5751,6 +5751,15 @@ function syncSupETD(){
   const h=parseInt(hh)||0; const m=parseInt(mm)||0;
   const pad=n=>String(n).padStart(2,'0');
   const val=`${dd}T${pad(h)}:${pad(m)}`;
+  // Validate ETD is not in the past
+  const etdDate=new Date(val);
+  const now=new Date();
+  if(etdDate < now){
+    const disp=document.getElementById('supETD_display');
+    if(disp) disp.innerHTML='<span style="color:var(--red);font-weight:700">⚠️ ETD '+pad(h)+':'+pad(m)+' has already passed — please set a future time</span>';
+    document.getElementById('supETD').value='';
+    return;
+  }
   document.getElementById('supETD').value=val;
   const disp=document.getElementById('supETD_display');
   if(disp){
