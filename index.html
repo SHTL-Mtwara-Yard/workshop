@@ -856,6 +856,9 @@ tr:hover td { background: var(--surface2); }
       <div><label>Collecting Driver Name</label><input type="text" id="dv_driverName" placeholder="Full name" oninput="checkDriverMatch()"></div>
       <div><label>Driver Mobile</label><input type="tel" id="dv_driverMobile" placeholder="07XX XXX XXX"></div>
     </div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div><label>Driver Remarks <span style="color:var(--text-muted);font-weight:400">(optional — type what driver says)</span></label><input type="text" id="dv_driverRemark" placeholder="e.g. Came late due to road issue..."></div>
+    </div>
     <div id="dv_matchResult" style="margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-success btn-block" onclick="confirmVerifiedExit('same')"><i class="ti ti-check" aria-hidden="true"></i> Same Driver — Verified, Exit</button>
@@ -4350,6 +4353,7 @@ function openDriverVerify(insId, alertId){
   document.getElementById('dv_entryId').value = ins.entryId;
   document.getElementById('dv_driverName').value = '';
   document.getElementById('dv_driverMobile').value = '';
+  document.getElementById('dv_driverRemark').value = '';
   document.getElementById('dv_matchResult').innerHTML = '';
   // Pre-fill with alert's collecting driver if came from alert
   if(alertId){
@@ -4383,6 +4387,7 @@ function confirmVerifiedExit(outcome){
   const entryId = parseInt(document.getElementById('dv_entryId').value);
   const collectingName = document.getElementById('dv_driverName').value.trim();
   const collectingMobile = document.getElementById('dv_driverMobile').value.trim();
+  const driverRemark = document.getElementById('dv_driverRemark').value.trim();
   const e = S.entries.find(x => x.id === entryId);
   if(!e) return;
   const ins = S.inspections.find(i => i.entryId === entryId);
@@ -4410,6 +4415,7 @@ function confirmVerifiedExit(outcome){
   e.status = 'exited';
   e.collectingDriverName = collectingName;
   e.collectingDriverMobile = collectingMobile;
+  e.driverRemark = driverRemark || '';
   e.verifiedBy = _securityOfficerName || 'Security';
   e.verifiedAt = new Date().toISOString();
   e.driverOutcome = outcome; // 'same' or 'different'
