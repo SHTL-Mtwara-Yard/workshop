@@ -3601,6 +3601,19 @@ function submitAppointment(){
   save();
   renderInchargeQueue();
   renderInchargeStats();
+  // Clear form after successful submission
+  document.getElementById('iat_truckNo').value='';
+  document.getElementById('iat_driverName').value='';
+  document.getElementById('iat_driverMobile').value='';
+  document.getElementById('iat_complaints').value='';
+  if(document.getElementById('iat_odo')) document.getElementById('iat_odo').value='';
+  if(document.getElementById('iat_tripKms')) document.getElementById('iat_tripKms').value='';
+  // Reset time to next hour
+  var next=new Date(); next.setHours(next.getHours()+1,0,0,0);
+  var pad=function(n){return String(n).padStart(2,'0');};
+  if(document.getElementById('iat_hh')) document.getElementById('iat_hh').value=pad(next.getHours());
+  if(document.getElementById('iat_mm')) document.getElementById('iat_mm').value='00';
+  if(document.getElementById('iat_visit_display')) document.getElementById('iat_visit_display').textContent='';
 
   // Build mailto link
   const subject=encodeURIComponent(`[SHTL Mtwara] Truck Arrival Request — ${tn}`);
