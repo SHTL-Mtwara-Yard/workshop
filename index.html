@@ -6090,7 +6090,11 @@ function confirmGateOut(){
 
 // ═══ JOB CARDS ═══
 function refreshJobCards(){
-  const trucks=[...new Set(S.inspections.map(i=>i.truckNo))];
+  // Only show trucks currently in yard (active inspections with no exit)
+  const activeTrucks=S.inspections.filter(function(i){
+    return !i.parked && S.entries.find(function(e){ return String(e.id)===String(i.entryId) && !e.exitTime; });
+  }).map(function(i){ return i.truckNo; });
+  const trucks=[...new Set(activeTrucks)];
   const sel=document.getElementById('jcTruckFilter');
   const currentVal=sel.value; // preserve selection across live updates from other users
   sel.innerHTML='<option value="">-- Select Truck --</option>'+trucks.map(t=>`<option>${t}</option>`).join('');
@@ -7392,7 +7396,10 @@ function refreshGreasingLog(){
   const jobs=(S.supportJobs||[]).filter(j=>j.type==='greasing'&&j.date===today).reverse();
   const tb=document.getElementById('greasingLog'); if(!tb) return;
   if(!jobs.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No greasing done today</td></tr>';return;}
-  tb.innerHTML=jobs.map(j=>{
+  // Filter out 0 duration records (mistakes/duplicates)
+  const validJobs=jobs.filter(j=>j.durationSecs>5);
+  if(!validJobs.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No greasing done today</td></tr>';return;}
+  tb.innerHTML=validJobs.map(j=>{
     const dur=Math.floor(j.durationSecs/60)+'m '+(j.durationSecs%60>0?j.durationSecs%60+'s':'');
     return `<tr><td>${j.truckNo}</td><td>${j.name}</td>
       <td>${new Date(j.startTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
@@ -7640,6 +7647,16 @@ function endSupportJobById(id,type){
   _activeSupportJob[type]=null;
   refreshSupportLogs();
   toast('✅ Job done — '+job.truckNo+' ('+job.dur+')','ok');
+}
+
+function editSupportJob(id){
+  const job=(S.supportJobs||[]).find(j=>j.id==id); if(!job) return;
+  const newDesc=prompt('Edit job description:',job.job||'');
+  if(newDesc===null) return; // cancelled
+  job.job=newDesc.trim();
+  save();
+  refreshSupportLogs();
+  toast('✅ Job description updated','ok');
 }
 
 function updateRefurbishStatus(id){
