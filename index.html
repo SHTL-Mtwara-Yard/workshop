@@ -4448,6 +4448,13 @@ function punchExit(){
   if(!id)return toast('⚠️ Select a truck','warn');
   const e=S.entries.find(x=>x.id==id);
   if(!e)return;
+  // Warn if truck has active inspection in progress (supervisor working on it)
+  const activeIns=S.inspections.find(i=>String(i.entryId)===String(e.id) && !i.parked);
+  if(activeIns && !e.readyToLeave){
+    if(!confirm('⚠️ WARNING\n\n'+e.truckNo+' has an active inspection in progress (Bay '+activeIns.bayNo+').\n\nAre you sure you want to punch Gate Out?\nThis may cause data loss if supervisor is still working.\n\nTap OK only if truck is physically leaving.')){
+      return;
+    }
+  }
   // Two-step: if already cleared (by either Supervisor or Security), route through confirm modal for clarity
   if(e.readyToLeave){
     maybeConfirmExit(e.id);
