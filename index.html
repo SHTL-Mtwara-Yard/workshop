@@ -578,6 +578,15 @@ tr:hover td { background: var(--surface2); }
 </head>
 <body>
 
+<!-- MECHANIC PWA PAGE — shown when ?mech= param present -->
+<div id="mechPwaPage" style="display:none; position:fixed; inset:0; background:#0f1117; z-index:9999; overflow-y:auto; font-family:'Segoe UI',sans-serif;">
+  <div style="max-width:420px; margin:0 auto; padding:16px;">
+    <div id="mechPwaContent">
+      <div style="text-align:center;padding:60px 20px;color:#555">Connecting...</div>
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav class="nav">
   <div class="nav-brand">SHTL <span>Mtwara</span></div>
@@ -3195,7 +3204,8 @@ fbRoot.on('value', snapshot=>{
       supportJobs: data.supportJobs || [],
       tripLog: data.tripLog || [],
       spareRequests: data.spareRequests || [],
-      spareRequisitions: data.spareRequisitions || []
+      spareRequisitions: data.spareRequisitions || [],
+      qrAccess: data.qrAccess || {}
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -3220,6 +3230,8 @@ fbRoot.on('value', snapshot=>{
     // Check for new unread security alerts and beep
     const newAlerts=(S.securityAlerts||[]).filter(a=>!a.acknowledgedAt);
     if(newAlerts.length>0) playSecurityBeep();
+    // Mechanic PWA live refresh
+    if(_mechPwaName) renderMechPwa();
   }
 }, err=>{
   console.error('Firebase listener error:',err);
@@ -9311,6 +9323,187 @@ function exportCSV(filename, headers, rows){
   toast('📥 '+filename+' downloaded','ok');
 }
 
+// ═══════════════════════════════════════════════════
+// MECHANIC PWA — ?mech=NAME mode
+// ═══════════════════════════════════════════════════
+var _mechPwaName = null;
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var mechParam = params.get('mech');
+  if(mechParam){
+    _mechPwaName = decodeURIComponent(mechParam).toUpperCase();
+    document.getElementById('mechPwaPage').style.display = 'block';
+    // Hide main app nav/pages
+    document.addEventListener('DOMContentLoaded', function(){
+      var nav = document.querySelector('.nav');
+      if(nav) nav.style.display = 'none';
+      document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
+    });
+  }
+})();
+
+function renderMechPwa(){
+  if(!_mechPwaName) return;
+  var el = document.getElementById('mechPwaContent');
+  if(!el) return;
+
+  // Check access
+  if(!S.qrAccess[_mechPwaName]){
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">🔒</div><div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div><div style="color:#888;font-size:13px">Ask your manager to enable QR access for your account.</div></div>';
+    return;
+  }
+
+  var today = new Date().toDateString();
+  var yesterday = new Date(Date.now()-86400000).toDateString();
+
+  // Collect jobs for this mechanic
+  var todayJobs = [];
+  var pendingJobs = [];
+
+  S.inspections.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e || e.exitTime) return; // skip exited trucks
+    var entryDate = new Date(e.entryTime).toDateString();
+    var isToday = entryDate===today;
+    var isYesterday = entryDate===yesterday;
+    if(!isToday && !isYesterday) return;
+
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var assigned = ((ins.deptStaff||{})[d]||'').toUpperCase();
+      if(assigned !== _mechPwaName) return;
+      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+        var key = ins.id+'_'+d+'_'+i;
+        var upd = S.jobUpdates[key]||{};
+        var done = upd.done||j.done;
+        var jobObj = {
+          key: key, desc: j.desc, truckNo: ins.truckNo, bayNo: ins.bayNo,
+          done: done, doneTime: upd.doneTime||'', insId: ins.id, dept: d
+        };
+        if(isToday){ todayJobs.push(jobObj); }
+        else if(isYesterday && !done){ pendingJobs.push(jobObj); }
+      });
+    });
+  });
+
+  var todayDone = todayJobs.filter(function(j){ return j.done; }).length;
+  var todayTotal = todayJobs.length;
+  var pct = todayTotal ? Math.round(todayDone/todayTotal*100) : 0;
+
+  function jobRow(j){
+    var doneClass = j.done ? 'opacity:.4;' : '';
+    var descStyle = j.done ? 'text-decoration:line-through;color:#888' : 'color:#fff';
+    var btn = j.done
+      ? '<span style="background:#14532d;color:#4ade80;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">✓ Done</span>'
+      : '<button onclick="mechMarkDone(\''+j.key+'\')" style="background:#1a3a5c;color:#60a5fa;border:1px solid #1d4ed8;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Mark Done</button>';
+    return '<div style="background:#12121f;border:1px solid #2a2a3e;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;'+doneClass+'">'
+      +'<div style="flex:1;font-size:12px;'+descStyle+'">'+j.desc+'</div>'+btn+'</div>';
+  }
+
+  function groupByTruck(jobs){
+    var map = {};
+    jobs.forEach(function(j){
+      var k = j.truckNo;
+      if(!map[k]) map[k]={truckNo:j.truckNo,bayNo:j.bayNo,jobs:[]};
+      map[k].jobs.push(j);
+    });
+    return Object.values(map);
+  }
+
+  var todayGroups = groupByTruck(todayJobs);
+  var pendingGroups = groupByTruck(pendingJobs);
+
+  var html = '';
+
+  // Header
+  html += '<div style="background:linear-gradient(135deg,#e07b00,#c96a00);border-radius:14px;padding:14px 16px;margin-bottom:14px">'
+    +'<div style="font-size:11px;opacity:.8;letter-spacing:1px">MY JOBS</div>'
+    +'<div style="font-size:17px;font-weight:800;margin:2px 0">'+_mechPwaName+'</div>'
+    +'<div style="font-size:12px;opacity:.8">Today: '+todayDone+'/'+todayTotal+' done</div>'
+    +'</div>';
+
+  // Progress bar
+  html += '<div style="background:#1a1a2e;border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#e07b00,#22c55e);border-radius:6px;transition:width .4s"></div></div>';
+
+  // Pending from yesterday
+  if(pendingGroups.length){
+    html += '<div style="font-size:11px;color:#f87171;font-weight:700;letter-spacing:1px;margin-bottom:8px">⚠️ PENDING FROM YESTERDAY</div>';
+    pendingGroups.forEach(function(g){
+      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#f87171;font-weight:700;margin-bottom:5px">'+g.truckNo+' <span style="background:#f87171;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">'+g.bayNo+'</span></div>';
+      g.jobs.forEach(function(j){ html += jobRow(j); });
+      html += '</div>';
+    });
+  }
+
+  // Today's jobs
+  if(todayGroups.length){
+    html += '<div style="font-size:11px;color:#e07b00;font-weight:700;letter-spacing:1px;margin-bottom:8px">TODAY\'S JOBS</div>';
+    todayGroups.forEach(function(g){
+      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#e07b00;font-weight:700;margin-bottom:5px">'+g.truckNo+' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">'+g.bayNo+'</span></div>';
+      g.jobs.forEach(function(j){ html += jobRow(j); });
+      html += '</div>';
+    });
+  }
+
+  if(!todayJobs.length && !pendingJobs.length){
+    html += '<div style="text-align:center;padding:40px 20px;color:#555"><div style="font-size:36px">✅</div><div style="margin-top:8px;font-size:13px">No jobs assigned today</div></div>';
+  }
+
+  // Last refresh
+  html += '<div style="text-align:center;font-size:11px;color:#444;margin-top:16px">Last updated: '+new Date().toLocaleTimeString('en-GB')+'</div>';
+
+  el.innerHTML = html;
+}
+
+function mechMarkDone(key){
+  var parts = key.split('_');
+  var insId = parts[0], dept = parts[1], jobIdx = parseInt(parts[2]);
+  var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
+  if(!ins) return;
+  if(!S.jobUpdates) S.jobUpdates = {};
+  S.jobUpdates[key] = { done:true, doneTime:new Date().toISOString(), doneBy:_mechPwaName };
+  save();
+  renderMechPwa();
+  // Small pulse feedback
+  var btn = event && event.target;
+  if(btn){ btn.textContent='✓ Saved!'; btn.style.background='#14532d'; btn.style.color='#4ade80'; }
+}
+
+// Hook into Firebase live updates to re-render mech page
+var _origFbReady = null;
+function _mechPwaLiveHook(){
+  if(_mechPwaName) renderMechPwa();
+}
+
+function toggleQrAccess(name, enable){
+  requireManagerConfirm(
+    (enable ? 'Enable' : 'Disable')+' QR access for '+name+'?',
+    function(){
+      if(!S.qrAccess) S.qrAccess={};
+      if(enable){ S.qrAccess[name]=true; }
+      else { delete S.qrAccess[name]; }
+      save();
+      refreshStaffRoster();
+      toast((enable?'✅ QR enabled':'⛔ QR disabled')+' for '+name, enable?'ok':'warn');
+    }
+  );
+}
+
+function showMechQR(name){
+  var url = 'https://shtl-mtwara-yard.github.io/workshop/?mech='+encodeURIComponent(name);
+  // Generate QR using Google Charts API (reliable, no library needed)
+  var qrUrl = 'https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl='+encodeURIComponent(url)+'&choe=UTF-8';
+  var modal = document.getElementById('mechQrModal');
+  document.getElementById('mechQrName').textContent = name;
+  document.getElementById('mechQrImg').src = qrUrl;
+  document.getElementById('mechQrUrl').textContent = url;
+  modal.classList.add('open');
+}
+
+function closeMechQrModal(){
+  document.getElementById('mechQrModal').classList.remove('open');
+}
+
 function dateStamp(){
   const n=new Date();
   return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
@@ -10346,12 +10539,24 @@ function refreshStaffRoster(){
       ${members.length?members.map(name=>{
         const assignedBay=(S.bayAssignments||{})[name]||'';
         const safeName=name.replace(/'/g,"\\'");
+        const isMechDept=['mech','elec','tyre','weld'].includes(key);
+        const hasQr=isMechDept && !!(S.qrAccess||{})[name];
+        var qrToggle='';
+        if(isMechDept){
+          if(hasQr){
+            qrToggle='<button class="btn btn-sm" style="background:#14532d;color:#4ade80;border:1px solid #16a34a;margin-right:4px" onclick="showMechQR(\''+safeName+'\')">📱 QR</button>'
+              +'<button class="btn btn-sm" style="background:#2a1a1a;color:#f87171;border:1px solid #dc2626;margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',false)" title="Disable QR">✕</button>';
+          } else {
+            qrToggle='<button class="btn btn-ghost btn-sm" style="margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',true)">📱 Enable QR</button>';
+          }
+        }
         return `<div class="roster-member-row">
           <span class="fw-700" style="flex:1">${name}</span>
           <select style="min-width:110px;font-size:12px;padding:4px 6px;margin-right:8px" onchange="saveBayAssignment('${safeName}',this.value)">
             ${allBays.reduce((acc,b)=>acc+`<option value="${b}" ${assignedBay===b?'selected':''}>${b}</option>`,'<option value="" '+(assignedBay?'':'selected')+'>— No bay —</option>')}
           </select>
           ${assignedBay?`<span class="tag tag-blue" style="margin-right:8px;font-size:10px">${assignedBay}</span>`:''}
+          ${qrToggle}
           <button class="btn btn-danger btn-sm" onclick="removeStaffMember('${key}','${safeName}')">Remove</button>
         </div>`;
       }).join('') : '<div class="roster-member-row text2 text-xs">No staff in this section yet.</div>'}
@@ -11656,8 +11861,22 @@ function runInitialRender(){
     refreshRevisit();
     initBdDatePicker();
     refreshReqHistory();
+    if(_mechPwaName) renderMechPwa();
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
+
+<!-- MECHANIC QR MODAL -->
+<div class="modal-overlay" id="mechQrModal">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <div class="modal-title">📱 Mechanic QR Code</div>
+    <div id="mechQrName" style="font-size:15px;font-weight:800;color:var(--accent);margin-bottom:12px"></div>
+    <img id="mechQrImg" src="" alt="QR Code" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px;display:block;margin:0 auto 10px">
+    <div style="font-size:10px;color:var(--text-muted);word-break:break-all;margin-bottom:14px" id="mechQrUrl"></div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px">Mechanic scans once with phone camera — opens in browser, no app needed. Saves to home screen for daily use.</div>
+    <button class="btn btn-ghost btn-block" onclick="closeMechQrModal()">Close</button>
+  </div>
+</div>
+
 </body>
 </html>
