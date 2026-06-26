@@ -5716,7 +5716,7 @@ function renderManagerReadyTray(){
   });
 }
 
-
+function showCompletionAlert(insId){
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
   _completionAlertCurrentId=insId;
