@@ -7245,12 +7245,27 @@ function refreshSupportPage(){
     }
   });
 
-  // Populate truck dropdowns for all support sections
+  // Populate truck dropdowns - filter out already-done trucks per service
   const inYard=S.entries.filter(e=>!e.exitTime);
-  const truckOpts='<option value="">-- Select truck --</option>'+inYard.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
-  ['greasingTruck1','greasingTruck2','pbTruck','refTruck','sbTruck','washTruck'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.innerHTML=truckOpts;
+  const today=new Date().toDateString();
+  
+  function doneTrucksForType(type){
+    return (S.supportJobs||[]).filter(j=>j.type===type&&j.date===today&&j.status==='done').map(j=>j.truckNo);
+  }
+  
+  function truckOptsFor(type){
+    const done=doneTrucksForType(type);
+    const available=inYard.filter(e=>!done.includes(e.truckNo));
+    return '<option value="">-- Select truck --</option>'+available.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+  }
+
+  ['greasingTruck1','greasingTruck2'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=truckOptsFor('greasing');
   });
+  const pbEl=document.getElementById('pbTruck'); if(pbEl) pbEl.innerHTML=truckOptsFor('panelbeater');
+  const refEl=document.getElementById('refTruck'); if(refEl) refEl.innerHTML=truckOptsFor('refurbish');
+  const sbEl=document.getElementById('sbTruck'); if(sbEl) sbEl.innerHTML=truckOptsFor('sandblasting');
+  const washEl=document.getElementById('washTruck'); if(washEl) washEl.innerHTML=truckOptsFor('washing');
 
   // Panel beater / refurbish / sandblasting staff
   const pbStaff=(STAFF['panelbeater']||[]);
@@ -7349,12 +7364,14 @@ function doneGreasing(team){
   S.supportJobs.push({
     id:Date.now(), type:'greasing', team, truckNo:_gState[team].truckNo, truckId:_gState[team].truckId,
     name:_gState[team].name, startTime:_gState[team].startTime.toISOString(),
-    endTime:new Date().toISOString(), durationSecs:elapsed, date:new Date().toDateString()
+    endTime:new Date().toISOString(), durationSecs:elapsed, date:new Date().toDateString(),
+    status:'done'
   });
   save();
 
   // Reset UI
   _gState[team].active=false;
+  _gState[team].truckNo=''; _gState[team].truckId=null;
   document.getElementById('greasingTimerDisplay'+team).textContent='40:00';
   document.getElementById('greasingBar'+team).style.width='0%';
   document.getElementById('greasingStartBtn'+team).style.display='';
@@ -7363,7 +7380,10 @@ function doneGreasing(team){
   const circle=document.getElementById('greasingTimer'+team);
   circle.style.borderColor='var(--border)';
   circle.style.background='var(--surface3)';
+  // Reset truck dropdown - remove done truck
+  document.getElementById('greasingTruck'+team).value='';
   refreshGreasingLog();
+  refreshSupportPage(); // Refresh dropdowns to remove done truck
   toast('✅ Greasing complete — '+_gState[team].truckNo+' ('+durationStr+')','ok');
 }
 
@@ -7471,6 +7491,7 @@ function logRefurbishJob(){
   if(!S.supportJobs) S.supportJobs=[];
   S.supportJobs.push({id:Date.now(),type:'refurbish',truckNo,trailerNo:trailerNo||'—',name,job,priority,status,startDT,etdDate,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
   save();
+  refreshSupportPage();
   document.getElementById('refJob').value='';
   document.getElementById('refTruckNo').value='';
   document.getElementById('refTrailerNo').value='';
