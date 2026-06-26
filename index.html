@@ -4007,12 +4007,13 @@ function punchEntry(){
     return toast('⚠️ "'+tn+'" looks mistyped (extra characters/duplication) — please check and retype','warn');
   }
 
-  // Block if truck already in yard (no exit time)
+  // Block if truck already in yard (no exit time) — allow re-entry if previously exited
   const alreadyInYard=S.entries.find(e=>e.truckNo===tn && !e.exitTime);
   if(alreadyInYard){
-    toast('🚫 '+tn+' is already in yard — cannot enter again until it exits','warn');
+    toast('🚫 '+tn+' is already in yard — punch Gate Out first before re-entry','warn');
     return;
   }
+  // Allow re-entry if truck previously exited today — no block needed
   // Extra safety: block if this exact truck number was just punched in within the last 10 seconds
   const recentDuplicate=S.entries.find(e=>e.truckNo===tn && (Date.now()-new Date(e.entryTime).getTime())<10000);
   if(recentDuplicate){
