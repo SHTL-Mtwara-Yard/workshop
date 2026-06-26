@@ -9346,20 +9346,31 @@ function exportJobCardsCSV(){
           isDone?'COMPLETE':'PENDING'
         ]);
         // accumulate for summary
-        if(!truckMap[ins.truckNo]) truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:[], jobType:ins.jobType||''};
+        if(!truckMap[ins.truckNo]){
+          var exitTime=e?e.exitTime:null;
+          // ETD: use earliest dept ETD set, fallback to t1_allocated
+          var etdVal='';
+          ['mech','elec','tyre','weld'].forEach(function(dd){
+            var dk=S.deptETDs[ins.id+'_'+dd];
+            if(dk && (!etdVal || new Date(dk)<new Date(etdVal))) etdVal=dk;
+          });
+          if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
+          var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
+          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:[], jobType:ins.jobType||'', status:statusStr};
+        }
         truckMap[ins.truckNo].faults.push(j.desc);
       });
     });
   });
 
   // Build summary rows — one row per truck, faults joined
-  var summaryHeaders=['#','Date','Truck','Bay','Job Type','Faults'];
+  var summaryHeaders=['#','Date','Truck','Bay','Job Type','Status','Faults'];
   var summaryRows=[];
   var sIdx=0;
   Object.keys(truckMap).forEach(function(k){
     sIdx++;
     var t=truckMap[k];
-    summaryRows.push([sIdx, t.date, t.truckNo, t.bay, t.jobType, t.faults.join(' , ')]);
+    summaryRows.push([sIdx, t.date, t.truckNo, t.bay, t.jobType, t.status, t.faults.join(' , ')]);
   });
 
   // Build workbook with two sheets using SheetJS
@@ -9372,7 +9383,7 @@ function exportJobCardsCSV(){
     XLSX.utils.book_append_sheet(wb, ws1, 'Job Cards Detail');
     // Sheet 2 — by truck summary
     var ws2=XLSX.utils.aoa_to_sheet([summaryHeaders].concat(summaryRows));
-    ws2['!cols']=[{wch:4},{wch:12},{wch:12},{wch:6},{wch:16},{wch:80}];
+    ws2['!cols']=[{wch:4},{wch:12},{wch:12},{wch:6},{wch:16},{wch:30},{wch:80}];
     XLSX.utils.book_append_sheet(wb, ws2, 'By Truck Summary');
     var fname='SHTL_JobCards_'+dateStamp()+'.xlsx';
     XLSX.writeFile(wb, fname);
