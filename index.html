@@ -590,6 +590,25 @@ tr:hover td { background: var(--surface2); }
 <!-- LANG TOGGLE FLOATING BUTTON -->
 <button id="langToggleBtn" onclick="cycleLang()" title="Change announcement language" style="position:fixed;bottom:18px;right:18px;z-index:9998;background:#e65c00;border:2px solid #fff;color:#fff;padding:10px 16px;border-radius:24px;cursor:pointer;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,0.45);white-space:nowrap;letter-spacing:0.5px">🔊 🇬🇧 EN</button>
 
+<!-- BREAKDOWN EDIT MODAL -->
+<div class="modal-overlay" id="bdEditModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-title">✏️ Edit Breakdown — <span id="bdEditTruckNo"></span></div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">WORK DONE (what was repaired at site)</label>
+      <textarea id="bdEditWorkDone" rows="3" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Changed wheel stud, fitted spare tyre, tightened loose bolts"></textarea>
+    </div>
+    <div style="margin-bottom:18px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">SPARES SENT (parts dispatched to site)</label>
+      <textarea id="bdEditSparesSent" rows="2" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. 1x Spare tyre, 2x Wheel stud, 5L Engine oil"></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-block" onclick="closeModal('bdEditModal')">Cancel</button>
+      <button class="btn btn-primary btn-block" onclick="saveBdEdit()" style="background:var(--green);border-color:var(--green)">✅ Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- YARD ALERT BANNER -->
 <div id="yardAlertBanner"></div>
 
@@ -7133,16 +7152,25 @@ function refreshBreakdown(){
   }).join('');
 }
 
+var _bdEditId=null;
 function editBreakdownDetails(id){
   const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
-  const workDone=prompt('Work Done (what was repaired):',b.workDone||'');
-  if(workDone===null) return;
-  const sparesSent=prompt('Spares Sent (parts dispatched):',b.sparesSent||'');
-  if(sparesSent===null) return;
-  b.workDone=workDone.toUpperCase().trim();
-  b.sparesSent=sparesSent.toUpperCase().trim();
+  _bdEditId=id;
+  document.getElementById('bdEditTruckNo').textContent=b.truckNo;
+  document.getElementById('bdEditWorkDone').value=b.workDone||'';
+  document.getElementById('bdEditSparesSent').value=b.sparesSent||'';
+  document.getElementById('bdEditModal').classList.add('open');
+  setTimeout(function(){ document.getElementById('bdEditWorkDone').focus(); },200);
+}
+
+function saveBdEdit(){
+  if(!_bdEditId) return;
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  b.workDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
+  b.sparesSent=(document.getElementById('bdEditSparesSent').value||'').toUpperCase().trim();
   save();
   refreshBreakdown();
+  closeModal('bdEditModal');
   toast('✅ Breakdown details updated','ok');
 }
 
