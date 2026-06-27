@@ -5316,10 +5316,32 @@ function loadBayJobs(){
   const jDiv=document.getElementById('groundJobList');
   const eDiv=document.getElementById('groundETDBlocks');
   if(!ins){
-    jDiv.innerHTML='<div class="alert alert-info">No active truck in '+bay+'.</div>';
-    eDiv.innerHTML='<div class="alert alert-info">No active truck in '+bay+'.</div>';
-    notice.style.display='none';
-    curGroundInsId=null;
+    // Check if there's an active entry in this bay even without inspection
+    var entryInBay = S.entries.find(function(e){ return !e.exitTime && (e.bay===bay||e.bayNo===bay); });
+    if(entryInBay){
+      jDiv.innerHTML='<div class="alert" style="background:rgba(230,168,23,.1);border:1px solid #e6a817;color:#e6a817;margin-bottom:8px">⚠️ No supervisor inspection saved for <strong>'+entryInBay.truckNo+'</strong> — Ground Team can still add jobs below.</div>'
+        +'<div id="noInsJobAdd"></div>';
+      // Show add job buttons for all depts using entryId as insId
+      var addHtml='';
+      ['mech','elec','tyre','weld'].forEach(function(d){
+        var di={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'}[d];
+        addHtml+='<div class="jc-dept-block mb-12"><div class="jc-dept-head '+d+'"><span style="font-weight:700">'+di+'</span>'
+          +'<button class="btn btn-ghost btn-sm" onclick="showAddGroundJob(\''+entryInBay.id+'\',\''+d+'\')">+ Add Job</button></div>'
+          +'<div id="addjob-form-'+d+'" style="display:none;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface2)">'
+          +'<div class="job-row" style="grid-template-columns:1fr auto;padding:0">'
+          +'<input type="text" id="addjob-desc-'+d+'" placeholder="Describe job found during repair...">'
+          +'<button class="btn btn-primary btn-sm" onclick="addGroundJob(\''+entryInBay.id+'\',\''+d+'\')">Add</button></div></div></div>';
+      });
+      document.getElementById('noInsJobAdd').innerHTML=addHtml;
+      eDiv.innerHTML='<div class="alert alert-info">Supervisor inspection needed to set ETD.</div>';
+      notice.style.display='none';
+      curGroundInsId=entryInBay.id;
+    } else {
+      jDiv.innerHTML='<div class="alert alert-info">No active truck in '+bay+'.</div>';
+      eDiv.innerHTML='<div class="alert alert-info">No active truck in '+bay+'.</div>';
+      notice.style.display='none';
+      curGroundInsId=null;
+    }
     return;
   }
   curGroundInsId=ins.id;
@@ -6141,14 +6163,27 @@ function addGroundJob(insId,dept){
   const priEl=document.getElementById('addjob-priority-'+dept);
   const desc=descEl.value.trim();
   if(!desc)return toast('⚠️ Describe the job first','warn');
-  const ins=S.inspections.find(i=>i.id==insId);
-  if(!ins)return;
-  if(!(ins.jobs||{})[dept]) (ins.jobs||{})[dept]=[];
-  const nextSno=(ins.jobs||{})[dept].length+1;
-  (ins.jobs||{})[dept].push({
+  var ins=S.inspections.find(i=>i.id==insId);
+  // If no inspection exists yet (supervisor skipped), auto-create a minimal one
+  if(!ins){
+    var entry=S.entries.find(e=>!e.exitTime && String(e.id)===String(insId));
+    if(!entry) return toast('⚠️ Truck entry not found','warn');
+    ins={
+      id:insId, entryId:entry.id, truckNo:entry.truckNo, bayNo:entry.bay||'',
+      jobType:'Running Repair', jobs:{mech:[],elec:[],tyre:[],weld:[]},
+      parked:false, supervisorRemark:'', deptStaff:{},
+      createdAt:new Date().toISOString(), createdBy:'Ground Team (auto)'
+    };
+    S.inspections.push(ins);
+    toast('ℹ️ No supervisor inspection found — auto-created job record','warn');
+  }
+  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[]};
+  if(!ins.jobs[dept]) ins.jobs[dept]=[];
+  const nextSno=ins.jobs[dept].length+1;
+  ins.jobs[dept].push({
     sno:nextSno,
     desc,
-    priority:priEl.value,
+    priority:priEl?priEl.value:'Normal',
     source:'ground',
     done:false,
     doneBy:null,
@@ -6156,7 +6191,7 @@ function addGroundJob(insId,dept){
     addedBy:'Ground Team',
     addedAt:new Date().toISOString()
   });
-  checkAutoCompletion(insId); // reopens the truck if it had already been marked complete
+  checkAutoCompletion(insId);
   save();
   descEl.value='';
   document.getElementById('addjob-form-'+dept).style.display='none';
