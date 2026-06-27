@@ -3243,7 +3243,8 @@ fbRoot.on('value', snapshot=>{
       tripLog: data.tripLog || [],
       spareRequests: data.spareRequests || [],
       spareRequisitions: data.spareRequisitions || [],
-      qrAccess: data.qrAccess || {}
+      qrAccess: data.qrAccess || {},
+      slaMissReasons: data.slaMissReasons || {}
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -6555,7 +6556,7 @@ function refreshTimeStamping(){
     const slaTarget = FRT + 3;
     const slaMet = t5t0!==null ? (t5t0 <= slaTarget) : null;
 
-    allRows.push({truck:ins.truckNo,bay:ins.bayNo,t0,t1,t2,t4,t5,t1t0,t5t0,slaMet});
+    allRows.push({truck:ins.truckNo,bay:ins.bayNo,t0,t1,t2,t4,t5,t1t0,t5t0,slaMet,entryId:ins.entryId});
   });
 
   // SLA cells
@@ -6636,7 +6637,17 @@ function refreshTimeStamping(){
   if(!allRows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No data yet</td></tr>';return;}
   tb.innerHTML=allRows.map(r=>{
     const fmt=d=>d?d.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-    const slaTag = r.slaMet===null?'<span class="text2 text-xs">Pending</span>':(r.slaMet?'<span class="tag tag-green">MET</span>':'<span class="tag tag-red">MISSED</span>');
+    const missReason = (S.slaMissReasons||{})[r.entryId];
+    const slaTag = r.slaMet===null
+      ? '<span class="text2 text-xs">Pending</span>'
+      : r.slaMet
+        ? '<span class="tag tag-green">MET</span>'
+        : '<span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
+          + '<span class="tag tag-red">MISSED</span>'
+          + (missReason
+            ? '<span style="font-size:10px;color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+missReason+'">📝 '+missReason+'</span>'
+            : '<button onclick="logSlaMissReason(\''+r.entryId+'\',\''+r.truck+'\')" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer">+ Reason</button>')
+          + '</span>';
     return `<tr>
       <td class="fw-700">${r.truck}</td>
       <td><span class="tag tag-blue">${r.bay}</span></td>
@@ -7428,6 +7439,34 @@ function toggleBreakdownClosure(id){
 })();
 
 // ─── POSTPONE PENDING JOBS (Manager) ───
+function logSlaMissReason(entryId, truckNo){
+  document.getElementById('slaMissEntryId').value = entryId;
+  document.getElementById('slaMissTruckLabel').textContent = truckNo;
+  document.getElementById('slaMissCategory').value = '';
+  document.getElementById('slaMissNote').value = '';
+  // Pre-fill if already set
+  var existing = (S.slaMissReasons||{})[entryId];
+  if(existing){
+    var parts = existing.split(' — ');
+    document.getElementById('slaMissCategory').value = parts[0]||'';
+    document.getElementById('slaMissNote').value = parts[1]||'';
+  }
+  document.getElementById('slaMissModal').classList.add('open');
+}
+
+function saveSlaMissReason(){
+  var entryId = document.getElementById('slaMissEntryId').value;
+  var cat = document.getElementById('slaMissCategory').value;
+  var note = document.getElementById('slaMissNote').value.trim();
+  if(!cat) return toast('⚠️ Select a reason category','warn');
+  if(!S.slaMissReasons) S.slaMissReasons={};
+  S.slaMissReasons[entryId] = cat + (note?' — '+note:'');
+  save();
+  closeModal('slaMissModal');
+  refreshTimeStamping();
+  toast('✅ SLA miss reason saved','ok');
+}
+
 function downloadMonthlyReport(){
   var monthSel = document.getElementById('monthlyReportMonth');
   var selectedMonth = monthSel ? monthSel.value : '';
@@ -7485,6 +7524,25 @@ function downloadMonthlyReport(){
   var ws2 = XLSX.utils.aoa_to_sheet([postHeaders].concat(postRows.length ? postRows : [['No records for this month','','','','','','','','']]));
   ws2['!cols'] = [{wch:4},{wch:12},{wch:12},{wch:8},{wch:35},{wch:35},{wch:20},{wch:20},{wch:14}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Postponed Jobs');
+
+  // ── Sheet 3: SLA Miss Reasons ──
+  var slaHeaders = ['#','Truck No','Date','Reason','Notes'];
+  var slaRows = [];
+  var slaIdx = 0;
+  Object.keys(S.slaMissReasons||{}).forEach(function(entryId){
+    var e = S.entries.find(function(x){ return String(x.id)===String(entryId); });
+    if(!e) return;
+    var d = new Date(e.entryTime);
+    var mon = d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));
+    if(mon !== selectedMonth) return;
+    slaIdx++;
+    var parts = (S.slaMissReasons[entryId]||'').split(' — ');
+    slaRows.push([slaIdx, e.truckNo, d.toLocaleDateString('en-GB'), parts[0]||'', parts[1]||'']);
+  });
+
+  var ws3 = XLSX.utils.aoa_to_sheet([slaHeaders].concat(slaRows.length ? slaRows : [['No SLA misses recorded this month','','','','']]));
+  ws3['!cols'] = [{wch:4},{wch:12},{wch:14},{wch:30},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'SLA Miss Reasons');
 
   XLSX.writeFile(wb, 'SHTL_MonthlyReport_'+selectedMonth+'.xlsx');
   toast('📥 Monthly report downloaded — '+label,'ok');
@@ -12150,6 +12208,33 @@ function runInitialRender(){
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
+
+<!-- SLA MISS REASON MODAL -->
+<div class="modal-overlay" id="slaMissModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">📝 SLA Miss Reason</div>
+    <div id="slaMissTruckLabel" style="font-size:15px;font-weight:800;color:var(--accent);margin-bottom:12px"></div>
+    <input type="hidden" id="slaMissEntryId">
+    <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Category</label>
+    <select id="slaMissCategory" style="width:100%;margin-bottom:10px;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text)">
+      <option value="">-- Select reason category --</option>
+      <option value="Parts Delay">Parts Delay</option>
+      <option value="Manpower Shortage">Manpower Shortage</option>
+      <option value="Accidental / Complex Job">Accidental / Complex Job</option>
+      <option value="Driver Late Collection">Driver Late Collection</option>
+      <option value="Waiting for Approval">Waiting for Approval</option>
+      <option value="Power / Tool Failure">Power / Tool Failure</option>
+      <option value="Bay Congestion">Bay Congestion</option>
+      <option value="Other">Other</option>
+    </select>
+    <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Notes (optional)</label>
+    <input type="text" id="slaMissNote" placeholder="Add detail..." style="width:100%;margin-bottom:14px">
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-block" onclick="saveSlaMissReason()">💾 Save Reason</button>
+      <button class="btn btn-ghost" onclick="closeModal('slaMissModal')">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- MECHANIC QR MODAL -->
 <div class="modal-overlay" id="mechQrModal">
