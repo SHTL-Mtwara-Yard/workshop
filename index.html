@@ -10531,6 +10531,8 @@ function refreshStaffRoster(){
     }
   }
   const sections=Object.keys(STAFF_SECTION_LABELS);
+  const listDiv=document.getElementById('staffRosterList');
+  if(!listDiv) return;
   listDiv.innerHTML=sections.map(key=>{
     const members=(S.staffRoster[key]||[]).slice().sort();
     const label=STAFF_SECTION_LABELS[key];
