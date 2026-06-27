@@ -5531,8 +5531,9 @@ function loadBayJobs(){
           ${mLeft!==null?`<span style="color:${mLeft<0?'var(--red)':mLeft<60?'var(--yellow)':'var(--green)'};font-weight:700;font-size:12px;white-space:nowrap">${mLeft<0?'⚠️ +'+Math.abs(Math.round(mLeft/60))+'h delayed':Math.floor(mLeft/60)+'h '+mLeft%60+'m left'}</span>`:''}
         </div>`:''}
         ${(ins.deptETDLocked||{})[d]?
-          `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#15803d">
-            <i class="ti ti-lock" aria-hidden="true" style="font-size:13px"></i> ETD locked — <strong>${formatETD24h(dEtd)} ${formatETDDate(dEtd)}</strong>. Cannot be changed.
+          `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#15803d;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span><i class="ti ti-lock" aria-hidden="true" style="font-size:13px"></i> ETD locked — <strong>${formatETD24h(dEtd)} ${formatETDDate(dEtd)}</strong>. Cannot be changed.</span>
+            <button onclick="managerResetETD('${ins.id}','${d}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">🔓 Reset ETD</button>
           </div>`:
           `<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">
             <div style="flex:1">
@@ -10408,6 +10409,21 @@ function saveEditInspection(insId){
   loadEditRecord();
   refreshCurrentPage();
   toast('✅ Inspection updated — corrected everywhere','ok');
+}
+
+function managerResetETD(insId, dept){
+  requireManagerConfirm('Reset ETD lock for '+dept.toUpperCase()+' department? Ground team will need to set ETD again.', function(){
+    var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
+    if(!ins) return;
+    if(!ins.deptETDLocked) ins.deptETDLocked={};
+    delete ins.deptETDLocked[dept];
+    // Also clear the stored ETD so ground team sets fresh
+    if(S.deptETDs) delete S.deptETDs[insId+'_'+dept];
+    save();
+    loadBayJobs();
+    refreshEditRecords();
+    toast('🔓 ETD reset for '+dept.toUpperCase()+' — ground team can now set new ETD','ok');
+  });
 }
 
 function saveEditMechanicAssignment(insId,dept){
