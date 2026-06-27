@@ -2005,6 +2005,19 @@ tr:hover td { background: var(--surface2); }
         <div style="text-align:center;color:var(--text2);padding:20px">No postpone records yet</div>
       </div>
     </div>
+
+    <!-- Monthly Report Download -->
+    <div class="card" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report — EOD Balance & Postponed Jobs</div>
+      <div class="text-xs text2 mb-12">Download a month-wise Excel report with two sheets: EOD Balance trucks and all Postponed Jobs with reasons.</div>
+      <div class="flex gap-8 items-center flex-wrap">
+        <div>
+          <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">SELECT MONTH</label>
+          <input type="month" id="monthlyReportMonth" style="padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
+        </div>
+        <button class="btn btn-primary" style="margin-top:18px" onclick="downloadMonthlyReport()">📥 Download Monthly Report</button>
+      </div>
+    </div>
   </div>
 
   <!-- SUB: DATA CONTROL -->
@@ -7297,6 +7310,68 @@ function toggleBreakdownClosure(id){
 })();
 
 // ─── POSTPONE PENDING JOBS (Manager) ───
+function downloadMonthlyReport(){
+  var monthSel = document.getElementById('monthlyReportMonth');
+  var selectedMonth = monthSel ? monthSel.value : '';
+  // Default to current month if none selected
+  if(!selectedMonth){
+    var now = new Date();
+    selectedMonth = now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));
+  }
+  var label = new Date(selectedMonth+'-01').toLocaleString('en-GB',{month:'long',year:'numeric'});
+
+  // ── Sheet 1: EOD Balance ──
+  var eodHeaders = ['#','Date','Truck No','Reason'];
+  var eodRows = [];
+  var eodIdx = 0;
+  (S.eodBalance||[]).forEach(function(b){
+    var d = new Date(b.date);
+    var mon = d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));
+    if(mon !== selectedMonth) return;
+    eodIdx++;
+    eodRows.push([eodIdx, b.date, b.truckNo, b.reason||'']);
+  });
+
+  // ── Sheet 2: Postponed Jobs ──
+  var postHeaders = ['#','Date','Truck No','Bay','Reason','Notes','New ETD','Entered By','Type'];
+  var postRows = [];
+  var postIdx = 0;
+  (S.postponeRecords||[]).forEach(function(r){
+    var d = new Date(r.recordedAt||r.date||0);
+    var mon = d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));
+    if(mon !== selectedMonth) return;
+    postIdx++;
+    postRows.push([
+      postIdx,
+      d.toLocaleDateString('en-GB'),
+      r.truckNo||'', r.bayNo||'',
+      r.reason||'', r.notes||'',
+      r.newETD ? new Date(r.newETD).toLocaleString('en-GB') : '',
+      r.enteredBy||'', r.type||''
+    ]);
+  });
+
+  if(!eodRows.length && !postRows.length){
+    toast('⚠️ No data found for '+label,'warn');
+    return;
+  }
+
+  if(typeof XLSX === 'undefined'){ toast('⚠️ Excel library not loaded yet — try again','warn'); return; }
+
+  var wb = XLSX.utils.book_new();
+
+  var ws1 = XLSX.utils.aoa_to_sheet([eodHeaders].concat(eodRows.length ? eodRows : [['No records for this month','','','']]));
+  ws1['!cols'] = [{wch:4},{wch:16},{wch:12},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'EOD Balance');
+
+  var ws2 = XLSX.utils.aoa_to_sheet([postHeaders].concat(postRows.length ? postRows : [['No records for this month','','','','','','','','']]));
+  ws2['!cols'] = [{wch:4},{wch:12},{wch:12},{wch:8},{wch:35},{wch:35},{wch:20},{wch:20},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Postponed Jobs');
+
+  XLSX.writeFile(wb, 'SHTL_MonthlyReport_'+selectedMonth+'.xlsx');
+  toast('📥 Monthly report downloaded — '+label,'ok');
+}
+
 function refreshPostponePage(){
   // Populate truck dropdown with active in-yard trucks
   const sel=document.getElementById('postponeTruckSelect');
@@ -7315,6 +7390,9 @@ function refreshPostponePage(){
     const t=new Date(); t.setDate(t.getDate()+1);
     td.value=t.toISOString().slice(0,10);
   }
+
+  var mp=document.getElementById('monthlyReportMonth');
+  if(mp&&!mp.value){ var n=new Date(); mp.value=n.getFullYear()+'-'+(String(n.getMonth()+1).padStart(2,'0')); }
 
   refreshPostponeHistory();
 }
