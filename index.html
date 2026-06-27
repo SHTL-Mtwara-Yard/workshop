@@ -9526,13 +9526,10 @@ var _mechPwaName = null;
   var mechParam = params.get('mech');
   if(mechParam){
     _mechPwaName = decodeURIComponent(mechParam).toUpperCase();
-    document.getElementById('mechPwaPage').style.display = 'block';
-    // Hide main app nav/pages
-    document.addEventListener('DOMContentLoaded', function(){
-      var nav = document.querySelector('.nav');
-      if(nav) nav.style.display = 'none';
-      document.querySelectorAll('.page').forEach(function(p){ p.style.display='none'; });
-    });
+    // Inject CSS immediately — before DOM loads — so nav never flashes
+    var style = document.createElement('style');
+    style.textContent = '.nav, .page, .modal-overlay, .toast-container, #managerReadyTray { display:none!important; } #mechPwaPage { display:block!important; }';
+    document.head.appendChild(style);
   }
 })();
 
