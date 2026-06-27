@@ -1301,6 +1301,13 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📨 Notifications from Workshop Manager</div>
       <div id="supNotifyList"><div class="text2 text-xs" style="padding:12px">No notifications yet</div></div>
     </div>
+
+    <!-- MECHANIC PULSE -->
+    <div class="card" style="border-top:3px solid #22c55e">
+      <div class="card-title"><span class="dot" style="background:#22c55e"></span>⚡ Mechanic Pulse — Last Job Punch</div>
+      <div class="text-xs text2 mb-12">Shows last job marked done per mechanic. Green = active recently. Red = idle. Use to redirect free mechanics.</div>
+      <div id="mechPulseList"><div class="text2 text-xs" style="padding:12px">No job punches today yet</div></div>
+    </div>
   </div>
 
 </div>
@@ -4713,7 +4720,7 @@ function refreshSupervisorPage(){
     sel.value=currentVal; // truck is still valid (not picked up by another supervisor) — keep it selected
   }
   refreshSupBayOptions();
-  updateBadge();refreshSupBayTable();refreshSupNotify();refreshSupParking();
+  updateBadge();refreshSupBayTable();refreshSupNotify();refreshSupParking();refreshMechPulse();
 }
 
 // Rebuilds the Bay Allocation dropdown each time, disabling and labeling any bay that's
@@ -5031,6 +5038,64 @@ function saveSupervisorEntry(){
   resetPhotoSlots();
   // Hide print button
   const pbBtn=document.getElementById('supPrintBtn'); if(pbBtn) pbBtn.style.display='none';
+}
+
+function refreshMechPulse(){
+  var el = document.getElementById('mechPulseList');
+  if(!el) return;
+  var today = new Date().toDateString();
+  // Build map: mechanic name → {lastTime, lastJob, lastTruck, doneCount, allDone}
+  var mechMap = {};
+  S.inspections.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e || e.exitTime) return;
+    if(new Date(e.entryTime).toDateString()!==today) return;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var mechName = ((ins.deptStaff||{})[d]||'').trim();
+      if(!mechName) return;
+      var jobs = (ins.jobs||{})[d]||[];
+      var total = jobs.length;
+      var doneCount = 0;
+      jobs.forEach(function(j,i){
+        var upd = (S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
+        if(upd.done||j.done){
+          doneCount++;
+          var t = upd.doneTime || upd.time || '';
+          if(!mechMap[mechName]) mechMap[mechName]={lastTime:'',lastJob:'',lastTruck:'',totalDone:0,totalJobs:0};
+          mechMap[mechName].totalDone++;
+          if(!mechMap[mechName].lastTime || t > mechMap[mechName].lastTime){
+            mechMap[mechName].lastTime = t;
+            mechMap[mechName].lastJob = j.desc;
+            mechMap[mechName].lastTruck = ins.truckNo;
+          }
+        }
+        if(!mechMap[mechName]) mechMap[mechName]={lastTime:'',lastJob:'',lastTruck:'',totalDone:0,totalJobs:0};
+        mechMap[mechName].totalJobs += 1;
+      });
+    });
+  });
+
+  var names = Object.keys(mechMap).sort();
+  if(!names.length){ el.innerHTML='<div class="text2 text-xs" style="padding:12px">No job punches today yet</div>'; return; }
+
+  var now = new Date();
+  el.innerHTML = names.map(function(name){
+    var m = mechMap[name];
+    var allDone = m.totalJobs > 0 && m.totalDone >= m.totalJobs;
+    var lastDate = m.lastTime ? new Date(m.lastTime) : null;
+    var minsAgo = lastDate ? Math.floor((now-lastDate)/60000) : null;
+    var freshness = minsAgo===null ? 'gray' : minsAgo < 30 ? '#22c55e' : minsAgo < 90 ? '#e6a817' : '#ef4444';
+    var status = allDone
+      ? '<span style="background:rgba(34,197,94,.15);color:#22c55e;border:1px solid #22c55e;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700">✅ ALL DONE — FREE</span>'
+      : minsAgo===null ? '<span style="color:#555;font-size:11px">No punch yet</span>'
+      : '<span style="color:'+freshness+';font-size:11px">Last punch '+(minsAgo<1?'just now':minsAgo+'m ago')+'</span>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap">'
+      +'<div style="width:8px;height:8px;border-radius:50%;background:'+freshness+';flex-shrink:0"></div>'
+      +'<div style="flex:1;min-width:120px"><div style="font-size:13px;font-weight:700">'+name+'</div>'
+      +(m.lastJob?'<div style="font-size:11px;color:#888">'+m.lastJob+' · '+m.lastTruck+'</div>':'')+'</div>'
+      +'<div style="text-align:right">'+status+'<div style="font-size:10px;color:#555;margin-top:2px">'+m.totalDone+'/'+m.totalJobs+' jobs done</div></div>'
+      +'</div>';
+  }).join('');
 }
 
 function refreshSupBayTable(){
