@@ -9096,6 +9096,8 @@ function deleteTruckRecords(tn,what){
   if(what==='all'||what==='inspections'){moveToRecycleBin('inspections',S.inspections.filter(i=>i.truckNo===tn),`Job cards — ${tn}`);S.inspections=S.inspections.filter(i=>i.truckNo!==tn);}
   if(what==='all'||what==='appointments'){moveToRecycleBin('appointments',S.appointments.filter(a=>a.truckNo===tn),`Appointments — ${tn}`);S.appointments=S.appointments.filter(a=>a.truckNo!==tn);}
   if(what==='all'){moveToRecycleBin('breakdowns',(S.breakdowns||[]).filter(b=>b.truckNo===tn),`Breakdowns — ${tn}`);S.breakdowns=(S.breakdowns||[]).filter(b=>b.truckNo!==tn);}
+  // Clear Hours Worked log for this truck
+  if(what==='all' && S.workerLog) S.workerLog=S.workerLog.filter(function(w){ return w.truckNo!==tn; });
   save();loadDcTruckRecords();refreshAuditTrail();
   toast(`🗑️ Records for ${tn} moved to Recycle Bin`,'ok');
 }
@@ -10218,7 +10220,7 @@ function loadEditRecord(){
 // jobUpdates/deptETDs keyed off those inspection ids. Scoped strictly to truckNo so it
 // can never touch any other truck's data, unlike the old global Reset All Data button.
 function deleteTruckRecords(truckNo){
-  if(!confirm(`Delete ALL records for ${truckNo}? This removes its gate entry, inspection, and job data only — every other truck is untouched. This cannot be undone.`)) return;
+  if(!confirm(`Delete ALL records for ${truckNo}? This removes its gate entry, inspection, job data and hours worked log. Every other truck is untouched. This cannot be undone.`)) return;
 
   const insIdsToRemove=S.inspections.filter(i=>i.truckNo===truckNo).map(i=>i.id);
 
@@ -10229,6 +10231,9 @@ function deleteTruckRecords(truckNo){
     Object.keys(S.jobUpdates).forEach(k=>{ if(k.startsWith(insId+'_')) delete S.jobUpdates[k]; });
     Object.keys(S.deptETDs).forEach(k=>{ if(k.startsWith(insId+'_')) delete S.deptETDs[k]; });
   });
+
+  // Also remove workerLog entries related to this truck
+  if(S.workerLog) S.workerLog=S.workerLog.filter(function(w){ return w.truckNo!==truckNo; });
 
   save();
   document.getElementById('editTruckSearch').value='';
