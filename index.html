@@ -2045,6 +2045,7 @@ tr:hover td { background: var(--surface2); }
       <!-- TABS within Data Control -->
       <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="dc-tab-truck" onclick="showDcTab('truck',this)" style="font-weight:600">🚛 By Truck</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-datetruck" onclick="showDcTab('datetruck',this)">📅🚛 By Date & Truck</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-date" onclick="showDcTab('date',this)">📅 By Date Range</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-type" onclick="showDcTab('type',this)">📋 By Type</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
@@ -2059,6 +2060,22 @@ tr:hover td { background: var(--surface2); }
           <div><label>Truck Number</label><input type="text" id="dcTruckSearch" placeholder="e.g. T241 ECZ" oninput="this.value=this.value.toUpperCase();loadDcTruckRecords()"></div>
         </div>
         <div id="dcTruckRecords"></div>
+      </div>
+
+      <!-- BY DATE & TRUCK -->
+      <div id="dc-section-datetruck" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Move to Recycle Bin — By Date & Truck</div>
+        <div class="text-xs text2 mb-12">Select a date and truck — all records (gate in → jobs → gate out) will be moved to Recycle Bin. Incharge report updated automatically. Recoverable within 7 days.</div>
+        <div class="form-row cols-2" style="margin-bottom:10px">
+          <div><label>Date</label><input type="date" id="dcDtDate" onchange="loadDcDateTrucks()"></div>
+          <div><label>Truck No</label>
+            <select id="dcDtTruck" onchange="loadDcDateTruckPreview()">
+              <option value="">-- Select date first --</option>
+            </select>
+          </div>
+        </div>
+        <div id="dcDtPreview" style="margin-bottom:10px"></div>
+        <button class="btn btn-danger" id="dcDtMoveBtn" style="display:none" onclick="moveDateTruckToRecycleBin()">♻️ Move to Recycle Bin</button>
       </div>
 
       <!-- BY DATE RANGE -->
@@ -8866,8 +8883,9 @@ function lockDataControl(){
 }
 
 function showDcTab(tab,btn){
-  ['truck','date','type','recycle','audit','pin'].forEach(t=>{
-    document.getElementById('dc-section-'+t).style.display=t===tab?'block':'none';
+  ['truck','datetruck','date','type','recycle','audit','pin'].forEach(t=>{
+    const s=document.getElementById('dc-section-'+t);
+    if(s) s.style.display=t===tab?'block':'none';
     const b=document.getElementById('dc-tab-'+t);
     if(b){b.style.background=t===tab?'var(--accent)':'';b.style.color=t===tab?'#fff':'';}
   });
@@ -8887,6 +8905,68 @@ function showDcTab(tab,btn){
 }
 
 // ── MOVE TO RECYCLE BIN ──
+function loadDcDateTrucks(){
+  var dateVal = document.getElementById('dcDtDate').value;
+  var sel = document.getElementById('dcDtTruck');
+  document.getElementById('dcDtPreview').innerHTML='';
+  document.getElementById('dcDtMoveBtn').style.display='none';
+  if(!dateVal){ sel.innerHTML='<option value="">-- Select date first --</option>'; return; }
+  var d = new Date(dateVal).toLocaleDateString('en-GB');
+  // Find entries on that date
+  var matches = S.entries.filter(function(e){
+    return new Date(e.entryTime).toLocaleDateString('en-GB')===d;
+  });
+  if(!matches.length){
+    sel.innerHTML='<option value="">No trucks on this date</option>';
+    return;
+  }
+  sel.innerHTML='<option value="">-- Select truck --</option>'+matches.map(function(e){
+    return '<option value="'+e.id+'">'+e.truckNo+(e.exitTime?' (exited)':' (in yard)')+'</option>';
+  }).join('');
+}
+
+function loadDcDateTruckPreview(){
+  var entryId = document.getElementById('dcDtTruck').value;
+  var preview = document.getElementById('dcDtPreview');
+  var btn = document.getElementById('dcDtMoveBtn');
+  if(!entryId){ preview.innerHTML=''; btn.style.display='none'; return; }
+  var e = S.entries.find(function(x){ return String(x.id)===String(entryId); });
+  var ins = S.inspections.find(function(i){ return String(i.entryId)===String(entryId); });
+  if(!e){ preview.innerHTML='<div class="alert alert-warn">Entry not found.</div>'; return; }
+  var jobCount=0;
+  if(ins && ins.jobs){ ['mech','elec','tyre','weld'].forEach(function(d){ jobCount+=(ins.jobs[d]||[]).length; }); }
+  preview.innerHTML='<div class="alert" style="background:rgba(230,120,0,.1);border:1px solid var(--accent);font-size:13px;line-height:1.8">'
+    +'<strong>'+e.truckNo+'</strong><br>'
+    +'Gate In: '+new Date(e.entryTime).toLocaleString('en-GB')+'<br>'
+    +(e.exitTime?'Gate Out: '+new Date(e.exitTime).toLocaleString('en-GB')+'<br>':'Still in yard<br>')
+    +(ins?'Bay: '+ins.bayNo+' · Jobs: '+jobCount:'No inspection record')
+    +'<br><span style="color:var(--red);font-size:11px">Will move entry + inspection + all jobs to Recycle Bin</span></div>';
+  btn.style.display='block';
+}
+
+function moveDateTruckToRecycleBin(){
+  var entryId = document.getElementById('dcDtTruck').value;
+  if(!entryId) return;
+  var e = S.entries.find(function(x){ return String(x.id)===String(entryId); });
+  if(!e) return;
+  requireManagerConfirm('Move all records for '+e.truckNo+' to Recycle Bin?', function(){
+    var ins = S.inspections.find(function(i){ return String(i.entryId)===String(entryId); });
+    var items = [];
+    items.push({type:'entry', data:JSON.parse(JSON.stringify(e))});
+    if(ins){ items.push({type:'inspection', data:JSON.parse(JSON.stringify(ins))}); }
+    moveToRecycleBin('date-truck-cleanup', items, e.truckNo+' — '+new Date(e.entryTime).toLocaleDateString('en-GB'));
+    // Remove from active arrays
+    S.entries = S.entries.filter(function(x){ return String(x.id)!==String(entryId); });
+    if(ins){ S.inspections = S.inspections.filter(function(i){ return String(i.entryId)!==String(entryId); }); }
+    save();
+    // Reset UI
+    document.getElementById('dcDtPreview').innerHTML='<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid #22c55e;color:#22c55e">✅ Moved to Recycle Bin — recoverable within 7 days</div>';
+    document.getElementById('dcDtMoveBtn').style.display='none';
+    document.getElementById('dcDtTruck').value='';
+    toast('♻️ '+e.truckNo+' moved to Recycle Bin','ok');
+  });
+}
+
 function moveToRecycleBin(type, items, label){
   if(!S.recycleBin) S.recycleBin=[];
   const record={
