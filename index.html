@@ -6805,23 +6805,23 @@ function refreshTimeStamping(){
   // Target times per stage (minutes)
   const T_TARGETS = { t01:15, t12:30, t24:120, t45:30 };
 
-  const avg01 = avgTime(allRows, r=> r.t1&&r.t0 ? (r.t1-r.t0)/60000 : null);
-  const avg12 = avgTime(allRows, r=> r.t2&&r.t1 ? (r.t2-r.t1)/60000 : null);
-  const avg24 = avgTime(allRows, r=> r.t4&&r.t2 ? (r.t4-r.t2)/60000 : null);
-  const avg45 = avgTime(allRows, r=> r.t5&&r.t4 ? (r.t5-r.t4)/60000 : null);
+  const avg01 = avgTime(slaRows, r=> r.t1&&r.t0 ? (r.t1-r.t0)/60000 : null);
+  const avg12 = avgTime(slaRows, r=> r.t2&&r.t1 ? (r.t2-r.t1)/60000 : null);
+  const avg24 = avgTime(slaRows, r=> r.t4&&r.t2 ? (r.t4-r.t2)/60000 : null);
+  const avg45 = avgTime(slaRows, r=> r.t5&&r.t4 ? (r.t5-r.t4)/60000 : null);
 
-  // Score: 100% if at/under target, drops as time increases
-  const score = (avg, target) => {
-    if(avg===null) return null;
-    if(avg<=target) return 100;
-    // Every 10% over target = -10 points, min 0
-    return Math.max(0, Math.round(100 - ((avg-target)/target)*100));
+  // Score: % of trucks that met the target (only among those with both timestamps)
+  const score = (rows, fn, target) => {
+    const eligible = rows.filter(r=>fn(r)!==null);
+    if(!eligible.length) return null;
+    const met = eligible.filter(r=>fn(r)<=target).length;
+    return Math.round(met/eligible.length*100);
   };
 
-  const s01 = score(avg01, T_TARGETS.t01);
-  const s12 = score(avg12, T_TARGETS.t12);
-  const s24 = score(avg24, T_TARGETS.t24);
-  const s45 = score(avg45, T_TARGETS.t45);
+  const s01 = score(slaRows, r=> r.t1&&r.t0 ? (r.t1-r.t0)/60000 : null, T_TARGETS.t01);
+  const s12 = score(slaRows, r=> r.t2&&r.t1 ? (r.t2-r.t1)/60000 : null, T_TARGETS.t12);
+  const s24 = score(slaRows, r=> r.t4&&r.t2 ? (r.t4-r.t2)/60000 : null, T_TARGETS.t24);
+  const s45 = score(slaRows, r=> r.t5&&r.t4 ? (r.t5-r.t4)/60000 : null, T_TARGETS.t45);
   const sSLA = pctOf(slaMetCount, slaEligible);
 
   const fmtAvg = m => m!==null ? (m<60?Math.round(m)+'min':(m/60).toFixed(1)+'h') : '—';
