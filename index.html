@@ -1512,9 +1512,15 @@ tr:hover td { background: var(--surface2); }
   <!-- DEPT LEADERBOARD -->
   <div class="ground-subpage" id="subground-leaderboard">
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:#f59e0b"></span>🏆 Department Leaderboard — Today</div>
-      <div class="text-xs text2 mb-12">Jobs completed today per mechanic, grouped by department.</div>
-      <div id="groundLeaderboardList"><div class="text2 text-xs" style="padding:12px">No data yet today</div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#f59e0b"></span>🏆 Department Leaderboard — Today</div>
+        <div style="display:flex;gap:6px">
+          <button id="lbPunchedBtn" onclick="showLbView('punched',this)" class="btn btn-primary btn-sm">✅ Punched</button>
+          <button id="lbNotBtn" onclick="showLbView('notpunched',this)" class="btn btn-ghost btn-sm">⚠️ Not Punched</button>
+        </div>
+      </div>
+      <div id="lbPunchedView"><div class="text2 text-xs" style="padding:12px">No data yet today</div></div>
+      <div id="lbNotPunchedView" style="display:none"><div class="text2 text-xs" style="padding:12px">Loading...</div></div>
     </div>
   </div>
 </div>
@@ -5455,15 +5461,20 @@ function refreshGroundPage(){
 }
 
 var curGroundInsId=null;
+function showLbView(view, btn){
+  document.getElementById('lbPunchedView').style.display = view==='punched'?'block':'none';
+  document.getElementById('lbNotPunchedView').style.display = view==='notpunched'?'block':'none';
+  document.getElementById('lbPunchedBtn').className = view==='punched'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
+  document.getElementById('lbNotBtn').className = view==='notpunched'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
+}
+
 function renderGroundLeaderboard(){
-  var el=document.getElementById('groundLeaderboardList');
-  if(!el) return;
   var today=new Date().toDateString();
   var depts=['mech','elec','tyre','weld'];
   var dLabel={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
   var dColor={mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171'};
 
-  // Build mechanic → done count map per dept
+  // Build mechanic stats: done jobs, total jobs, trucks worked on
   var deptMap={};
   depts.forEach(function(d){ deptMap[d]={}; });
 
@@ -5471,37 +5482,67 @@ function renderGroundLeaderboard(){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e) return;
     if(new Date(e.entryTime).toDateString()!==today) return;
+    var truckDelivered = !!e.exitTime;
     depts.forEach(function(d){
       var mech=((ins.deptStaff||{})[d]||'').trim();
       if(!mech) return;
-      if(!deptMap[d][mech]) deptMap[d][mech]=0;
-      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+      if(!deptMap[d][mech]) deptMap[d][mech]={done:0,total:0,trucks:0,delivered:0};
+      var jobs=(ins.jobs||{})[d]||[];
+      deptMap[d][mech].trucks++;
+      if(truckDelivered) deptMap[d][mech].delivered++;
+      jobs.forEach(function(j,i){
         var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
-        if(upd.done||j.done) deptMap[d][mech]++;
+        deptMap[d][mech].total++;
+        if(upd.done||j.done) deptMap[d][mech].done++;
       });
     });
   });
 
+  // Build "not punched" list per dept from roster
+  var notPunchedHtml='<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mechanics with no job punches today</div>';
+  var anyNotPunched=false;
+  depts.forEach(function(d){
+    var rosterKey={mech:'mech',elec:'elec',tyre:'tyre',weld:'weld'}[d];
+    var allInDept=(S.staffRoster[rosterKey]||[]);
+    var notPunched=allInDept.filter(function(name){ return !deptMap[d][name] || deptMap[d][name].done===0; });
+    if(!notPunched.length) return;
+    anyNotPunched=true;
+    notPunchedHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:'+dColor[d]+';margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+dLabel[d]+'</div>';
+    notPunched.forEach(function(name,idx){
+      notPunchedHtml+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.05)">'
+        +'<span style="font-size:13px;color:#ef4444">⚠️</span>'
+        +'<span style="flex:1;font-size:13px;font-weight:600">'+name+'</span>'
+        +'<span style="font-size:11px;color:#888">No punches</span>'
+        +'</div>';
+    });
+    notPunchedHtml+='</div>';
+  });
+  var npEl=document.getElementById('lbNotPunchedView');
+  if(npEl) npEl.innerHTML=anyNotPunched?notPunchedHtml:'<div style="color:#22c55e;font-weight:700;padding:12px">✅ All mechanics have punched today!</div>';
+
+  // Build punched leaderboard
   var html='';
   depts.forEach(function(d){
-    var entries=Object.entries(deptMap[d]).sort(function(a,b){ return b[1]-a[1]; });
+    var entries=Object.entries(deptMap[d]).filter(function(e){ return e[1].done>0; }).sort(function(a,b){ return b[1].done-a[1].done; });
     if(!entries.length) return;
     html+='<div style="margin-bottom:16px">'
       +'<div style="font-size:12px;font-weight:800;color:'+dColor[d]+';margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+dLabel[d]+'</div>';
     entries.forEach(function(entry,idx){
       var medals=['🥇','🥈','🥉'];
-      var medal=idx<3?medals[idx]:'  '+(idx+1)+'.';
-      var pct=entry[1]>0?Math.min(100,entry[1]*10):0; // rough bar width
-      html+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'
-        +'<span style="font-size:16px;width:28px">'+medal+'</span>'
-        +'<span style="flex:1;font-size:13px;font-weight:700">'+entry[0]+'</span>'
-        +'<span style="font-size:13px;font-weight:800;color:'+dColor[d]+'">'+entry[1]+' jobs</span>'
+      var medal=idx<3?medals[idx]:(idx+1)+'.';
+      var m=entry[1];
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.05)">'
+        +'<span style="font-size:16px;width:28px;text-align:center">'+medal+'</span>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:800">'+entry[0]+'</div>'
+        +'<div style="font-size:11px;color:#888">'+m.trucks+' truck'+(m.trucks!==1?'s':'')+' · '+m.delivered+' delivered · '+m.done+'/'+m.total+' jobs</div></div>'
+        +'<span style="font-size:14px;font-weight:900;color:'+dColor[d]+'">'+m.done+'</span>'
         +'</div>';
     });
     html+='</div>';
   });
 
-  el.innerHTML=html||'<div class="text2 text-xs" style="padding:12px">No completed jobs recorded today yet</div>';
+  var el=document.getElementById('lbPunchedView');
+  if(el) el.innerHTML=html||'<div class="text2 text-xs" style="padding:12px">No completed jobs recorded today yet</div>';
 }
 
 function renderBayGrid(){
