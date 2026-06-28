@@ -253,7 +253,23 @@ tr:hover td { background: var(--surface2); }
 .bay-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
-.bay-cell { border: 2px solid var(--border); border-radius: var(--radius); padding: 10px 6px; text-align: center; cursor: pointer; transition: all .15s; min-height: 58px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.bay-grid-box { border:2px solid var(--border); border-radius:8px; padding:8px 4px; text-align:center; cursor:pointer; transition:all .15s; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.bay-grid-box .bgb-no { font-size:11px; font-weight:800; color:var(--text2); }
+.bay-grid-box .bgb-truck { font-size:11px; font-weight:800; margin-top:2px; }
+.bay-grid-box.bgb-free { border-style:dashed; opacity:.5; }
+.bay-grid-box.bgb-occupied { border-color:#3b82f6; background:rgba(59,130,246,.2); }
+.bay-grid-box.bgb-occupied .bgb-no { color:#93c5fd; }
+.bay-grid-box.bgb-occupied .bgb-truck { color:#dbeafe; }
+.bay-grid-box.bgb-selected { border-color:#e07b00 !important; background:rgba(224,123,0,.25) !important; box-shadow:0 0 0 2px rgba(224,123,0,.4); }
+.bay-grid-box.bgb-selected .bgb-no { color:#fed7aa !important; }
+.bay-grid-box.bgb-selected .bgb-truck { color:#fff !important; }
+.punch-btn { padding:10px 18px; font-size:14px; font-weight:800; border-radius:10px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
+.punch-btn-start { background:#1d4ed8; color:#fff; }
+.punch-btn-start:hover { background:#1e40af; }
+.punch-btn-done { background:#16a34a; color:#fff; }
+.punch-btn-done:hover { background:#15803d; }
+.punch-btn-avail { background:#374151; color:#9ca3af; }
+.punch-btn-avail:hover { background:#1f2937; color:#fff; }
 .bay-cell .bay-no { font-size: 12px; font-weight: 800; color: var(--text2); }
 .bay-cell .bay-truck { font-size: 13px; font-weight: 800; color: var(--text); margin-top: 4px; letter-spacing:.5px; }
 .bay-cell.empty { border-style: dashed; opacity:.6; }
@@ -1344,24 +1360,12 @@ tr:hover td { background: var(--surface2); }
   <div class="subnav">
     <div class="subtab active" onclick="showGroundSub('ground-baywork',this)">Bay Work</div>
     <div class="subtab" onclick="showGroundSub('ground-punch',this)">👤 Punch Status</div>
+    <div class="subtab" onclick="showGroundSub('ground-leaderboard',this)">🏆 Leaderboard</div>
   </div>
 
   <!-- SUB: BAY WORK (existing) -->
   <div class="ground-subpage active" id="subground-baywork">
-    <div class="flex items-center gap-12 mb-16 flex-wrap">
-      <div>
-        <label style="margin-bottom:6px">Select Team</label>
-        <div class="team-toggle">
-          <button class="team-btn active-a" id="teamABtn" onclick="selectTeam('A')">Team A</button>
-          <button class="team-btn" id="teamBBtn" onclick="selectTeam('B')">Team B</button>
-        </div>
-      </div>
-      <div>
-        <label style="margin-bottom:6px">Select Bay</label>
-        <select id="groundBaySelect" onchange="loadBayJobs()" style="min-width:150px">
-          <option value="">-- Select Bay --</option>
-        </select>
-      </div>
+    <div class="flex items-center gap-12 mb-8 flex-wrap">
       <div>
         <label style="margin-bottom:6px">Filter Dept</label>
         <select id="groundDeptFilter" onchange="loadBayJobs()" style="min-width:150px">
@@ -1372,6 +1376,18 @@ tr:hover td { background: var(--surface2); }
           <option value="weld">Welding</option>
         </select>
       </div>
+    </div>
+
+    <!-- Bay Grid Selector -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM A — BAYS 1–10</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px" id="bayGridA"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM B — BAYS 11–21</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px" id="bayGridB"></div>
+      <!-- Hidden select kept for JS compatibility -->
+      <select id="groundBaySelect" onchange="loadBayJobs()" style="display:none">
+        <option value="">-- Select Bay --</option>
+      </select>
     </div>
 
     <div class="grid-2">
@@ -1478,6 +1494,15 @@ tr:hover td { background: var(--surface2); }
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--purple)"></span>👥 Who's Where — Live Worker Board</div>
       <div id="workerBoard"><div class="alert alert-info">No workers have punched in today yet.</div></div>
+    </div>
+  </div>
+
+  <!-- DEPT LEADERBOARD -->
+  <div class="ground-subpage" id="subground-leaderboard">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#f59e0b"></span>🏆 Department Leaderboard — Today</div>
+      <div class="text-xs text2 mb-12">Jobs completed today per mechanic, grouped by department.</div>
+      <div id="groundLeaderboardList"><div class="text2 text-xs" style="padding:12px">No data yet today</div></div>
     </div>
   </div>
 </div>
@@ -3473,6 +3498,7 @@ function showGroundSub(id,el){
   document.getElementById('sub'+id).classList.add('active');
   el.classList.add('active');
   if(id==='ground-punch') refreshPunchTab();
+  if(id==='ground-leaderboard') renderGroundLeaderboard();
 }
 
 function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); refreshPostponePage(); }
@@ -5374,6 +5400,10 @@ function refreshGroundPage(){
     loadBayJobs();
   }
 
+  // Render bay grid boxes
+  renderBayGrid();
+
+
   // Calculate real team performance from actual inspection data
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
@@ -5411,6 +5441,84 @@ function refreshGroundPage(){
 }
 
 var curGroundInsId=null;
+function renderGroundLeaderboard(){
+  var el=document.getElementById('groundLeaderboardList');
+  if(!el) return;
+  var today=new Date().toDateString();
+  var depts=['mech','elec','tyre','weld'];
+  var dLabel={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
+  var dColor={mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171'};
+
+  // Build mechanic → done count map per dept
+  var deptMap={};
+  depts.forEach(function(d){ deptMap[d]={}; });
+
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e) return;
+    if(new Date(e.entryTime).toDateString()!==today) return;
+    depts.forEach(function(d){
+      var mech=((ins.deptStaff||{})[d]||'').trim();
+      if(!mech) return;
+      if(!deptMap[d][mech]) deptMap[d][mech]=0;
+      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
+        if(upd.done||j.done) deptMap[d][mech]++;
+      });
+    });
+  });
+
+  var html='';
+  depts.forEach(function(d){
+    var entries=Object.entries(deptMap[d]).sort(function(a,b){ return b[1]-a[1]; });
+    if(!entries.length) return;
+    html+='<div style="margin-bottom:16px">'
+      +'<div style="font-size:12px;font-weight:800;color:'+dColor[d]+';margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+dLabel[d]+'</div>';
+    entries.forEach(function(entry,idx){
+      var medals=['🥇','🥈','🥉'];
+      var medal=idx<3?medals[idx]:'  '+(idx+1)+'.';
+      var pct=entry[1]>0?Math.min(100,entry[1]*10):0; // rough bar width
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">'
+        +'<span style="font-size:16px;width:28px">'+medal+'</span>'
+        +'<span style="flex:1;font-size:13px;font-weight:700">'+entry[0]+'</span>'
+        +'<span style="font-size:13px;font-weight:800;color:'+dColor[d]+'">'+entry[1]+' jobs</span>'
+        +'</div>';
+    });
+    html+='</div>';
+  });
+
+  el.innerHTML=html||'<div class="text2 text-xs" style="padding:12px">No completed jobs recorded today yet</div>';
+}
+
+function renderBayGrid(){
+  var teamABays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
+  var teamBBays=['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
+  var currentBay=(document.getElementById('groundBaySelect')||{}).value||'';
+
+  function renderGrid(elId, bayList){
+    var el=document.getElementById(elId);
+    if(!el) return;
+    el.innerHTML=bayList.map(function(b){
+      var ins=S.inspections.find(function(i){ var e=S.entries.find(function(x){ return x.id==i.entryId; }); return e&&!e.exitTime&&i.bayNo===b; });
+      var isOcc=!!ins;
+      var isSelected=currentBay===b;
+      var cls='bay-grid-box '+(isSelected?'bgb-selected':isOcc?'bgb-occupied':'bgb-free');
+      var label=b.replace('Bay ','B');
+      var truck=ins?'<div class="bgb-truck">'+ins.truckNo+'</div>':'<div style="font-size:9px;color:var(--text3)">Free</div>';
+      return '<div class="'+cls+'" onclick="selectBayFromGrid(\''+b+'\')"><div class="bgb-no">'+label+'</div>'+truck+'</div>';
+    }).join('');
+  }
+  renderGrid('bayGridA', teamABays);
+  renderGrid('bayGridB', teamBBays);
+}
+
+function selectBayFromGrid(bay){
+  var sel=document.getElementById('groundBaySelect');
+  if(sel){ sel.value=bay; }
+  loadBayJobs();
+  renderBayGrid();
+}
+
 function loadBayJobs(){
   const bay=document.getElementById('groundBaySelect').value;
   const notice=document.getElementById('groundAutoCompleteNotice');
