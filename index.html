@@ -254,15 +254,15 @@ tr:hover td { background: var(--surface2); }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
 .bay-grid-box { border:2px solid var(--border); border-radius:6px; padding:5px 3px; text-align:center; cursor:pointer; transition:all .15s; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.bay-grid-box .bgb-no { font-size:10px; font-weight:800; color:var(--text2); }
-.bay-grid-box .bgb-truck { font-size:10px; font-weight:800; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.bay-grid-box .bgb-no { font-size:11px; font-weight:900; color:#333; }
+.bay-grid-box .bgb-truck { font-size:10px; font-weight:900; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#111; }
 .bay-grid-box.bgb-free { border-style:dashed; opacity:.45; }
-.bay-grid-box.bgb-occupied { border-color:#3b82f6; background:rgba(59,130,246,.22); }
-.bay-grid-box.bgb-occupied .bgb-no { color:#93c5fd; }
-.bay-grid-box.bgb-occupied .bgb-truck { color:#dbeafe; }
-.bay-grid-box.bgb-selected { border-color:#e07b00 !important; background:rgba(224,123,0,.3) !important; box-shadow:0 0 0 2px rgba(224,123,0,.5); }
-.bay-grid-box.bgb-selected .bgb-no { color:#fed7aa !important; }
-.bay-grid-box.bgb-selected .bgb-truck { color:#fff !important; }
+.bay-grid-box.bgb-occupied { border-color:#1d4ed8; background:#bfdbfe; border-width:3px; }
+.bay-grid-box.bgb-occupied .bgb-no { color:#1e3a8a; }
+.bay-grid-box.bgb-occupied .bgb-truck { color:#1e3a8a; font-size:11px; }
+.bay-grid-box.bgb-selected { border-color:#b45309 !important; background:#fde68a !important; border-width:3px; box-shadow:0 0 0 2px rgba(180,83,9,.5); }
+.bay-grid-box.bgb-selected .bgb-no { color:#78350f !important; }
+.bay-grid-box.bgb-selected .bgb-truck { color:#78350f !important; }
 .punch-btn { padding:10px 18px; font-size:14px; font-weight:800; border-radius:10px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
 .punch-btn-start { background:#1d4ed8; color:#fff; }
 .punch-btn-start:hover { background:#1e40af; }
