@@ -5513,20 +5513,29 @@ function renderBayGrid(){
   renderGrid('bayGridB', teamBBays);
 }
 
+var _selectedGridBay = '';
+
 function selectBayFromGrid(bay){
+  _selectedGridBay = bay;
   var sel=document.getElementById('groundBaySelect');
-  if(sel){ sel.value=bay; }
+  if(sel){
+    // Add option if not present
+    var found=false;
+    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===bay){found=true;break;} }
+    if(!found){ var opt=document.createElement('option'); opt.value=bay; opt.text=bay; sel.appendChild(opt); }
+    sel.value=bay;
+  }
   loadBayJobs();
   renderBayGrid();
-  // Auto-scroll to jobs section
   setTimeout(function(){
     var jobsEl=document.getElementById('groundJobList');
     if(jobsEl) jobsEl.scrollIntoView({behavior:'smooth', block:'start'});
-  }, 150);
+  }, 200);
 }
 
 function loadBayJobs(){
-  const bay=document.getElementById('groundBaySelect').value;
+  var sel=document.getElementById('groundBaySelect');
+  const bay=(_selectedGridBay)||(sel?sel.value:'');
   const notice=document.getElementById('groundAutoCompleteNotice');
   if(!bay){notice.style.display='none';return;}
   // Find inspection for this bay — include parked trucks (ground team may still need to see jobs)
