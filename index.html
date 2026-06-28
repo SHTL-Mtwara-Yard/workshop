@@ -588,6 +588,15 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- SUPERVISOR VIEW PWA PAGE — shown when ?view= param present -->
+<div id="viewPwaPage" style="display:none; position:fixed; inset:0; background:#0f1117; z-index:9999; overflow-y:auto; font-family:'Segoe UI',sans-serif;">
+  <div style="max-width:480px; margin:0 auto; padding:16px;">
+    <div id="viewPwaContent">
+      <div style="text-align:center;padding:60px 20px;color:#555">Connecting...</div>
+    </div>
+  </div>
+</div>
+
 <!-- NAV -->
 <nav class="nav">
   <div class="nav-brand">SHTL <span>Mtwara</span></div>
@@ -3244,7 +3253,8 @@ fbRoot.on('value', snapshot=>{
       spareRequests: data.spareRequests || [],
       spareRequisitions: data.spareRequisitions || [],
       qrAccess: data.qrAccess || {},
-      slaMissReasons: data.slaMissReasons || {}
+      slaMissReasons: data.slaMissReasons || {},
+      viewQrAccess: data.viewQrAccess || {}
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -3271,6 +3281,8 @@ fbRoot.on('value', snapshot=>{
     if(newAlerts.length>0) playSecurityBeep();
     // Mechanic PWA live refresh
     if(_mechPwaName) renderMechPwa();
+    // Supervisor view PWA live refresh
+    if(_viewPwaName) renderViewPwa();
   }
 }, err=>{
   console.error('Firebase listener error:',err);
@@ -9644,6 +9656,122 @@ function exportCSV(filename, headers, rows){
 }
 
 // ═══════════════════════════════════════════════════
+// SUPERVISOR VIEW PWA — ?view=NAME mode
+// ═══════════════════════════════════════════════════
+var _viewPwaName = null;
+var _viewPwaDept = null; // null = all depts, or 'mech','elec','tyre','weld'
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var viewParam = params.get('view');
+  if(viewParam){
+    _viewPwaName = decodeURIComponent(viewParam).toUpperCase();
+    var deptParam = params.get('dept');
+    _viewPwaDept = deptParam ? deptParam.toLowerCase() : null;
+    var style = document.createElement('style');
+    style.textContent = '.nav, .page, .modal-overlay, .toast-container, #managerReadyTray { display:none!important; } #viewPwaPage { display:block!important; }';
+    document.head.appendChild(style);
+  }
+})();
+
+function renderViewPwa(){
+  if(!_viewPwaName) return;
+  var el = document.getElementById('viewPwaContent');
+  if(!el) return;
+
+  // Check access
+  if(!(S.viewQrAccess||{})[_viewPwaName]){
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">🔒</div>'
+      +'<div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div>'
+      +'<div style="color:#888;font-size:13px">Ask your manager to enable view access.</div>'
+      +'<div style="color:#666;font-size:12px;margin-top:6px">Omba meneja wako akuruhusu.</div></div>';
+    return;
+  }
+
+  var depts = _viewPwaDept ? [_viewPwaDept] : ['mech','elec','tyre','weld'];
+  var dLabel = {mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
+  var dColor = {mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171'};
+
+  // Get active trucks
+  var activeIns = S.inspections.filter(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    return e && !e.exitTime;
+  });
+
+  if(!activeIns.length){
+    el.innerHTML = headerHtml()
+      +'<div style="text-align:center;padding:40px 20px;color:#555"><div style="font-size:36px">🏁</div>'
+      +'<div style="margin-top:8px;font-size:13px">No trucks in yard / Hakuna malori yardini</div></div>'
+      +'refreshNote()';
+    return;
+  }
+
+  var html = headerHtml();
+
+  activeIns.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    var truckTotal=0, truckDone=0;
+    depts.forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      truckTotal+=jobs.length;
+      jobs.forEach(function(j,i){
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
+        if(upd.done||j.done) truckDone++;
+      });
+    });
+    if(!truckTotal) return; // skip trucks with no relevant dept jobs
+
+    var pct = truckTotal ? Math.round(truckDone/truckTotal*100) : 0;
+    var pctColor = pct===100?'#22c55e':pct>50?'#e07b00':'#ef4444';
+
+    html += '<div style="background:#12121f;border:1px solid #2a2a3e;border-radius:12px;padding:12px;margin-bottom:12px">';
+    // Truck header
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<div><span style="font-size:15px;font-weight:800;color:#fff">'+ins.truckNo+'</span>'
+      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo+'</span></div>'
+      +'<span style="font-size:13px;font-weight:700;color:'+pctColor+'">'+pct+'%</span>'
+      +'</div>';
+    // Progress bar
+    html += '<div style="background:#1a1a2e;border-radius:4px;height:5px;margin-bottom:10px;overflow:hidden">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+pctColor+';border-radius:4px;transition:width .4s"></div></div>';
+
+    // Dept jobs
+    depts.forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      if(!jobs.length) return;
+      var dDone=0;
+      var mechName=((ins.deptStaff||{})[d]||'—');
+      html += '<div style="margin-bottom:8px">'
+        +'<div style="font-size:11px;font-weight:700;color:'+dColor[d]+';margin-bottom:4px">'+dLabel[d]+' &nbsp;·&nbsp; '+mechName+'</div>';
+      jobs.forEach(function(j,i){
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
+        var done=upd.done||j.done;
+        if(done) dDone++;
+        var doneTime=upd.doneTime?(' · '+new Date(upd.doneTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})):'';
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1a1a2e">'
+          +'<span style="font-size:16px">'+(done?'✅':'⏳')+'</span>'
+          +'<span style="font-size:12px;flex:1;color:'+(done?'#888':'#fff')+';'+(done?'text-decoration:line-through':'')+'">'+j.desc+'</span>'
+          +(done?'<span style="font-size:10px;color:#555">'+doneTime+'</span>':'')
+          +'</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '<div style="text-align:center;font-size:11px;color:#333;margin-top:8px">Updated / Imesasishwa: '+new Date().toLocaleTimeString('en-GB')+'</div>';
+  el.innerHTML = html;
+
+  function headerHtml(){
+    var deptTitle = _viewPwaDept ? dLabel[_viewPwaDept]+' View' : 'All Departments · Idara Zote';
+    return '<div style="background:linear-gradient(135deg,#1a3a5c,#0f2040);border-radius:14px;padding:14px 16px;margin-bottom:14px">'
+      +'<div style="font-size:10px;opacity:.7;letter-spacing:1px">LIVE VIEW · MUHTASARI</div>'
+      +'<div style="font-size:16px;font-weight:800;margin:2px 0">'+_viewPwaName+'</div>'
+      +'<div style="font-size:12px;opacity:.8">'+deptTitle+'</div>'
+      +'</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // MECHANIC PWA — ?mech=NAME mode
 // ═══════════════════════════════════════════════════
 var _mechPwaName = null;
@@ -9792,6 +9920,31 @@ function mechMarkDone(key){
 var _origFbReady = null;
 function _mechPwaLiveHook(){
   if(_mechPwaName) renderMechPwa();
+}
+
+function toggleViewQrAccess(name, dept, enable){
+  requireManagerConfirm((enable?'Enable':'Disable')+' View QR for '+name+'?', function(){
+    if(!S.viewQrAccess) S.viewQrAccess={};
+    var key = name+(dept?'_'+dept:'');
+    if(enable){ S.viewQrAccess[key]=true; } else { delete S.viewQrAccess[key]; }
+    save();
+    refreshStaffRoster();
+    toast((enable?'✅ View QR enabled':'⛔ View QR disabled')+' for '+name,'ok');
+  });
+}
+
+function showViewQR(name, dept){
+  var key = name+(dept?'_'+dept:'');
+  var url = 'https://shtl-mtwara-yard.github.io/workshop/?view='+encodeURIComponent(name)+(dept?'&dept='+dept:'');
+  var modal = document.getElementById('mechQrModal');
+  document.getElementById('mechQrName').textContent = name+(dept?' · '+dept.toUpperCase()+' View':' · All Depts');
+  document.getElementById('mechQrUrl').textContent = url;
+  var container = document.getElementById('mechQrCanvasWrap');
+  container.innerHTML = '';
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(container, { text: url, width: 260, height: 260, colorDark:'#000000', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.L });
+  }
+  modal.classList.add('open');
 }
 
 function toggleQrAccess(name, enable){
@@ -10885,7 +11038,9 @@ function refreshStaffRoster(){
         const assignedBay=(S.bayAssignments||{})[name]||'';
         const safeName=name.replace(/'/g,"\\'");
         const isMechDept=['mech','elec','tyre','weld'].includes(key);
+        const isViewDept=['floorsupervisor','incharge'].includes(key);
         const hasQr=isMechDept && !!(S.qrAccess||{})[name];
+        const hasViewQr=isViewDept && !!(S.viewQrAccess||{})[name];
         var qrToggle='';
         if(isMechDept){
           if(hasQr){
@@ -10893,6 +11048,14 @@ function refreshStaffRoster(){
               +'<button class="btn btn-sm" style="background:#2a1a1a;color:#f87171;border:1px solid #dc2626;margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',false)" title="Disable QR">✕</button>';
           } else {
             qrToggle='<button class="btn btn-ghost btn-sm" style="margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',true)">📱 Enable QR</button>';
+          }
+        }
+        if(isViewDept){
+          if(hasViewQr){
+            qrToggle='<button class="btn btn-sm" style="background:#14532d;color:#4ade80;border:1px solid #16a34a;margin-right:4px" onclick="showViewQR(\''+safeName+'\',null)">👁 View QR</button>'
+              +'<button class="btn btn-sm" style="background:#2a1a1a;color:#f87171;border:1px solid #dc2626;margin-right:8px" onclick="toggleViewQrAccess(\''+safeName+'\',null,false)">✕</button>';
+          } else {
+            qrToggle='<button class="btn btn-ghost btn-sm" style="margin-right:8px" onclick="toggleViewQrAccess(\''+safeName+'\',null,true)">👁 Enable View QR</button>';
           }
         }
         return `<div class="roster-member-row">
@@ -12207,6 +12370,7 @@ function runInitialRender(){
     initBdDatePicker();
     refreshReqHistory();
     if(_mechPwaName) renderMechPwa();
+    if(_viewPwaName) renderViewPwa();
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
