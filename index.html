@@ -5502,7 +5502,7 @@ function renderBayGrid(){
     el.innerHTML=bayList.map(function(b){
       var ins=S.inspections.find(function(i){
         var e=S.entries.find(function(x){ return x.id==i.entryId && !x.exitTime; });
-        return e && i.bayNo===b;
+        return e && i.bayNo===b && !i.parked;
       });
       var isOcc=!!ins;
       var isSelected=currentBay===b;
