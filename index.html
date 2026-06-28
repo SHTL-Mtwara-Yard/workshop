@@ -9668,7 +9668,7 @@ var _viewPwaDept = null; // null = all depts, or 'mech','elec','tyre','weld'
     var deptParam = params.get('dept');
     _viewPwaDept = deptParam ? deptParam.toLowerCase() : null;
     var style = document.createElement('style');
-    style.textContent = '.nav, .page, .modal-overlay, .toast-container, #managerReadyTray { display:none!important; } #viewPwaPage { display:block!important; }';
+    style.textContent = '.nav, .page, .modal-overlay, .toast-container, #managerReadyTray, #mechPwaPage { display:none!important; } #viewPwaPage { display:block!important; }';
     document.head.appendChild(style);
   }
 })();
