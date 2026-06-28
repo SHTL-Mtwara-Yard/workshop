@@ -253,13 +253,13 @@ tr:hover td { background: var(--surface2); }
 .bay-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
-.bay-grid-box { border:2px solid var(--border); border-radius:6px; padding:5px 3px; text-align:center; cursor:pointer; transition:all .15s; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.bay-grid-box .bgb-no { font-size:11px; font-weight:900; color:#333; }
-.bay-grid-box .bgb-truck { font-size:10px; font-weight:900; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#111; }
+.bay-grid-box { border:3px solid var(--border); border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; transition:all .15s; min-height:68px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.bay-grid-box .bgb-no { font-size:15px; font-weight:900; color:#333; }
+.bay-grid-box .bgb-truck { font-size:13px; font-weight:900; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#111; }
 .bay-grid-box.bgb-free { border-style:dashed; opacity:.45; }
 .bay-grid-box.bgb-occupied { border-color:#1d4ed8; background:#bfdbfe; border-width:3px; }
 .bay-grid-box.bgb-occupied .bgb-no { color:#1e3a8a; }
-.bay-grid-box.bgb-occupied .bgb-truck { color:#1e3a8a; font-size:11px; }
+.bay-grid-box.bgb-occupied .bgb-truck { color:#1e3a8a; }
 .bay-grid-box.bgb-selected { border-color:#b45309 !important; background:#fde68a !important; border-width:3px; box-shadow:0 0 0 2px rgba(180,83,9,.5); }
 .bay-grid-box.bgb-selected .bgb-no { color:#78350f !important; }
 .bay-grid-box.bgb-selected .bgb-truck { color:#78350f !important; }
@@ -1382,9 +1382,9 @@ tr:hover td { background: var(--surface2); }
     <!-- Bay Grid Selector -->
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM A — BAYS 1–10</div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px" id="bayGridA"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px" id="bayGridA"></div>
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM B — BAYS 11–21</div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px" id="bayGridB"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="bayGridB"></div>
       <!-- Hidden select kept for JS compatibility -->
       <select id="groundBaySelect" onchange="loadBayJobs()" style="display:none">
         <option value="">-- Select Bay --</option>
