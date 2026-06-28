@@ -5529,8 +5529,11 @@ function loadBayJobs(){
   const bay=document.getElementById('groundBaySelect').value;
   const notice=document.getElementById('groundAutoCompleteNotice');
   if(!bay){notice.style.display='none';return;}
-  // Parked trucks no longer occupy their bay — bay is free for the next truck
-  const ins=S.inspections.find(i=>i.bayNo===bay && !i.parked && !S.entries.find(e=>e.id===i.entryId&&e.exitTime));
+  // Find inspection for this bay — include parked trucks (ground team may still need to see jobs)
+  const ins=S.inspections.find(i=>{
+    var e=S.entries.find(x=>x.id===i.entryId&&!x.exitTime);
+    return e && (i.bayNo===bay || i.bayNo===bay.replace('Bay ','B') || ('Bay '+i.bayNo.replace('Bay ',''))===bay);
+  });
   const jDiv=document.getElementById('groundJobList');
   const eDiv=document.getElementById('groundETDBlocks');
   if(!ins){
