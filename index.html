@@ -1425,8 +1425,10 @@ tr:hover td { background: var(--surface2); }
 
   <!-- SUB: PUNCH STATUS (new — self-service worker tracker) -->
   <div class="ground-subpage" id="subground-punch">
-
-    <!-- STEP 1: Who are you — name cards -->
+    <!-- Workshop Closed Banner -->
+    <div id="workshopClosedBanner" style="display:none;background:#dc2626;color:#fff;border-radius:10px;padding:12px 16px;margin-bottom:12px;text-align:center;font-size:14px;font-weight:800">
+      🌙 Workshop Closed for Today · Kazi Imekwisha Leo
+    </div>
     <div class="card" id="punchStep1Card">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>👤 Who Are You? · Wewe ni nani?</div>
       <div id="punchNameGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px"></div>
@@ -3297,7 +3299,8 @@ fbRoot.on('value', snapshot=>{
       qrAccess: data.qrAccess || {},
       slaMissReasons: data.slaMissReasons || {},
       viewQrAccess: data.viewQrAccess || {},
-      secQrAccess: data.secQrAccess || {}
+      secQrAccess: data.secQrAccess || {},
+      workshopClosedDate: data.workshopClosedDate || ''
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -10935,6 +10938,9 @@ var curPunchWorker=null;
 var curPunchTeam='A';
 
 function refreshPunchTab(){
+  // Show workshop closed banner
+  var banner = document.getElementById('workshopClosedBanner');
+  if(banner) banner.style.display = (S.workshopClosedDate===new Date().toDateString()) ? 'block' : 'none';
   // Populate worker name cards
   var nameGrid = document.getElementById('punchNameGrid');
   if(nameGrid && ALL_STAFF.length){
@@ -11158,6 +11164,10 @@ function bayHasOpenJobs(bayNo,dept){
 
 function punchAvailable(){
   if(!curPunchWorker)return toast('⚠️ Select your name first','warn');
+  // Block if workshop is closed for today
+  if(S.workshopClosedDate && S.workshopClosedDate===new Date().toDateString()){
+    return toast('🌙 Workshop is closed for today — Kazi imekwisha leo','warn');
+  }
   // If currently committed as "Assisting" a bay/department whose work isn't finished yet,
   // they can't casually flip to Available — must finish/leave that assist first.
   const current=S.workerPunches[curPunchWorker];
@@ -11316,7 +11326,10 @@ function confirmCloseWorkshop(){
       cleared++;
     }
   });
-  S.assistingWorkers={}; // clear bay-level assist records too, since those are tied to the same stale declarations
+  S.assistingWorkers={};
+  // Set workshop closed flag for today
+  if(!S.workshopClosedDate) S.workshopClosedDate='';
+  S.workshopClosedDate = new Date().toDateString();
   save();
   closeModal('closeWorkshopModal');
   refreshWorkerBoard();
