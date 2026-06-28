@@ -11311,7 +11311,7 @@ function confirmCloseWorkshop(){
   let cleared=0;
   names.forEach(n=>{
     const p=S.workerPunches[n];
-    if((p.status==='available'||p.status==='assisting') && getOpenJobLocksFor(n).length===0){
+    if((p.status==='available'||p.status==='assisting')){
       delete S.workerPunches[n];
       cleared++;
     }
