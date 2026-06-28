@@ -3407,7 +3407,7 @@ const DEFAULT_STAFF_SEED = {
 };
 // Human-readable labels for each section key, used in the Staff Roster UI
 const STAFF_SECTION_LABELS = {
-  mech:'Mechanics', elec:'Auto Electrician', tyre:'Tyre Section', weld:'Welders',
+  mech:'Mechanics', elec:'Electrician', tyre:'Tyre Section', weld:'Welders',
   boom:'Boom Repair', brakes:'Brakes Bonding', fuel:'Fuel System', greasing:'Greasing',
   inspection:'Inspection', painter:'Painter', panelbeater:'Panel Beater', pneumatic:'Pneumatic',
   radiator:'Radiator', refurbish:'Refurbish / Wheel Alignment', sandblasting:'Sand Blasting',
@@ -8859,7 +8859,7 @@ function triggerPrint(){
 
 // ── 1. DEPARTMENT PERFORMANCE NOTICE BOARD ──
 function printDeptPerformance(dept){
-  const deptNames={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const deptNames={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
   const deptName=deptNames[dept]||dept;
   const now=new Date();
   const staff=(STAFF[dept]||[]).slice().sort();
@@ -8970,7 +8970,7 @@ function printJobCard(insId){
   const e=S.entries.find(x=>x.id==ins.entryId);
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
   let jobHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
@@ -9028,7 +9028,7 @@ function printGatePass(insId){
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
   const isDifferentDriver=(e&&e.driverOutcome)==='different';
-  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
   let workSummary='';
   ['mech','elec','tyre','weld'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
@@ -9078,7 +9078,7 @@ function printInspectionSheet(insId){
   const e=S.entries.find(x=>x.id==ins.entryId);
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-  const depts={mech:'Mechanical',elec:'Auto Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
   let jobHtml='';
   ['mech','elec','tyre','weld'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
