@@ -254,8 +254,8 @@ tr:hover td { background: var(--surface2); }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
 .bay-grid-box { border:3px solid var(--border); border-radius:10px; padding:10px 6px; text-align:center; cursor:pointer; transition:all .15s; min-height:68px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.bay-grid-box .bgb-no { font-size:15px; font-weight:900; color:#333; }
-.bay-grid-box .bgb-truck { font-size:13px; font-weight:900; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#111; }
+.bay-grid-box .bgb-no { font-size:16px; font-weight:900; color:#1e3a8a; }
+.bay-grid-box .bgb-truck { font-size:14px; font-weight:900; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; color:#1e3a8a; }
 .bay-grid-box.bgb-free { border-style:dashed; opacity:.45; }
 .bay-grid-box.bgb-occupied { border-color:#1d4ed8; background:#bfdbfe; border-width:3px; }
 .bay-grid-box.bgb-occupied .bgb-no { color:#1e3a8a; }
@@ -1379,6 +1379,8 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- Bay Grid View -->
+    <div id="groundBayWorkContent">
     <!-- Bay Grid Selector -->
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM A — BAYS 1–10</div>
@@ -1390,6 +1392,14 @@ tr:hover td { background: var(--surface2); }
         <option value="">-- Select Bay --</option>
       </select>
     </div>
+    </div>
+
+    <!-- Bay Detail View (shown after tapping a bay) -->
+    <div id="groundBayDetailTab" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <button onclick="backToBayGrid()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)">← Back</button>
+        <div style="font-size:16px;font-weight:800" id="groundDetailBayLabel"></div>
+      </div>
 
     <div class="grid-2">
       <div>
@@ -1430,6 +1440,7 @@ tr:hover td { background: var(--surface2); }
         </div>
       </div>
     </div>
+    </div><!-- end groundBayDetailTab -->
   </div>
 
   <!-- SUB: PUNCH STATUS (new — self-service worker tracker) -->
@@ -5520,11 +5531,17 @@ function renderBayGrid(){
 
 var _selectedGridBay = '';
 
+function backToBayGrid(){
+  _selectedGridBay='';
+  document.getElementById('groundBayDetailTab').style.display='none';
+  document.getElementById('groundBayWorkContent').style.display='block';
+  renderBayGrid();
+}
+
 function selectBayFromGrid(bay){
   _selectedGridBay = bay;
   var sel=document.getElementById('groundBaySelect');
   if(sel){
-    // Add option if not present
     var found=false;
     for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===bay){found=true;break;} }
     if(!found){ var opt=document.createElement('option'); opt.value=bay; opt.text=bay; sel.appendChild(opt); }
@@ -5532,10 +5549,14 @@ function selectBayFromGrid(bay){
   }
   loadBayJobs();
   renderBayGrid();
-  setTimeout(function(){
-    var jobsEl=document.getElementById('groundJobList');
-    if(jobsEl) jobsEl.scrollIntoView({behavior:'smooth', block:'start'});
-  }, 200);
+  // Switch to Bay Detail view
+  var detailTab = document.getElementById('groundBayDetailTab');
+  var bayWorkContent = document.getElementById('groundBayWorkContent');
+  if(detailTab && bayWorkContent){
+    bayWorkContent.style.display='none';
+    detailTab.style.display='block';
+    document.getElementById('groundDetailBayLabel').textContent = bay;
+  }
 }
 
 function loadBayJobs(){
