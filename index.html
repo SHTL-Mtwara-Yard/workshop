@@ -253,16 +253,24 @@ tr:hover td { background: var(--surface2); }
 .bay-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
-.bay-cell { border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 5px; text-align: center; cursor: pointer; transition: all .15s; }
-.bay-cell .bay-no { font-size: 10.5px; font-weight: 700; color: var(--text2); }
-.bay-cell .bay-truck { font-size: 11px; font-weight: 600; color: var(--text); margin-top: 3px; }
-.bay-cell.empty { border-style: dashed; }
-.bay-cell.occupied-mech { border-color: var(--blue); background: rgba(88,166,255,.08); }
-.bay-cell.occupied-elec { border-color: var(--yellow); background: rgba(227,179,65,.08); }
-.bay-cell.occupied-tyre { border-color: var(--green); background: rgba(63,185,80,.08); }
-.bay-cell.occupied-weld { border-color: var(--purple); background: rgba(188,140,255,.08); }
-.bay-cell.delayed { border-color: var(--red) !important; animation: pulse 2s infinite; }
-.bay-cell.ready { border-color: var(--teal) !important; }
+.bay-cell { border: 2px solid var(--border); border-radius: var(--radius); padding: 10px 6px; text-align: center; cursor: pointer; transition: all .15s; min-height: 58px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.bay-cell .bay-no { font-size: 12px; font-weight: 800; color: var(--text2); }
+.bay-cell .bay-truck { font-size: 13px; font-weight: 800; color: var(--text); margin-top: 4px; letter-spacing:.5px; }
+.bay-cell.empty { border-style: dashed; opacity:.6; }
+.bay-cell.occupied-mech { border-color: #3b82f6; background: rgba(59,130,246,.25); }
+.bay-cell.occupied-mech .bay-no { color:#93c5fd; }
+.bay-cell.occupied-mech .bay-truck { color:#dbeafe; }
+.bay-cell.occupied-elec { border-color: #f59e0b; background: rgba(245,158,11,.25); }
+.bay-cell.occupied-elec .bay-no { color:#fcd34d; }
+.bay-cell.occupied-elec .bay-truck { color:#fef3c7; }
+.bay-cell.occupied-tyre { border-color: #22c55e; background: rgba(34,197,94,.25); }
+.bay-cell.occupied-tyre .bay-no { color:#86efac; }
+.bay-cell.occupied-tyre .bay-truck { color:#dcfce7; }
+.bay-cell.occupied-weld { border-color: #a855f7; background: rgba(168,85,247,.25); }
+.bay-cell.occupied-weld .bay-no { color:#d8b4fe; }
+.bay-cell.occupied-weld .bay-truck { color:#f3e8ff; }
+.bay-cell.delayed { border-color: #ef4444 !important; background: rgba(239,68,68,.3) !important; animation: pulse 2s infinite; }
+.bay-cell.ready { border-color: #14b8a6 !important; background: rgba(20,184,166,.25) !important; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
 /* PROGRESS */
