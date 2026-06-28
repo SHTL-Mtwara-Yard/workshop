@@ -626,7 +626,7 @@ tr:hover td { background: var(--surface2); }
 <nav class="nav">
   <div class="nav-brand">SHTL <span>Mtwara</span></div>
   <div class="nav-tab" onclick="showPage('incharge',this)">📋 Incharge</div>
-  <div class="nav-tab active" onclick="showPage('security',this)">🔒 Security</div>
+  <div class="nav-tab" onclick="showPage('security',this)">🔒 Security</div>
   <div class="nav-tab" onclick="showPage('supervisor',this)">👁 Supervisor</div>
   <div class="nav-tab" onclick="showPage('ground',this)">🔧 Ground</div>
   <div class="nav-tab" onclick="showPage('jobcards',this)">📋 Job Cards</div>
@@ -1013,7 +1013,7 @@ tr:hover td { background: var(--surface2); }
 </div><!-- end page-incharge -->
 
 <!-- ════════════════ SECURITY ════════════════ -->
-<div class="page active" id="page-security">
+<div class="page" id="page-security">
   <div class="page-title">🔒 Security Gate</div>
   <div class="page-sub">Truck entry &amp; exit — Mtwara Yard</div>
 
@@ -3463,6 +3463,8 @@ function showPage(id,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el)el.classList.add('active');
+  // Remember last active page
+  try{ localStorage.setItem('shtl_lastPage', id); }catch(e){}
   // Clear manager tray when navigating away from manager page
   if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
   const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage};
@@ -12581,6 +12583,20 @@ function runInitialRender(){
     refreshReqHistory();
     if(_mechPwaName) renderMechPwa();
     if(_viewPwaName) renderViewPwa();
+    // Restore last active page
+    try{
+      var lastPage = localStorage.getItem('shtl_lastPage');
+      if(lastPage && document.getElementById('page-'+lastPage) && !_mechPwaName && !_viewPwaName && !_secPwaName){
+        var navBtn = document.querySelector('.nav-tab[onclick*="\''+lastPage+'\'"]');
+        showPage(lastPage, navBtn);
+      } else if(!_mechPwaName && !_viewPwaName && !_secPwaName){
+        var secBtn = document.querySelector('.nav-tab[onclick*="\'security\'"]');
+        showPage('security', secBtn);
+      }
+    }catch(e){
+      var secBtn2 = document.querySelector('.nav-tab[onclick*="\'security\'"]');
+      showPage('security', secBtn2);
+    }
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
