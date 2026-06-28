@@ -6761,9 +6761,11 @@ function refreshMgrJobCards(){
 // ═══ MANAGER: TIME STAMPING ═══
 function refreshTimeStamping(){
   const allRows=[];
+  const slaRows=[]; // only non-accidental for SLA score
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
     if(!e)return;
+    const isAccidental=(ins.jobType||'').toLowerCase().includes('accident');
     const t0=new Date(e.entryTime);
     const t1=ins.t1_allocated?new Date(ins.t1_allocated):null;
     const t2=ins.t2_etdSet?new Date(ins.t2_etdSet):null;
@@ -6774,19 +6776,21 @@ function refreshTimeStamping(){
     const t5t0 = t5 ? (t5-t0)/3600000 : null;
     const FRT = 3; // default free repair time hrs baseline for SLA (T5-T0 <= FRT+3hrs simplified)
     const slaTarget = FRT + 3;
-    const slaMet = t5t0!==null ? (t5t0 <= slaTarget) : null;
+    const slaMet = isAccidental ? null : (t5t0!==null ? (t5t0 <= slaTarget) : null);
 
-    allRows.push({truck:ins.truckNo,bay:ins.bayNo,t0,t1,t2,t4,t5,t1t0,t5t0,slaMet,entryId:ins.entryId});
+    const row={truck:ins.truckNo,bay:ins.bayNo,t0,t1,t2,t4,t5,t1t0,t5t0,slaMet,entryId:ins.entryId,isAccidental};
+    allRows.push(row);
+    if(!isAccidental) slaRows.push(row);
   });
 
   // SLA cells
-  const withT1 = allRows.filter(r=>r.t1).length;
-  const withT2 = allRows.filter(r=>r.t2).length;
-  const withT4 = allRows.filter(r=>r.t4).length;
-  const withT5 = allRows.filter(r=>r.t5).length;
-  const total = allRows.length || 1;
-  const slaMetCount = allRows.filter(r=>r.slaMet).length;
-  const slaEligible = allRows.filter(r=>r.slaMet!==null).length || 1;
+  const withT1 = slaRows.filter(r=>r.t1).length;
+  const withT2 = slaRows.filter(r=>r.t2).length;
+  const withT4 = slaRows.filter(r=>r.t4).length;
+  const withT5 = slaRows.filter(r=>r.t5).length;
+  const total = slaRows.length || 1;
+  const slaMetCount = slaRows.filter(r=>r.slaMet).length;
+  const slaEligible = slaRows.filter(r=>r.slaMet!==null).length || 1;
 
   const pct = n => Math.round(n/total*100);
   const pctOf = (n,d) => d ? Math.round(n/d*100) : 0;
@@ -6858,16 +6862,18 @@ function refreshTimeStamping(){
   tb.innerHTML=allRows.map(r=>{
     const fmt=d=>d?d.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     const missReason = (S.slaMissReasons||{})[r.entryId];
-    const slaTag = r.slaMet===null
-      ? '<span class="text2 text-xs">Pending</span>'
-      : r.slaMet
-        ? '<span class="tag tag-green">MET</span>'
-        : '<span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
-          + '<span class="tag tag-red">MISSED</span>'
-          + (missReason
-            ? '<span style="font-size:10px;color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+missReason+'">📝 '+missReason+'</span>'
-            : '<button onclick="logSlaMissReason(\''+r.entryId+'\',\''+r.truck+'\')" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer">+ Reason</button>')
-          + '</span>';
+    const slaTag = r.isAccidental
+      ? '<span style="background:#f59e0b;color:#fff;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700">Accidental — Excl.</span>'
+      : r.slaMet===null
+        ? '<span class="text2 text-xs">Pending</span>'
+        : r.slaMet
+          ? '<span class="tag tag-green">MET</span>'
+          : '<span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
+            + '<span class="tag tag-red">MISSED</span>'
+            + (missReason
+              ? '<span style="font-size:10px;color:#888;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+missReason+'">📝 '+missReason+'</span>'
+              : '<button onclick="logSlaMissReason(\''+r.entryId+'\',\''+r.truck+'\')" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer">+ Reason</button>')
+            + '</span>';
     return `<tr>
       <td class="fw-700">${r.truck}</td>
       <td><span class="tag tag-blue">${r.bay}</span></td>
