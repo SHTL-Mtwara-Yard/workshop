@@ -1417,27 +1417,6 @@ tr:hover td { background: var(--surface2); }
           <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Department ETD &amp; Time Remaining</div>
           <div id="groundETDBlocks"><div class="alert alert-info">Select a bay to set ETD per department.</div></div>
         </div>
-        <div class="card">
-          <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Team Performance — This Month</div>
-          <div id="perfSection">
-            <div class="perf-row"><div class="perf-name text2">TEAM A</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarA" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfA" style="color:var(--green)">0%</div></div>
-            <div class="perf-row"><div class="perf-name text2">TEAM B</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-yellow" id="groundPerfBarB" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfB" style="color:var(--yellow)">0%</div></div>
-            <div class="perf-row"><div class="perf-name text2">AVG</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarAvg" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfAvg" style="color:var(--green)">0%</div></div>
-          </div>
-        </div>
-
-        <!-- LEADERBOARD -->
-        <div class="card" style="border-top:3px solid var(--accent)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div class="card-title" style="margin-bottom:0"><span class="dot" style="background:var(--accent)"></span>🏆 Department Leaderboard</div>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-primary btn-sm" id="lbTodayBtn" onclick="setLeaderboardDay('today',this)">Today</button>
-              <button class="btn btn-ghost btn-sm" id="lbYesterdayBtn" onclick="setLeaderboardDay('yesterday',this)">Yesterday</button>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--text2);margin-bottom:12px">📌 Not seeing your name? Start punching your jobs — your ranking builds from completed work.</div>
-          <div id="leaderboardGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
-        </div>
       </div>
     </div>
     </div><!-- end groundBayDetailTab -->
@@ -1511,6 +1490,16 @@ tr:hover td { background: var(--surface2); }
 
   <!-- DEPT LEADERBOARD -->
   <div class="ground-subpage" id="subground-leaderboard">
+    <!-- Team Performance -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Team Performance — This Month</div>
+      <div id="perfSection">
+        <div class="perf-row"><div class="perf-name text2">TEAM A</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarA" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfA" style="color:var(--green)">0%</div></div>
+        <div class="perf-row"><div class="perf-name text2">TEAM B</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-yellow" id="groundPerfBarB" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfB" style="color:var(--yellow)">0%</div></div>
+        <div class="perf-row"><div class="perf-name text2">AVG</div><div class="perf-bar-wrap"><div class="progress-bar"><div class="progress-fill fill-green" id="groundPerfBarAvg" style="width:0%"></div></div></div><div class="perf-score" id="groundPerfAvg" style="color:var(--green)">0%</div></div>
+      </div>
+    </div>
+    <!-- Dept Leaderboard -->
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div class="card-title" style="margin:0"><span class="dot" style="background:#f59e0b"></span>🏆 Department Leaderboard — Today</div>
