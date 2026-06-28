@@ -9664,7 +9664,7 @@ var _viewPwaDept = null; // null = all depts, or 'mech','elec','tyre','weld'
   var params = new URLSearchParams(window.location.search);
   var viewParam = params.get('view');
   if(viewParam){
-    _viewPwaName = decodeURIComponent(viewParam).toUpperCase();
+    _viewPwaName = decodeURIComponent(viewParam).trim().toUpperCase();
     var deptParam = params.get('dept');
     _viewPwaDept = deptParam ? deptParam.toLowerCase() : null;
     var style = document.createElement('style');
@@ -9679,7 +9679,8 @@ function renderViewPwa(){
   if(!el) return;
 
   // Check access
-  if(!(S.viewQrAccess||{})[_viewPwaName]){
+  var _viewPwaKey = _viewPwaDept ? _viewPwaName+'_'+_viewPwaDept : _viewPwaName;
+  if(!(S.viewQrAccess||{})[_viewPwaKey] && !(S.viewQrAccess||{})[_viewPwaName]){
     el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">🔒</div>'
       +'<div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div>'
       +'<div style="color:#888;font-size:13px">Ask your manager to enable view access.</div>'
@@ -9925,7 +9926,8 @@ function _mechPwaLiveHook(){
 function toggleViewQrAccess(name, dept, enable){
   requireManagerConfirm((enable?'Enable':'Disable')+' View QR for '+name+'?', function(){
     if(!S.viewQrAccess) S.viewQrAccess={};
-    var key = name+(dept?'_'+dept:'');
+    // Always store by plain name (no dept suffix) for full view
+    var key = name.trim().toUpperCase();
     if(enable){ S.viewQrAccess[key]=true; } else { delete S.viewQrAccess[key]; }
     save();
     refreshStaffRoster();
