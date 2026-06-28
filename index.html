@@ -1424,66 +1424,67 @@ tr:hover td { background: var(--surface2); }
 
   <!-- SUB: PUNCH STATUS (new — self-service worker tracker) -->
   <div class="ground-subpage" id="subground-punch">
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Step 1 — Who Are You?</div>
-      <div class="form-row">
+
+    <!-- STEP 1: Who are you — name cards -->
+    <div class="card" id="punchStep1Card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>👤 Who Are You? · Wewe ni nani?</div>
+      <div id="punchNameGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px"></div>
+      <!-- Hidden select for JS compatibility -->
+      <select id="punchWorkerName" onchange="onPunchWorkerSelected()" style="display:none">
+        <option value="">-- Select Your Name --</option>
+      </select>
+    </div>
+
+    <!-- STEP 2+3: Bay + Jobs (shown after name selected) -->
+    <div id="punchStep2" style="display:none">
+
+      <!-- Selected worker header -->
+      <div style="background:linear-gradient(135deg,#1d4ed8,#1e40af);border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
         <div>
-          <select id="punchWorkerName" onchange="onPunchWorkerSelected()">
-            <option value="">-- Select Your Name --</option>
+          <div style="font-size:11px;opacity:.7;letter-spacing:1px">WORKING AS · UNAFANYA KAZI</div>
+          <div style="font-size:18px;font-weight:900" id="punchSelectedNameDisplay">—</div>
+        </div>
+        <button onclick="resetPunchWorker()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">Change ↩</button>
+      </div>
+
+      <!-- Bay selection -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:10px"><span class="dot" style="background:var(--blue)"></span>🏗️ Select Bay · Chagua Bay</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px" id="punchBayGrid"></div>
+        <select id="punchBaySelect" onchange="loadPunchJobs()" style="display:none">
+          <option value="">-- Select Bay --</option>
+        </select>
+      </div>
+
+      <!-- Jobs list -->
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>🔧 Your Jobs · Kazi Zako</div>
+        <div id="punchJobList"><div class="alert alert-info">Select a bay to see jobs. · Chagua bay kuona kazi.</div></div>
+      </div>
+
+      <!-- Mark yourself -->
+      <div class="card" style="border-top:3px solid var(--accent)">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Mark Status · Weka Hali</div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;color:var(--text2)">If Assisting · Kama Unasaidia</label>
+          <select id="punchAssistDept" style="width:100%;margin-top:4px">
+            <option value="">-- Select Department --</option>
+            <option value="mech">⚙️ Mechanical</option>
+            <option value="elec">⚡ Electrician</option>
+            <option value="tyre">🔵 Tyre</option>
+            <option value="weld">🔥 Welding</option>
           </select>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onclick="punchAvailable()" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer">✅ Available<br><span style="font-size:10px;font-weight:400;opacity:.8">Niko Tayari</span></button>
+          <button onclick="punchAssistOtherBay()" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer">🤝 Assisting<br><span style="font-size:10px;font-weight:400;opacity:.8">Nasaidia</span></button>
+        </div>
       </div>
     </div>
 
-    <div id="punchStep2" style="display:none">
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Step 2 — Which Bay?</div>
-        <div class="form-row cols-2">
-          <div>
-            <label style="margin-bottom:6px">Team</label>
-            <div class="team-toggle">
-              <button class="team-btn active-a" id="punchTeamABtn" onclick="selectPunchTeam('A')">Team A</button>
-              <button class="team-btn" id="punchTeamBBtn" onclick="selectPunchTeam('B')">Team B</button>
-            </div>
-          </div>
-          <div>
-            <label style="margin-bottom:6px">Bay</label>
-            <select id="punchBaySelect" onchange="loadPunchJobs()" style="min-width:150px">
-              <option value="">-- Select Bay --</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><span class="dot" style="background:var(--green)"></span>Step 3 — Pick a Job to Start or Complete</div>
-        <div id="punchJobList"><div class="alert alert-info">Select a bay to see jobs.</div></div>
-      </div>
-
-      <div class="card" style="border-top:3px solid var(--accent)">
-        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Or Mark Yourself</div>
-        <div class="form-row" style="margin-bottom:8px">
-          <div style="max-width:240px">
-            <label>If Assisting — Which Department?</label>
-            <select id="punchAssistDept">
-              <option value="">-- Select Department --</option>
-              <option value="mech">⚙️ Mechanical</option>
-              <option value="elec">⚡ Electrician</option>
-              <option value="tyre">🔵 Tyre</option>
-              <option value="weld">🔥 Welding</option>
-            </select>
-          </div>
-        </div>
-        <div class="flex gap-8 flex-wrap">
-          <button class="btn btn-ghost" onclick="punchAvailable()">✅ I'm Available</button>
-          <button class="btn btn-ghost" onclick="punchAssistOtherBay()">🤝 Assisting Another Bay</button>
-        </div>
-        <div class="text-xs text2 mt-8">Picking a department releases you to Available automatically once that department's jobs are done — you don't have to wait for the whole truck.</div>
-      </div>
-    </div>
-
+    <!-- Live Worker Board -->
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>👥 Who's Where — Live Worker Board</div>
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>👥 Who's Where · Kila Mtu Yuko Wapi</div>
       <div id="workerBoard"><div class="alert alert-info">No workers have punched in today yet.</div></div>
     </div>
   </div>
@@ -10927,12 +10928,79 @@ var curPunchWorker=null;
 var curPunchTeam='A';
 
 function refreshPunchTab(){
-  // Populate worker name dropdown from the full staff roster (all departments combined)
-  const sel=document.getElementById('punchWorkerName');
-  if(sel.options.length<=1){
-    sel.innerHTML='<option value="">-- Select Your Name --</option>'+ALL_STAFF.map(n=>`<option value="${n}">${n}</option>`).join('');
+  // Populate worker name cards
+  var nameGrid = document.getElementById('punchNameGrid');
+  if(nameGrid && ALL_STAFF.length){
+    nameGrid.innerHTML = ALL_STAFF.map(function(n){
+      var safeName = n.replace(/'/g,"\\'");
+      var isSelected = curPunchWorker===n;
+      return '<div onclick="selectPunchName(\''+safeName+'\')" style="'
+        +(isSelected?'background:#1d4ed8;color:#fff;border-color:#1d4ed8;':'background:var(--surface2);color:var(--text);border-color:var(--border);')
+        +'border:2px solid;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;transition:all .15s">'
+        +n.split(' ')[0]+'<br><span style="font-size:10px;font-weight:400;opacity:.7">'+n.split(' ').slice(1).join(' ')+'</span></div>';
+    }).join('');
   }
+  // Render punch bay grid
+  renderPunchBayGrid();
   refreshWorkerBoard();
+}
+
+function selectPunchName(name){
+  document.getElementById('punchWorkerName').value = name;
+  curPunchWorker = name;
+  document.getElementById('punchStep2').style.display = 'block';
+  document.getElementById('punchStep1Card').style.display = 'none';
+  document.getElementById('punchSelectedNameDisplay').textContent = name;
+  renderPunchBayGrid();
+  // Auto-select fixed bay
+  var fixedBay = getWorkerFixedBay(name);
+  if(fixedBay){
+    var punchBaySel = document.getElementById('punchBaySelect');
+    if(punchBaySel){ punchBaySel.value = fixedBay; }
+    _selectedPunchBay = fixedBay;
+    loadPunchJobs();
+    renderPunchBayGrid();
+    toast('📍 Auto-selected your bay: '+fixedBay,'info');
+  }
+}
+
+function resetPunchWorker(){
+  curPunchWorker = null;
+  _selectedPunchBay = '';
+  document.getElementById('punchStep2').style.display = 'none';
+  document.getElementById('punchStep1Card').style.display = 'block';
+  refreshPunchTab();
+}
+
+var _selectedPunchBay = '';
+
+function renderPunchBayGrid(){
+  var grid = document.getElementById('punchBayGrid');
+  if(!grid) return;
+  var allBays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay',
+               'Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
+  grid.innerHTML = allBays.map(function(b){
+    var ins=S.inspections.find(function(i){ var e=S.entries.find(function(x){ return x.id==i.entryId&&!x.exitTime; }); return e&&i.bayNo===b&&!i.parked; });
+    var isOcc=!!ins;
+    var isSel=_selectedPunchBay===b;
+    var label=b.replace('Bay ','B');
+    var truckTxt=ins?'<br><span style="font-size:9px;font-weight:800">'+ins.truckNo+'</span>':'';
+    return '<div onclick="selectPunchBayGrid(\''+b+'\')" style="border:2px solid '+(isSel?'#b45309':isOcc?'#1d4ed8':'#ccc')+';background:'+(isSel?'#fde68a':isOcc?'#bfdbfe':'#f9f9f9')+';border-radius:8px;padding:6px 3px;text-align:center;cursor:pointer;font-size:11px;font-weight:800;color:'+(isSel?'#78350f':isOcc?'#1e3a8a':'#999')+'">'
+      +label+truckTxt+'</div>';
+  }).join('');
+}
+
+function selectPunchBayGrid(bay){
+  _selectedPunchBay = bay;
+  var sel = document.getElementById('punchBaySelect');
+  if(sel){
+    var found=false;
+    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===bay){found=true;break;} }
+    if(!found){ var opt=document.createElement('option'); opt.value=bay; opt.text=bay; sel.appendChild(opt); }
+    sel.value=bay;
+  }
+  renderPunchBayGrid();
+  loadPunchJobs();
 }
 
 function onPunchWorkerSelected(){
@@ -10941,10 +11009,8 @@ function onPunchWorkerSelected(){
   document.getElementById('punchStep2').style.display=name?'block':'none';
   if(name){
     refreshPunchBaySelect();
-    // Auto-select fixed bay if assigned
     const fixedBay=getWorkerFixedBay(name);
     if(fixedBay){
-      // Switch to correct team first
       const teamA=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
       const team=teamA.includes(fixedBay)?'A':'B';
       if(curPunchTeam!==team) selectPunchTeam(team);
@@ -10962,11 +11028,10 @@ function onPunchWorkerSelected(){
 
 function selectPunchTeam(t){
   curPunchTeam=t;
-  document.getElementById('punchTeamABtn').className='team-btn'+(t==='A'?' active-a':'');
-  document.getElementById('punchTeamBBtn').className='team-btn'+(t==='B'?' active-b':'');
   refreshPunchBaySelect();
   loadPunchJobs();
 }
+
 
 function refreshPunchBaySelect(){
   const bays=curPunchTeam==='A'
