@@ -3254,7 +3254,8 @@ fbRoot.on('value', snapshot=>{
       spareRequisitions: data.spareRequisitions || [],
       qrAccess: data.qrAccess || {},
       slaMissReasons: data.slaMissReasons || {},
-      viewQrAccess: data.viewQrAccess || {}
+      viewQrAccess: data.viewQrAccess || {},
+      secQrAccess: data.secQrAccess || {}
     };
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
@@ -9655,6 +9656,34 @@ function exportCSV(filename, headers, rows){
   toast('📥 '+filename+' downloaded','ok');
 }
 
+var _secPwaName = null;
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var secParam = params.get('sec');
+  if(secParam){
+    _secPwaName = decodeURIComponent(secParam).trim().toUpperCase();
+    var style = document.createElement('style');
+    // Show only security page, hide everything else
+    style.textContent = '.nav-tab:not([onclick*="security"]), .page:not(#page-security), .modal-overlay, #managerReadyTray, #mechPwaPage, #viewPwaPage { display:none!important; } #page-security { display:block!important; }';
+    document.head.appendChild(style);
+    // Also pre-select the security officer name after load
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(function(){
+        var sel = document.getElementById('securityOfficerSelect');
+        if(sel){
+          for(var i=0;i<sel.options.length;i++){
+            if(sel.options[i].text.toUpperCase().includes(_secPwaName.split(' ')[0])){
+              sel.selectedIndex=i;
+              sel.dispatchEvent(new Event('change'));
+              break;
+            }
+          }
+        }
+      }, 2000);
+    });
+  }
+})();
+
 // ═══════════════════════════════════════════════════
 // SUPERVISOR VIEW PWA — ?view=NAME mode
 // ═══════════════════════════════════════════════════
@@ -9794,7 +9823,7 @@ function renderMechPwa(){
   if(!el) return;
 
   // Check access
-  if(!S.qrAccess[_mechPwaName]){
+  if(!S.qrAccess[_mechPwaName] && !S.qrAccess[_mechPwaName.toLowerCase()]){
     el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">🔒</div><div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div><div style="color:#888;font-size:13px">Ask your manager to enable QR access for your account.</div><div style="color:#666;font-size:12px;margin-top:6px">Omba meneja wako akuruhusu kutumia QR.</div></div>';
     return;
   }
@@ -9923,6 +9952,30 @@ function _mechPwaLiveHook(){
   if(_mechPwaName) renderMechPwa();
 }
 
+function toggleSecQrAccess(name, enable){
+  requireManagerConfirm((enable?'Enable':'Disable')+' Security QR for '+name+'?', function(){
+    if(!S.secQrAccess) S.secQrAccess={};
+    var key = name.trim().toUpperCase();
+    if(enable){ S.secQrAccess[key]=true; } else { delete S.secQrAccess[key]; }
+    save();
+    refreshStaffRoster();
+    toast((enable?'✅ Security QR enabled':'⛔ Security QR disabled')+' for '+name,'ok');
+  });
+}
+
+function showSecQR(name){
+  var url = 'https://shtl-mtwara-yard.github.io/workshop/?sec='+encodeURIComponent(name);
+  var modal = document.getElementById('mechQrModal');
+  document.getElementById('mechQrName').textContent = name+' · Security Gate';
+  document.getElementById('mechQrUrl').textContent = url;
+  var container = document.getElementById('mechQrCanvasWrap');
+  container.innerHTML = '';
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(container, { text: url, width: 260, height: 260, colorDark:'#000000', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.L });
+  }
+  modal.classList.add('open');
+}
+
 function toggleViewQrAccess(name, dept, enable){
   requireManagerConfirm((enable?'Enable':'Disable')+' View QR for '+name+'?', function(){
     if(!S.viewQrAccess) S.viewQrAccess={};
@@ -9954,8 +10007,9 @@ function toggleQrAccess(name, enable){
     (enable ? 'Enable' : 'Disable')+' QR access for '+name+'?',
     function(){
       if(!S.qrAccess) S.qrAccess={};
-      if(enable){ S.qrAccess[name]=true; }
-      else { delete S.qrAccess[name]; }
+      var key = name.trim().toUpperCase();
+      if(enable){ S.qrAccess[key]=true; }
+      else { delete S.qrAccess[key]; }
       save();
       refreshStaffRoster();
       toast((enable?'✅ QR enabled':'⛔ QR disabled')+' for '+name, enable?'ok':'warn');
@@ -11039,10 +11093,13 @@ function refreshStaffRoster(){
       ${members.length?members.map(name=>{
         const assignedBay=(S.bayAssignments||{})[name]||'';
         const safeName=name.replace(/'/g,"\\'");
+        const nameUpper=name.trim().toUpperCase();
         const isMechDept=['mech','elec','tyre','weld'].includes(key);
         const isViewDept=['floorsupervisor','incharge'].includes(key);
-        const hasQr=isMechDept && !!(S.qrAccess||{})[name];
-        const hasViewQr=isViewDept && !!(S.viewQrAccess||{})[name];
+        const isSecurityDept=key==='security';
+        const hasQr=isMechDept && (!!(S.qrAccess||{})[nameUpper]||!!(S.qrAccess||{})[name]);
+        const hasViewQr=isViewDept && (!!(S.viewQrAccess||{})[nameUpper]||!!(S.viewQrAccess||{})[name]);
+        const hasSecQr=isSecurityDept && (!!(S.secQrAccess||{})[nameUpper]||!!(S.secQrAccess||{})[name]);
         var qrToggle='';
         if(isMechDept){
           if(hasQr){
@@ -11050,6 +11107,14 @@ function refreshStaffRoster(){
               +'<button class="btn btn-sm" style="background:#2a1a1a;color:#f87171;border:1px solid #dc2626;margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',false)" title="Disable QR">✕</button>';
           } else {
             qrToggle='<button class="btn btn-ghost btn-sm" style="margin-right:8px" onclick="toggleQrAccess(\''+safeName+'\',true)">📱 Enable QR</button>';
+          }
+        }
+        if(isSecurityDept){
+          if(hasSecQr){
+            qrToggle='<button class="btn btn-sm" style="background:#14532d;color:#4ade80;border:1px solid #16a34a;margin-right:4px" onclick="showSecQR(\''+safeName+'\')">🔒 Sec QR</button>'
+              +'<button class="btn btn-sm" style="background:#2a1a1a;color:#f87171;border:1px solid #dc2626;margin-right:8px" onclick="toggleSecQrAccess(\''+safeName+'\',false)">✕</button>';
+          } else {
+            qrToggle='<button class="btn btn-ghost btn-sm" style="margin-right:8px" onclick="toggleSecQrAccess(\''+safeName+'\',true)">🔒 Enable Sec QR</button>';
           }
         }
         if(isViewDept){
