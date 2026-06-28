@@ -10938,9 +10938,15 @@ var curPunchWorker=null;
 var curPunchTeam='A';
 
 function refreshPunchTab(){
-  // Show workshop closed banner
+  // Show workshop closed banner and hide punch UI if closed today
+  var isClosed = S.workshopClosedDate===new Date().toDateString();
   var banner = document.getElementById('workshopClosedBanner');
-  if(banner) banner.style.display = (S.workshopClosedDate===new Date().toDateString()) ? 'block' : 'none';
+  var step1 = document.getElementById('punchStep1Card');
+  var step2 = document.getElementById('punchStep2');
+  if(banner) banner.style.display = isClosed ? 'block' : 'none';
+  if(step1) step1.style.display = isClosed ? 'none' : 'block';
+  if(isClosed && step2) step2.style.display = 'none';
+  if(isClosed) return; // Don't render name cards if closed
   // Populate worker name cards
   var nameGrid = document.getElementById('punchNameGrid');
   if(nameGrid && ALL_STAFF.length){
@@ -10959,6 +10965,9 @@ function refreshPunchTab(){
 }
 
 function selectPunchName(name){
+  if(S.workshopClosedDate===new Date().toDateString()){
+    return toast('🌙 Workshop is closed for today · Kazi imekwisha leo','warn');
+  }
   document.getElementById('punchWorkerName').value = name;
   curPunchWorker = name;
   document.getElementById('punchStep2').style.display = 'block';
