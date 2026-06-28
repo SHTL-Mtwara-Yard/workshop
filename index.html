@@ -5494,13 +5494,16 @@ function renderGroundLeaderboard(){
 function renderBayGrid(){
   var teamABays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
   var teamBBays=['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
-  var currentBay=(document.getElementById('groundBaySelect')||{}).value||'';
+  var currentBay=_selectedGridBay||'';
 
   function renderGrid(elId, bayList){
     var el=document.getElementById(elId);
     if(!el) return;
     el.innerHTML=bayList.map(function(b){
-      var ins=S.inspections.find(function(i){ var e=S.entries.find(function(x){ return x.id==i.entryId; }); return e&&!e.exitTime&&i.bayNo===b; });
+      var ins=S.inspections.find(function(i){
+        var e=S.entries.find(function(x){ return x.id==i.entryId && !x.exitTime; });
+        return e && i.bayNo===b && !i.parked;
+      });
       var isOcc=!!ins;
       var isSelected=currentBay===b;
       var cls='bay-grid-box '+(isSelected?'bgb-selected':isOcc?'bgb-occupied':'bgb-free');
