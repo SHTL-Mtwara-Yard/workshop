@@ -4632,8 +4632,11 @@ function refreshDropdowns(){
 
   const eodSel=document.getElementById('eodTruck');
   const curEod=eodSel.value;
-  eodSel.innerHTML=opts;
-  if(curEod && inYard.some(e=>String(e.id)===curEod)) eodSel.value=curEod;
+  const today=new Date().toDateString();
+  const alreadyBalanced=new Set((S.eodBalance||[]).filter(b=>b.date===today).map(b=>b.truckNo));
+  const eodOpts='<option value="">-- Select --</option>'+inYard.filter(e=>!alreadyBalanced.has(e.truckNo)).map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+  eodSel.innerHTML=eodOpts;
+  if(curEod && inYard.some(e=>String(e.id)===curEod && !alreadyBalanced.has(e.truckNo))) eodSel.value=curEod;
 
   // Show alert strip listing all trucks flagged ready, plus parked trucks still awaiting clearance
   const ready=inYard.filter(e=>e.readyToLeave);
@@ -4702,8 +4705,11 @@ function addEodBalance(){
   if(!id||!reason)return toast('⚠️ Select truck and enter reason','warn');
   const e=S.entries.find(x=>x.id==id);
   S.eodBalance.push({truckNo:e.truckNo,reason,date:new Date().toDateString()});save();
-  refreshEodList();toast('✅ Added to balance','ok');
+  refreshEodList();
+  refreshDropdowns(); // Remove truck from dropdown immediately
+  document.getElementById('eodTruck').value='';
   document.getElementById('eodReason').value='';
+  toast('✅ Added to balance — '+e.truckNo,'ok');
 }
 
 function refreshEodList(){
