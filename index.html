@@ -253,14 +253,14 @@ tr:hover td { background: var(--surface2); }
 .bay-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
 @media (max-width: 700px) { .bay-grid { grid-template-columns: repeat(5,1fr); } }
 @media (max-width: 420px) { .bay-grid { grid-template-columns: repeat(4,1fr); } }
-.bay-grid-box { border:2px solid var(--border); border-radius:8px; padding:8px 4px; text-align:center; cursor:pointer; transition:all .15s; min-height:52px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.bay-grid-box .bgb-no { font-size:11px; font-weight:800; color:var(--text2); }
-.bay-grid-box .bgb-truck { font-size:11px; font-weight:800; margin-top:2px; }
-.bay-grid-box.bgb-free { border-style:dashed; opacity:.5; }
-.bay-grid-box.bgb-occupied { border-color:#3b82f6; background:rgba(59,130,246,.2); }
+.bay-grid-box { border:2px solid var(--border); border-radius:6px; padding:5px 3px; text-align:center; cursor:pointer; transition:all .15s; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.bay-grid-box .bgb-no { font-size:10px; font-weight:800; color:var(--text2); }
+.bay-grid-box .bgb-truck { font-size:10px; font-weight:800; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.bay-grid-box.bgb-free { border-style:dashed; opacity:.45; }
+.bay-grid-box.bgb-occupied { border-color:#3b82f6; background:rgba(59,130,246,.22); }
 .bay-grid-box.bgb-occupied .bgb-no { color:#93c5fd; }
 .bay-grid-box.bgb-occupied .bgb-truck { color:#dbeafe; }
-.bay-grid-box.bgb-selected { border-color:#e07b00 !important; background:rgba(224,123,0,.25) !important; box-shadow:0 0 0 2px rgba(224,123,0,.4); }
+.bay-grid-box.bgb-selected { border-color:#e07b00 !important; background:rgba(224,123,0,.3) !important; box-shadow:0 0 0 2px rgba(224,123,0,.5); }
 .bay-grid-box.bgb-selected .bgb-no { color:#fed7aa !important; }
 .bay-grid-box.bgb-selected .bgb-truck { color:#fff !important; }
 .punch-btn { padding:10px 18px; font-size:14px; font-weight:800; border-radius:10px; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
@@ -270,6 +270,7 @@ tr:hover td { background: var(--surface2); }
 .punch-btn-done:hover { background:#15803d; }
 .punch-btn-avail { background:#374151; color:#9ca3af; }
 .punch-btn-avail:hover { background:#1f2937; color:#fff; }
+.bay-cell { border: 2px solid var(--border); border-radius: var(--radius); padding: 7px 4px; text-align: center; cursor: pointer; transition: all .15s; min-height: 52px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .bay-cell .bay-no { font-size: 12px; font-weight: 800; color: var(--text2); }
 .bay-cell .bay-truck { font-size: 13px; font-weight: 800; color: var(--text); margin-top: 4px; letter-spacing:.5px; }
 .bay-cell.empty { border-style: dashed; opacity:.6; }
@@ -1381,9 +1382,9 @@ tr:hover td { background: var(--surface2); }
     <!-- Bay Grid Selector -->
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM A — BAYS 1–10</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px" id="bayGridA"></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px" id="bayGridA"></div>
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM B — BAYS 11–21</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px" id="bayGridB"></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px" id="bayGridB"></div>
       <!-- Hidden select kept for JS compatibility -->
       <select id="groundBaySelect" onchange="loadBayJobs()" style="display:none">
         <option value="">-- Select Bay --</option>
@@ -5517,6 +5518,11 @@ function selectBayFromGrid(bay){
   if(sel){ sel.value=bay; }
   loadBayJobs();
   renderBayGrid();
+  // Auto-scroll to jobs section
+  setTimeout(function(){
+    var jobsEl=document.getElementById('groundJobList');
+    if(jobsEl) jobsEl.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 150);
 }
 
 function loadBayJobs(){
