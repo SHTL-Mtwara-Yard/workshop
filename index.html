@@ -11348,15 +11348,19 @@ function refreshWorkerBoard(){
     let statusHtml='';
     if(p.status==='working'){
       const lockDetails=p.locks.map(l=>`${l.truckNo} · ${l.bayNo} · ${dInfo[l.dept]} (${l.doneCount}/${l.total})`).join('<br>');
-      statusHtml=`<span class="tag tag-blue">🔧 Working</span><div class="text-xs text2 mt-8">${lockDetails}</div>`;
+      statusHtml=`<span style="background:#16a34a;color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:800">🔧 Working</span><div class="text-xs mt-8" style="color:#166534">${lockDetails}</div>`;
     } else if(p.status==='assisting'){
-      statusHtml=`<span class="tag tag-purple">🤝 Assisting</span>${p.bayNo?`<div class="text-xs text2 mt-8">${p.bayNo}${p.dept?' · '+dInfo[p.dept]:''}</div>`:''}`;
+      statusHtml=`<span style="background:#7c3aed;color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:800">🤝 Assisting</span>${p.bayNo?`<div class="text-xs text2 mt-8">${p.bayNo}${p.dept?' · '+dInfo[p.dept]:''}</div>`:''}`;
     } else {
-      statusHtml=`<span class="tag tag-green">✅ Available</span>`;
+      statusHtml=`<span style="background:#e07b00;color:#fff;border-radius:6px;padding:3px 10px;font-size:12px;font-weight:800">✅ Available</span>`;
     }
-    return `<div class="worker-card ${p.status}">
-      <div><span class="fw-700">${p.name}</span><div class="text-xs text2 mt-8">${fixedBayTag}</div></div>
-      <div style="text-align:right">${statusHtml}<div class="text-xs text2 mt-8">since ${sinceTime}</div></div>
+    let cardStyle='';
+    if(p.status==='working') cardStyle='border-left:5px solid #16a34a;background:rgba(22,163,74,.1);';
+    else if(p.status==='assisting') cardStyle='border-left:5px solid #7c3aed;background:rgba(124,58,237,.1);';
+    else cardStyle='border-left:5px solid #e07b00;background:rgba(224,123,0,.07);';
+    return `<div class="worker-card ${p.status}" style="${cardStyle}border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div><span class="fw-700" style="font-size:14px">${p.name}</span><div class="text-xs text2 mt-4">${fixedBayTag}</div></div>
+      <div style="text-align:right">${statusHtml}<div class="text-xs text2 mt-4">since ${sinceTime}</div></div>
     </div>`;
   }).join('');
 }
