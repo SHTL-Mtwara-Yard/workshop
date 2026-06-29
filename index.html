@@ -6027,6 +6027,13 @@ function checkAutoCompletion(insId){
     ins.parked=true;
     ins.supervisorRemark=null; // awaiting Supervisor's remark
     if(e){ e.parkStatus='awaiting_remark'; }
+    // Auto-return ground team to bay grid after 2 seconds
+    setTimeout(function(){
+      if(document.getElementById('groundBayDetailTab') && document.getElementById('groundBayDetailTab').style.display!=='none'){
+        backToBayGrid();
+        toast('✅ All jobs done — '+ins.truckNo+' notified to supervisor · Kazi zote zimekamilika','ok');
+      }
+    }, 2000);
     // Catch-all: release anyone still listed against this bay (e.g. legacy no-dept
     // entries) now that the whole truck is done, even though their dept wasn't tracked.
     if(S.assistingWorkers && S.assistingWorkers[ins.bayNo]){
