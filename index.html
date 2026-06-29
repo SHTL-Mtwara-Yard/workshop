@@ -6958,19 +6958,27 @@ function refreshUptime(){
 // ═══ OVERVIEW ═══
 // ═══ FLEET (multi-truck quick overview) ═══
 function jumpToGroundTeam(bayNo){
-  const teamABays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
-  const team = teamABays.includes(bayNo) ? 'A' : 'B';
+  // Switch to Ground tab
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-ground').classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t=>{ if(t.textContent.includes('Ground')) t.classList.add('active'); });
-  selTeam=team;
-  document.getElementById('teamABtn').className='team-btn'+(team==='A'?' active-a':'');
-  document.getElementById('teamBBtn').className='team-btn'+(team==='B'?' active-b':'');
+  try{ localStorage.setItem('shtl_lastPage','ground'); }catch(e){}
+
+  // Switch to Bay Work subtab
+  var groundPage = document.getElementById('page-ground');
+  groundPage.querySelectorAll('.ground-subpage').forEach(p=>p.classList.remove('active'));
+  groundPage.querySelectorAll('.subnav .subtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('subground-baywork').classList.add('active');
+  groundPage.querySelectorAll('.subtab').forEach(function(t){ if(t.textContent.includes('Bay Work')) t.classList.add('active'); });
+
+  // Refresh ground page to render bay grid
   refreshGroundPage();
-  const baySel=document.getElementById('groundBaySelect');
-  baySel.value=bayNo;
-  loadBayJobs();
+
+  // Select the bay and show detail view
+  setTimeout(function(){
+    selectBayFromGrid(bayNo);
+  }, 100);
 }
 
 // ═══ DELAY RESPONSIBILITY TRACKER ═══
