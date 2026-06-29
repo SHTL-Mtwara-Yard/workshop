@@ -1119,10 +1119,13 @@ tr:hover td { background: var(--surface2); }
         </div>
 
         <label>⛽ Fuel Balance on Arrival (Litres)</label>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <input type="number" id="fuelSlider" min="0" max="600" step="10" value="0" placeholder="0" oninput="updateFuelFromSlider(this.value)" style="width:140px;font-size:22px;font-weight:800;text-align:center;padding:10px;border-radius:10px;border:2px solid var(--border)">
-          <span style="font-size:14px;color:var(--text2);font-weight:600">L of 600</span>
-          <span id="fuelSliderVal" style="display:none">0</span>
+        <div class="fuel-wrap mb-12">
+          <div class="fuel-slider-readout">
+            <span class="fuel-slider-val" id="fuelSliderVal">0</span>
+            <span class="fuel-slider-unit">L of 650</span>
+          </div>
+          <input type="range" id="fuelSlider" min="0" max="650" step="10" value="0" oninput="updateFuelFromSlider(this.value)">
+          <div class="fuel-slider-scale"><span>0</span><span>160</span><span>325</span><span>490</span><span>650</span></div>
         </div>
         <input type="hidden" id="fuelSelected" value="">
 
