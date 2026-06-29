@@ -4779,8 +4779,8 @@ function addJobRow(d){
 }
 
 function refreshSupervisorPage(){
-  // Show trucks with no inspection OR only auto-created inspection (supervisor can still inspect)
-  const uninsp=S.entries.filter(e=>!e.exitTime&&!S.inspections.some(i=>i.entryId===e.id && i.createdBy!=='Ground Team (auto)'));
+  // Always recompute strictly from current entries+inspections so this never lags
+  const uninsp=S.entries.filter(e=>!e.exitTime&&!S.inspections.some(i=>i.entryId===e.id));
   const sel=document.getElementById('supTruckSelect');
   const currentVal=sel.value; // preserve selection across live updates from other users
   sel.innerHTML='<option value="">-- Select Truck --</option>'+uninsp.map(e=>`<option value="${e.id}">${e.truckNo} (${e.origin})</option>`).join('');
