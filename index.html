@@ -3481,6 +3481,15 @@ function showPage(id,el){
   if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
   const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage};
   if(map[id])map[id]();
+  // Auto-switch Ground to Punch Status by default
+  if(id==='ground'){
+    var gp=document.getElementById('page-ground');
+    gp.querySelectorAll('.ground-subpage').forEach(p=>p.classList.remove('active'));
+    gp.querySelectorAll('.subnav .subtab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('subground-punch').classList.add('active');
+    gp.querySelectorAll('.subtab').forEach(function(t){ if(t.textContent.includes('Punch')) t.classList.add('active'); });
+    refreshPunchTab();
+  }
   checkCompletionAlertQueue();
 }
 
