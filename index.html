@@ -5509,13 +5509,49 @@ function renderGroundLeaderboard(){
     });
   });
 
-  // Build "not punched" list per dept from roster
+    // Also count from jobUpdates doneBy
+    Object.keys(S.jobUpdates||{}).forEach(function(key){
+      var upd = S.jobUpdates[key];
+      if(!upd || !upd.done || !upd.doneBy) return;
+      var parts = key.split('_');
+      if(parts.length<3) return;
+      var kInsId=parts[0], kDept=parts[1];
+      var ins2=S.inspections.find(function(i){ return String(i.id)===kInsId; });
+      if(!ins2) return;
+      var e2=S.entries.find(function(x){ return x.id==ins2.entryId; });
+      if(!e2) return;
+      if(new Date(e2.entryTime).toDateString()!==today) return;
+      depts.forEach(function(d2){
+        if(kDept!==d2) return;
+        var mechName=upd.doneBy;
+        if(!deptMap[d2][mechName]) deptMap[d2][mechName]={done:0,total:0,trucks:0,delivered:0};
+        // avoid double counting
+        if(!deptMap[d2][mechName]._jobKeys) deptMap[d2][mechName]._jobKeys={};
+        if(!deptMap[d2][mechName]._jobKeys[key]){
+          deptMap[d2][mechName]._jobKeys[key]=true;
+          deptMap[d2][mechName].done++;
+        }
+      });
+    });
   var notPunchedHtml='<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mechanics with no job punches today</div>';
   var anyNotPunched=false;
   depts.forEach(function(d){
     var rosterKey={mech:'mech',elec:'elec',tyre:'tyre',weld:'weld'}[d];
     var allInDept=(S.staffRoster[rosterKey]||[]);
-    var notPunched=allInDept.filter(function(name){ return !deptMap[d][name] || deptMap[d][name].done===0; });
+    var notPunched=allInDept.filter(function(name){
+      // Check deptMap (assigned mechanic with done jobs)
+      if(deptMap[d][name] && deptMap[d][name].done>0) return false;
+      // Also check jobUpdates — mechanic may have punched done via checkbox
+      var hasDone = Object.keys(S.jobUpdates||{}).some(function(key){
+        var upd = S.jobUpdates[key];
+        return upd && upd.done && upd.doneBy && upd.doneBy.toUpperCase()===name.toUpperCase();
+      });
+      if(hasDone) return false;
+      // Check workerPunches — mechanic may be currently working
+      var punch = (S.workerPunches||{})[name];
+      if(punch && punch.status==='working') return false;
+      return true;
+    });
     if(!notPunched.length) return;
     anyNotPunched=true;
     notPunchedHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:800;color:'+dColor[d]+';margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+dLabel[d]+'</div>';
