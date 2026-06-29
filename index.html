@@ -1495,6 +1495,14 @@ tr:hover td { background: var(--surface2); }
 
   <!-- DEPT LEADERBOARD -->
   <div class="ground-subpage" id="subground-leaderboard">
+    <!-- Monthly Report Download -->
+    <div class="card" style="border-top:3px solid #1d4ed8">
+      <div class="card-title"><span class="dot" style="background:#1d4ed8"></span>📥 Mechanic Monthly Report</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="month" id="mechReportMonth" style="padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
+        <button onclick="downloadMechMonthlyReport()" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer">📊 Download Excel</button>
+      </div>
+    </div>
     <!-- Team Performance -->
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>Team Performance — This Month</div>
@@ -5479,7 +5487,85 @@ function showLbView(view, btn){
   document.getElementById('lbNotBtn').className = view==='notpunched'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';
 }
 
+function downloadMechMonthlyReport(){
+  var monthVal = document.getElementById('mechReportMonth').value;
+  if(!monthVal) return toast('⚠️ Select a month first','warn');
+  var yr = parseInt(monthVal.split('-')[0]);
+  var mo = parseInt(monthVal.split('-')[1])-1; // 0-based
+
+  var depts=['mech','elec','tyre','weld'];
+  var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'};
+
+  // Build per-mechanic stats
+  var mechStats = {}; // name -> {dept, jobs:[{date,truck,bay,jobDesc,dept}], trucks:Set}
+
+  S.inspections.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e) return;
+    var entryDate = new Date(e.entryTime);
+    if(entryDate.getFullYear()!==yr || entryDate.getMonth()!==mo) return;
+    var dateStr = entryDate.toLocaleDateString('en-GB');
+
+    depts.forEach(function(d){
+      var jobs = (ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        var key = ins.id+'_'+d+'_'+i;
+        var upd = (S.jobUpdates||{})[key]||{};
+        if(!upd.done && !j.done) return;
+        // Get mechanic name
+        var mechName = upd.doneBy || (ins.deptStaff||{})[d] || 'Unknown';
+        if(!mechStats[mechName]) mechStats[mechName]={dept:dLabel[d],jobs:[],trucks:new Set()};
+        mechStats[mechName].jobs.push({
+          date:dateStr,
+          truck:ins.truckNo,
+          bay:ins.bayNo,
+          dept:dLabel[d],
+          jobDesc:j.desc||'',
+          jobType:ins.jobType||'',
+          doneTime:upd.doneTime?new Date(upd.doneTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''
+        });
+        mechStats[mechName].trucks.add(ins.truckNo);
+      });
+    });
+  });
+
+  // Build summary sheet data
+  var summaryRows = [['MECHANIC NAME','DEPARTMENT','TOTAL JOBS','TRUCKS WORKED','MECH JOBS','ELEC JOBS','TYRE JOBS','WELD JOBS']];
+  Object.keys(mechStats).sort().forEach(function(name){
+    var m = mechStats[name];
+    var byDept={Mechanical:0,Electrician:0,Tyre:0,Welding:0};
+    m.jobs.forEach(function(j){ byDept[j.dept]=(byDept[j.dept]||0)+1; });
+    summaryRows.push([name,m.dept,m.jobs.length,m.trucks.size,byDept.Mechanical,byDept.Electrician,byDept.Tyre,byDept.Welding]);
+  });
+
+  // Build detail sheet data
+  var detailRows = [['MECHANIC NAME','DATE','TRUCK NO','BAY','DEPARTMENT','JOB DESCRIPTION','JOB TYPE','DONE TIME']];
+  Object.keys(mechStats).sort().forEach(function(name){
+    mechStats[name].jobs.forEach(function(j){
+      detailRows.push([name,j.date,j.truck,j.bay,j.dept,j.jobDesc,j.jobType,j.doneTime]);
+    });
+  });
+
+  // Create workbook
+  var wb = XLSX.utils.book_new();
+  var ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
+  var ws2 = XLSX.utils.aoa_to_sheet(detailRows);
+  ws1['!cols']=[{wch:25},{wch:14},{wch:12},{wch:14},{wch:11},{wch:11},{wch:11},{wch:11}];
+  ws2['!cols']=[{wch:25},{wch:12},{wch:12},{wch:8},{wch:13},{wch:35},{wch:16},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,'Summary',ws1);
+  XLSX.utils.book_append_sheet(wb,'Job Detail',ws2);
+  var monthName = new Date(yr,mo,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+  XLSX.writeFile(wb,'SHTL_Mechanic_Report_'+monthName.replace(' ','_')+'.xlsx');
+  toast('✅ Downloaded — '+monthName,'ok');
+}
+
 function renderGroundLeaderboard(){
+  // Set default month picker to current month
+  var mp = document.getElementById('mechReportMonth');
+  if(mp && !mp.value){
+    var now = new Date();
+    mp.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  }
   var today=new Date().toDateString();
   var depts=['mech','elec','tyre','weld'];
   var dLabel={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
