@@ -3299,6 +3299,7 @@ fbRoot.on('value', snapshot=>{
       spareRequisitions: data.spareRequisitions || [],
       qrAccess: data.qrAccess || {},
       slaMissReasons: data.slaMissReasons || {},
+      deptDelayRemarks: data.deptDelayRemarks || {},
       viewQrAccess: data.viewQrAccess || {},
       secQrAccess: data.secQrAccess || {},
       workshopClosedDate: data.workshopClosedDate || ''
@@ -5791,7 +5792,8 @@ function loadBayJobs(){
           `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#15803d;display:flex;align-items:center;justify-content:space-between;gap:8px">
             <span><i class="ti ti-lock" aria-hidden="true" style="font-size:13px"></i> ETD locked — <strong>${formatETD24h(dEtd)} ${formatETDDate(dEtd)}</strong>. Cannot be changed.</span>
             <button onclick="managerResetETD('${ins.id}','${d}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">🔓 Reset ETD</button>
-          </div>`:
+          </div>
+          ${(mLeft!==null && mLeft<0) ? buildDelayBtn(ins.id,d) : ''}`:
           `<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">
             <div style="flex:1">
               <label style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;display:block">Hour (00–23)</label>
@@ -10948,6 +10950,50 @@ function saveEditInspection(insId){
   toast('✅ Inspection updated — corrected everywhere','ok');
 }
 
+function buildDelayBtn(insId, dept){
+  var key = insId+'_'+dept;
+  var existing = (S.deptDelayRemarks||{})[key];
+  var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
+  if(existing){
+    return '<div style="background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:8px;padding:8px 12px;font-size:12px;color:#dc2626;margin-top:6px">⚠️ Delay reported: '+existing+'</div>';
+  }
+  return '<button onclick="reportDeptDelay(\''+insId+'\',\''+dept+'\',\''+(ins?ins.truckNo:'')+'\',\''+(ins?ins.bayNo:'')+'\')" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:6px;display:block">⚠️ Report Delay · Ripoti Kuchelewa</button>';
+}
+
+function reportDeptDelay(insId, dept, truckNo, bayNo){
+  var modal = document.getElementById('deptDelayModal');
+  document.getElementById('deptDelayInsId').value = insId;
+  document.getElementById('deptDelayDept').value = dept;
+  document.getElementById('deptDelayTruckLabel').textContent = truckNo+' · '+bayNo+' · '+{mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept];
+  document.getElementById('deptDelayReason').value = '';
+  modal.classList.add('open');
+}
+
+function saveDeptDelay(){
+  var insId = document.getElementById('deptDelayInsId').value;
+  var dept = document.getElementById('deptDelayDept').value;
+  var reason = document.getElementById('deptDelayReason').value.trim();
+  if(!reason) return toast('⚠️ Enter delay reason','warn');
+  if(!S.deptDelayRemarks) S.deptDelayRemarks={};
+  S.deptDelayRemarks[insId+'_'+dept] = reason;
+  // Send notification to supervisor and manager
+  if(!S.notifications) S.notifications=[];
+  var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
+  var dLabel = {mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept];
+  S.notifications.push({
+    id: Date.now(),
+    message: '⚠️ DELAY — '+(ins?ins.truckNo:'')+ ' '+dLabel+': '+reason+'. Bay: '+(ins?ins.bayNo:'')+'. Reported by Ground Team.',
+    truckLink: ins?ins.truckNo:'',
+    bayLink: ins?ins.bayNo:'',
+    timestamp: new Date().toISOString(),
+    read: false
+  });
+  save();
+  closeModal('deptDelayModal');
+  loadBayJobs();
+  toast('⚠️ Delay reported — Supervisor & Manager notified','ok');
+}
+
 function managerResetETD(insId, dept){
   requireManagerConfirm('Reset ETD lock for '+dept.toUpperCase()+' department? Ground team will need to set ETD again.', function(){
     var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
@@ -12805,6 +12851,30 @@ function runInitialRender(){
   }catch(e){ console.warn('Initial render error:',e); }
 }
 </script>
+
+<!-- DEPT DELAY REPORT MODAL -->
+<div class="modal-overlay" id="deptDelayModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">⚠️ Report Delay · Ripoti Kuchelewa</div>
+    <div id="deptDelayTruckLabel" style="font-size:15px;font-weight:800;color:#f59e0b;margin-bottom:12px"></div>
+    <input type="hidden" id="deptDelayInsId">
+    <input type="hidden" id="deptDelayDept">
+    <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Delay Reason · Sababu ya Kuchelewa</label>
+    <select id="deptDelayReason" style="width:100%;margin-bottom:10px;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text)">
+      <option value="">-- Select reason --</option>
+      <option value="Waiting for spare parts">Waiting for spare parts</option>
+      <option value="Technician shortage">Technician shortage</option>
+      <option value="Complex job — more time needed">Complex job — more time needed</option>
+      <option value="Waiting for tools/equipment">Waiting for tools/equipment</option>
+      <option value="Job scope increased">Job scope increased</option>
+      <option value="Other">Other</option>
+    </select>
+    <div class="flex gap-8">
+      <button class="btn btn-primary btn-block" onclick="saveDeptDelay()">📨 Send to Supervisor & Manager</button>
+      <button class="btn btn-ghost" onclick="closeModal('deptDelayModal')">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- SLA MISS REASON MODAL -->
 <div class="modal-overlay" id="slaMissModal">
