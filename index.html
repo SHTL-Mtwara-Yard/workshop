@@ -1839,48 +1839,54 @@ tr:hover td { background: var(--surface2); }
             <button class="btn btn-ghost btn-sm" onclick="setBdDateTimeNow()">🕐 Now</button>
           </div>
         </div>
+      </div>
+
+      <!-- Redesigned form fields in WhatsApp format -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
-          <label>Truck No / Issue</label>
-          <input type="text" id="bdTruckNo" placeholder="e.g. T294DZT - WHEEL STUD BROKEN" oninput="this.value=this.value.toUpperCase()">
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🚛 TRUCK NO / TRAILER NO</label>
+          <input type="text" id="bdTruckNo" placeholder="e.g. T130DYT / 675ECS" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:14px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">👤 DRIVER NAME</label>
+          <input type="text" id="bdDriver" placeholder="e.g. YOHANA BAKARI" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📞 PHONE</label>
+          <input type="text" id="bdContact" placeholder="e.g. 0676983913" inputmode="tel">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📍 LOCATION</label>
+          <input type="text" id="bdLocation" placeholder="e.g. LAKE OIL MNAZI MMOJA" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📦 STATUS</label>
+          <input type="text" id="bdStatus" placeholder="e.g. LOADED / EMPTY" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">⚠️ ISSUE</label>
+          <input type="text" id="bdRemarks" placeholder="e.g. TRUCK MISS" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🎯 IC (INCHARGE)</label>
+          <input type="text" id="bdIC" placeholder="e.g. MARIE" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🔧 ATTENDED BY (SHTL MECHANIC)</label>
+          <input type="text" id="bdMechanic" placeholder="Type mechanic name..." oninput="this.value=this.value.toUpperCase()">
         </div>
       </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Contact No</label>
-          <input type="text" id="bdContact" placeholder="e.g. 688518652" inputmode="tel">
-        </div>
-        <div>
-          <label>Location</label>
-          <input type="text" id="bdLocation" placeholder="e.g. MNAZI MMOJA">
-        </div>
-      </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Mechanic</label>
-          <select id="bdMechanic">
-            <option value="">-- Select Mechanic --</option>
-            <option value="Local Technician">Local Technician (field/contracted)</option>
-          </select>
-        </div>
-        <div>
-          <label>Status</label>
-          <input type="text" id="bdStatus" placeholder="e.g. SPARES SENT / SPARE TYRE AT SITE">
-        </div>
-      </div>
-      <div class="form-row">
-        <div>
-          <label>Remarks</label>
-          <input type="text" id="bdRemarks" placeholder="e.g. Driver not responding">
-        </div>
-      </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Work Done <span class="text-xs text2">(fill after repair)</span></label>
-          <input type="text" id="bdWorkDone" placeholder="e.g. Changed wheel stud, fitted spare tyre" oninput="this.value=this.value.toUpperCase()">
-        </div>
-        <div>
-          <label>Spares Sent <span class="text-xs text2">(parts dispatched)</span></label>
-          <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
+      <div style="border-top:2px dashed var(--border);padding-top:10px;margin-bottom:10px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:8px;font-weight:700">FILL AFTER REPAIR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:11px;font-weight:800;letter-spacing:.5px">✅ WORK DONE</label>
+            <input type="text" id="bdWorkDone" placeholder="e.g. Changed wheel stud, fitted spare tyre" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📦 SPARES SENT</label>
+            <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
+          </div>
         </div>
       </div>
       <button class="btn btn-primary" onclick="logBreakdown()">+ Log Breakdown</button>
@@ -7719,11 +7725,13 @@ function parseBreakdownPaste(){
 
   // Fill fields
   var filled = 0;
-  if(found.truck){ document.getElementById('bdTruckNo').value = found.truck+(found.issue?' - '+found.issue.toUpperCase():''); filled++; }
+  if(found.truck){ document.getElementById('bdTruckNo').value = found.truck; filled++; }
+  if(found.driver){ document.getElementById('bdDriver') && (document.getElementById('bdDriver').value = found.driver.toUpperCase()); filled++; }
   if(found.phone){ document.getElementById('bdContact').value = found.phone; filled++; }
   if(found.location){ document.getElementById('bdLocation').value = found.location.toUpperCase(); filled++; }
   if(found.status){ document.getElementById('bdStatus').value = found.status.toUpperCase(); filled++; }
-  if(found.driver){ document.getElementById('bdRemarks').value = 'Driver: '+found.driver+(found.ic?' | IC: '+found.ic:''); filled++; }
+  if(found.issue){ document.getElementById('bdRemarks').value = found.issue.toUpperCase(); filled++; }
+  if(found.ic){ document.getElementById('bdIC') && (document.getElementById('bdIC').value = found.ic.toUpperCase()); filled++; }
 
   if(filled>0){
     toast('✅ Filled '+filled+' fields — review and adjust','ok');
@@ -7736,14 +7744,16 @@ function parseBreakdownPaste(){
 function logBreakdown(){
   var dt=getBdDateTime();
   const truck=document.getElementById('bdTruckNo').value.trim();
+  const driver=(document.getElementById('bdDriver')||{value:''}).value.trim();
   const contact=document.getElementById('bdContact').value.trim();
   const location=document.getElementById('bdLocation').value.trim();
-  const mechanic=document.getElementById('bdMechanic').value;
+  const mechanic=document.getElementById('bdMechanic').value.trim();
   const status=document.getElementById('bdStatus').value.trim();
   const remarks=document.getElementById('bdRemarks').value.trim();
+  const ic=(document.getElementById('bdIC')||{value:''}).value.trim();
 
   if(!dt)return toast('⚠️ Enter date/time the report came in','warn');
-  if(!truck)return toast('⚠️ Enter truck no / issue','warn');
+  if(!truck)return toast('⚠️ Enter truck no','warn');
   if(!location)return toast('⚠️ Enter location','warn');
 
   const workDone=(document.getElementById('bdWorkDone')||{value:''}).value||'';
@@ -7752,9 +7762,11 @@ function logBreakdown(){
     id:Date.now(),
     reportedAt:dt,
     truckNo:truck,
+    driver,
     contact,
     location,
     mechanic,
+    ic,
     status,
     remarks,
     workDone:workDone.toUpperCase(),
@@ -7763,7 +7775,7 @@ function logBreakdown(){
   });
   save();
 
-  ['bdTruckNo','bdContact','bdLocation','bdMechanic','bdStatus','bdRemarks','bdWorkDone','bdSparesSent'].forEach(id=>{ var el=document.getElementById(id); if(el) el.value=''; });
+  ['bdTruckNo','bdDriver','bdContact','bdLocation','bdMechanic','bdIC','bdStatus','bdRemarks','bdWorkDone','bdSparesSent'].forEach(id=>{ var el=document.getElementById(id); if(el) el.value=''; });
   setBdDateTimeNow();
   refreshBreakdown();
   toast('✅ Breakdown logged','ok');
