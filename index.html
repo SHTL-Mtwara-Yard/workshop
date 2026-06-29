@@ -10035,114 +10035,113 @@ function renderMechPwa(){
   var el = document.getElementById('mechPwaContent');
   if(!el) return;
 
-  // Check access
   if(!S.qrAccess[_mechPwaName] && !S.qrAccess[_mechPwaName.toLowerCase()]){
-    el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">🔒</div><div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div><div style="color:#888;font-size:13px">Ask your manager to enable QR access for your account.</div><div style="color:#666;font-size:12px;margin-top:6px">Omba meneja wako akuruhusu kutumia QR.</div></div>';
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px"><div style="font-size:48px">\uD83D\uDD12</div>'
+      +'<div style="color:#e07b00;font-weight:800;font-size:18px;margin:12px 0">Access Not Enabled</div>'
+      +'<div style="color:#888;font-size:13px">Ask your manager to enable QR access.</div>'
+      +'<div style="color:#666;font-size:12px;margin-top:6px">Omba meneja wako akuruhusu.</div></div>';
     return;
   }
 
-  var today = new Date().toDateString();
-  var yesterday = new Date(Date.now()-86400000).toDateString();
-
-  // Collect jobs for this mechanic
-  var todayJobs = [];
-  var pendingJobs = [];
-
-  S.inspections.forEach(function(ins){
-    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
-    if(!e || e.exitTime) return; // skip exited trucks
-    var entryDate = new Date(e.entryTime).toDateString();
-    var isToday = entryDate===today;
-    var isYesterday = entryDate===yesterday;
-    if(!isToday && !isYesterday) return;
-
-    ['mech','elec','tyre','weld'].forEach(function(d){
-      var assigned = ((ins.deptStaff||{})[d]||'').toUpperCase();
-      if(assigned !== _mechPwaName) return;
-      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
-        var key = ins.id+'_'+d+'_'+i;
-        var upd = S.jobUpdates[key]||{};
-        var done = upd.done||j.done;
-        var jobObj = {
-          key: key, desc: j.desc, truckNo: ins.truckNo, bayNo: ins.bayNo,
-          done: done, doneTime: upd.doneTime||'', insId: ins.id, dept: d
-        };
-        if(isToday){ todayJobs.push(jobObj); }
-        else if(isYesterday && !done){ pendingJobs.push(jobObj); }
-      });
-    });
+  // Get active trucks in yard
+  var activeIns = S.inspections.filter(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId && !x.exitTime; });
+    return !!e;
   });
 
-  var todayDone = todayJobs.filter(function(j){ return j.done; }).length;
-  var todayTotal = todayJobs.length;
-  var pct = todayTotal ? Math.round(todayDone/todayTotal*100) : 0;
-
-  function jobRow(j){
-    var doneClass = j.done ? 'opacity:.4;' : '';
-    var descStyle = j.done ? 'text-decoration:line-through;color:#888' : 'color:#fff';
-    var btn = j.done
-      ? '<span style="background:#14532d;color:#4ade80;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">✓ Done</span>'
-      : '<button onclick="mechMarkDone(\''+j.key+'\')" style="background:#1a3a5c;color:#60a5fa;border:1px solid #1d4ed8;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.3;text-align:center">Mark Done<br><span style="font-size:10px;opacity:.7;font-weight:400">Kazi Imekamilika</span></button>';
-    return '<div style="background:#12121f;border:1px solid #2a2a3e;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;'+doneClass+'">'
-      +'<div style="flex:1;font-size:12px;'+descStyle+'">'+j.desc+'</div>'+btn+'</div>';
-  }
-
-  function groupByTruck(jobs){
-    var map = {};
-    jobs.forEach(function(j){
-      var k = j.truckNo;
-      if(!map[k]) map[k]={truckNo:j.truckNo,bayNo:j.bayNo,jobs:[]};
-      map[k].jobs.push(j);
-    });
-    return Object.values(map);
-  }
-
-  var todayGroups = groupByTruck(todayJobs);
-  var pendingGroups = groupByTruck(pendingJobs);
-
-  var html = '';
-
-  // Header
-  html += '<div style="background:linear-gradient(135deg,#e07b00,#c96a00);border-radius:14px;padding:14px 16px;margin-bottom:14px">'
-    +'<div style="font-size:10px;opacity:.8;letter-spacing:1px">MY JOBS &nbsp;·&nbsp; KAZI ZANGU</div>'
+  var html = '<div style="background:linear-gradient(135deg,#e07b00,#c96a00);border-radius:14px;padding:14px 16px;margin-bottom:14px">'
+    +'<div style="font-size:10px;opacity:.8;letter-spacing:1px">MY JOBS \u00B7 KAZI ZANGU</div>'
     +'<div style="font-size:17px;font-weight:800;margin:2px 0">'+_mechPwaName+'</div>'
-    +'<div style="font-size:12px;opacity:.8">Today / Leo: '+todayDone+'/'+todayTotal+' done</div>'
+    +'<div style="font-size:12px;opacity:.8">'+activeIns.length+' truck(s) in yard</div>'
     +'</div>';
 
-  // Progress bar
-  html += '<div style="background:#1a1a2e;border-radius:6px;height:8px;margin-bottom:14px;overflow:hidden">'
-    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#e07b00,#22c55e);border-radius:6px;transition:width .4s"></div></div>';
+  if(!activeIns.length){
+    html += '<div style="text-align:center;padding:40px 20px;color:#555"><div style="font-size:36px">\u2705</div>'
+      +'<div style="margin-top:8px;font-size:13px">No trucks in yard</div>'
+      +'<div style="font-size:12px;color:#444;margin-top:4px">Hakuna malori yardini</div></div>';
+  }
 
-  // Pending from yesterday
-  if(pendingGroups.length){
-    html += '<div style="font-size:11px;color:#f87171;font-weight:700;letter-spacing:1px;margin-bottom:8px">⚠️ PENDING FROM YESTERDAY &nbsp;·&nbsp; ZILIZOBAKI JANA</div>';
-    pendingGroups.forEach(function(g){
-      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#f87171;font-weight:700;margin-bottom:5px">'+g.truckNo+' <span style="background:#f87171;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">'+g.bayNo+'</span></div>';
-      g.jobs.forEach(function(j){ html += jobRow(j); });
-      html += '</div>';
+  activeIns.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id==ins.entryId; });
+    var allJobs = [];
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+        var key = ins.id+'_'+d+'_'+i;
+        var upd = (S.jobUpdates||{})[key]||{};
+        var done = upd.done||j.done;
+        var started = upd.started||false;
+        allJobs.push({key:key,desc:j.desc,dept:d,done:done,started:started,doneTime:upd.doneTime||''});
+      });
     });
-  }
 
-  // Today's jobs
-  if(todayGroups.length){
-    html += '<div style="font-size:11px;color:#e07b00;font-weight:700;letter-spacing:1px;margin-bottom:8px">TODAY\'S JOBS &nbsp;·&nbsp; KAZI ZA LEO</div>';
-    todayGroups.forEach(function(g){
-      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#e07b00;font-weight:700;margin-bottom:5px">'+g.truckNo+' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">'+g.bayNo+'</span></div>';
-      g.jobs.forEach(function(j){ html += jobRow(j); });
-      html += '</div>';
+    var totalDone = allJobs.filter(function(j){ return j.done; }).length;
+    var pct = allJobs.length ? Math.round(totalDone/allJobs.length*100) : 0;
+    var pctColor = pct===100?'#22c55e':pct>50?'#e07b00':'#ef4444';
+
+    html += '<div style="background:#12121f;border:1px solid #2a2a3e;border-radius:12px;padding:12px;margin-bottom:14px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<div><span style="font-size:16px;font-weight:900;color:#fff">'+ins.truckNo+'</span>'
+      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo+'</span></div>'
+      +'<span style="font-size:13px;font-weight:800;color:'+pctColor+'">'+pct+'%</span></div>';
+
+    // Progress bar
+    html += '<div style="background:#1a1a2e;border-radius:4px;height:5px;margin-bottom:10px">'
+      +'<div style="height:100%;width:'+pct+'%;background:'+pctColor+';border-radius:4px"></div></div>';
+
+    // Jobs list
+    allJobs.forEach(function(j){
+      var doneStyle = j.done ? 'opacity:.4;' : '';
+      var descStyle = j.done ? 'text-decoration:line-through;color:#888' : 'color:#fff';
+      var btn = '';
+      if(j.done){
+        btn = '<span style="background:#14532d;color:#4ade80;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">\u2713 Done</span>';
+      } else if(j.started){
+        btn = '<button onclick="mechMarkDone(\''+j.key+'\')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.3">\u2705 Done<br><span style=\"font-size:10px;opacity:.7\">Imekamilika</span></button>';
+      } else {
+        btn = '<button onclick="mechMarkStart(\''+j.key+'\')" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.3">\u25B6 Start<br><span style=\"font-size:10px;opacity:.7\">Anza</span></button>';
+      }
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1a1a2e;'+doneStyle+'">'
+        +'<div style="flex:1;font-size:12px;'+descStyle+'">'+j.desc+'</div>'+btn+'</div>';
     });
-  }
 
-  if(!todayJobs.length && !pendingJobs.length){
-    html += '<div style="text-align:center;padding:40px 20px;color:#555"><div style="font-size:36px">✅</div>'
-      +'<div style="margin-top:8px;font-size:13px">No jobs assigned today</div>'
-      +'<div style="font-size:12px;color:#444;margin-top:4px">Hakuna kazi zilizopangwa leo</div></div>';
-  }
+    // Add job section
+    html += '<div style="margin-top:10px">'
+      +'<input type="text" id="newjob_'+ins.id+'" placeholder="Add job found... / Ongeza kazi..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #2a2a3e;background:#0f1117;color:#fff;font-size:12px;margin-bottom:6px">'
+      +'<button onclick="mechAddJob(\''+ins.id+'\')" style="width:100%;background:#374151;color:#fff;border:none;border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer">+ Add Job / Ongeza Kazi</button>'
+      +'</div>';
 
-  // Last refresh
-  html += '<div style="text-align:center;font-size:11px;color:#444;margin-top:16px">Last updated / Imesasishwa: '+new Date().toLocaleTimeString('en-GB')+'</div>';
+    html += '</div>';
+  });
 
+  html += '<div style="text-align:center;font-size:11px;color:#444;margin-top:16px">Updated / Imesasishwa: '+new Date().toLocaleTimeString('en-GB')+'</div>';
   el.innerHTML = html;
+}
+function mechMarkStart(key){
+  if(!S.jobUpdates) S.jobUpdates={};
+  S.jobUpdates[key] = S.jobUpdates[key]||{};
+  S.jobUpdates[key].started = true;
+  S.jobUpdates[key].startTime = new Date().toISOString();
+  S.jobUpdates[key].startBy = _mechPwaName;
+  save();
+  renderMechPwa();
+}
+
+function mechAddJob(insId){
+  var inp = document.getElementById('newjob_'+insId);
+  if(!inp) return;
+  var desc = inp.value.trim();
+  if(!desc){ inp.style.border='1px solid #ef4444'; return; }
+  var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
+  if(!ins) return;
+  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[]};
+  if(!ins.jobs.mech) ins.jobs.mech=[];
+  ins.jobs.mech.push({
+    desc:desc, done:false, addedBy:_mechPwaName,
+    addedAt:new Date().toISOString(), source:'ground'
+  });
+  save();
+  inp.value='';
+  renderMechPwa();
 }
 
 function mechMarkDone(key){
