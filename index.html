@@ -1397,9 +1397,10 @@ tr:hover td { background: var(--surface2); }
 
     <!-- Bay Detail View (shown after tapping a bay) -->
     <div id="groundBayDetailTab" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <button onclick="backToBayGrid()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)">← Back</button>
-        <div style="font-size:16px;font-weight:800" id="groundDetailBayLabel"></div>
+        <div style="font-size:16px;font-weight:800;flex:1" id="groundDetailBayLabel"></div>
+        <button onclick="jumpToPunchFromBay()" style="background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer">👤 Punch Your Job<br><span style="font-size:10px;font-weight:400;opacity:.8">Weka Kazi Yako</span></button>
       </div>
 
     <div class="grid-2">
@@ -5572,6 +5573,32 @@ function renderBayGrid(){
 
 var _selectedGridBay = '';
 
+function jumpToPunchFromBay(){
+  var bay = _selectedGridBay;
+  // Switch to Punch Status tab
+  var groundPage = document.getElementById('page-ground');
+  groundPage.querySelectorAll('.ground-subpage').forEach(p=>p.classList.remove('active'));
+  groundPage.querySelectorAll('.subnav .subtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('subground-punch').classList.add('active');
+  groundPage.querySelectorAll('.subtab').forEach(function(t){ if(t.textContent.includes('Punch')) t.classList.add('active'); });
+  refreshPunchTab();
+  // Pre-select bay after short delay
+  if(bay){
+    setTimeout(function(){
+      _selectedPunchBay = bay;
+      renderPunchBayGrid();
+      // Also pre-select in hidden select
+      var sel = document.getElementById('punchBaySelect');
+      if(sel){
+        var found=false;
+        for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===bay){found=true;break;} }
+        if(!found){ var opt=document.createElement('option'); opt.value=bay; opt.text=bay; sel.appendChild(opt); }
+        sel.value=bay;
+      }
+    }, 100);
+  }
+}
+
 function backToBayGrid(){
   _selectedGridBay='';
   document.getElementById('groundBayDetailTab').style.display='none';
@@ -5670,7 +5697,7 @@ function loadBayJobs(){
         <span class="flex items-center gap-8">
           ${etdMissing?'<span class="tag tag-red">⚠️ Set ETD to enable completion</span>':''}
           <span class="text-xs text2">${done}/${jobs.length} done</span>
-          <button class="btn btn-ghost btn-sm" onclick="showAddGroundJob('${ins.id}','${d}')">+ Add Job</button>
+          <button class="btn btn-primary btn-sm" style="font-weight:800;padding:6px 14px" onclick="showAddGroundJob('${ins.id}','${d}')">+ Add Job</button>
         </span>
       </div>
       <div id="addjob-form-${d}" style="display:none;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface2)">
