@@ -10966,14 +10966,23 @@ function reportDeptDelay(insId, dept, truckNo, bayNo){
   document.getElementById('deptDelayDept').value = dept;
   document.getElementById('deptDelayTruckLabel').textContent = truckNo+' · '+bayNo+' · '+{mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept];
   document.getElementById('deptDelayReason').value = '';
+  document.getElementById('deptDelayReasonText').value = '';
   modal.classList.add('open');
+}
+
+function syncDelayReason(){
+  var sel = document.getElementById('deptDelayReason').value;
+  var txt = document.getElementById('deptDelayReasonText');
+  if(sel && sel!=='Other') txt.value = sel;
 }
 
 function saveDeptDelay(){
   var insId = document.getElementById('deptDelayInsId').value;
   var dept = document.getElementById('deptDelayDept').value;
-  var reason = document.getElementById('deptDelayReason').value.trim();
-  if(!reason) return toast('⚠️ Enter delay reason','warn');
+  var textReason = document.getElementById('deptDelayReasonText').value.trim();
+  var selReason = document.getElementById('deptDelayReason').value;
+  var reason = textReason || selReason;
+  if(!reason) return toast('⚠️ Enter or select a delay reason','warn');
   if(!S.deptDelayRemarks) S.deptDelayRemarks={};
   S.deptDelayRemarks[insId+'_'+dept] = reason;
   // Send notification to supervisor and manager
@@ -12860,7 +12869,7 @@ function runInitialRender(){
     <input type="hidden" id="deptDelayInsId">
     <input type="hidden" id="deptDelayDept">
     <label style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Delay Reason · Sababu ya Kuchelewa</label>
-    <select id="deptDelayReason" style="width:100%;margin-bottom:10px;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text)">
+    <select id="deptDelayReason" onchange="syncDelayReason()" style="width:100%;margin-bottom:8px;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text)">
       <option value="">-- Select reason --</option>
       <option value="Waiting for spare parts">Waiting for spare parts</option>
       <option value="Technician shortage">Technician shortage</option>
@@ -12869,6 +12878,7 @@ function runInitialRender(){
       <option value="Job scope increased">Job scope increased</option>
       <option value="Other">Other</option>
     </select>
+    <input type="text" id="deptDelayReasonText" placeholder="Or type your own reason · Au andika sababu yako..." style="width:100%;margin-bottom:14px;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text)">
     <div class="flex gap-8">
       <button class="btn btn-primary btn-block" onclick="saveDeptDelay()">📨 Send to Supervisor & Manager</button>
       <button class="btn btn-ghost" onclick="closeModal('deptDelayModal')">Cancel</button>
