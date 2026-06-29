@@ -1819,6 +1819,12 @@ tr:hover td { background: var(--surface2); }
 
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Breakdown <span class="text2 text-xs" style="text-transform:none;font-weight:400">— enter the time the message actually came in, even if logging it later</span></div>
+      <!-- Paste & Parse -->
+      <div style="background:var(--surface2);border:2px dashed var(--accent);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">📋 PASTE WHATSAPP MESSAGE — AUTO FILL</div>
+        <textarea id="bdPasteBox" rows="4" placeholder="Paste WhatsApp breakdown message here and tap Parse..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;resize:none"></textarea>
+        <button onclick="parseBreakdownPaste()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">⚡ Parse & Fill Fields</button>
+      </div>
       <div class="form-row cols-2">
         <div>
           <label>Date &amp; Time of Report</label>
@@ -7668,6 +7674,63 @@ function getBdDateTime(){
   var min=document.getElementById('bdMinute').value;
   var pad=function(n){return String(n).padStart(2,'0');};
   return y+'-'+pad(m)+'-'+pad(d)+'T'+pad(h)+':'+pad(min);
+}
+
+function parseBreakdownPaste(){
+  var text = document.getElementById('bdPasteBox').value.trim();
+  if(!text) return toast('⚠️ Paste a message first','warn');
+  var lines = text.split('\n').map(function(l){ return l.trim(); });
+  var found = {};
+
+  lines.forEach(function(line){
+    var up = line.toUpperCase();
+    // Truck No — look for pattern like T130DYT or T130 DYT / 675ECS
+    var truckMatch = line.match(/\bT\d{3}\s*[A-Z]{3}\b/i);
+    if(truckMatch && !found.truck) found.truck = truckMatch[0].replace(/\s+/g,'').toUpperCase();
+    // Driver
+    if(up.includes('DRIVER') || up.includes('DEREVA')){
+      var val = line.replace(/DRIVER\s*[:\/]?\s*/i,'').replace(/DEREVA\s*[:\/]?\s*/i,'').trim();
+      if(val) found.driver = val;
+    }
+    // Phone
+    var phoneMatch = line.match(/0[67]\d{8}/);
+    if(phoneMatch && !found.phone) found.phone = phoneMatch[0];
+    // Location
+    if(up.includes('LOCATION') || up.includes('MAHALI')){
+      var val = line.replace(/LOCATION\s*[:\/]?\s*/i,'').replace(/MAHALI\s*[:\/]?\s*/i,'').trim();
+      if(val) found.location = val;
+    }
+    // Status
+    if(up.includes('STATUS')){
+      var val = line.replace(/STATUS\s*[:\/]?\s*/i,'').trim();
+      if(val) found.status = val;
+    }
+    // Issue
+    if(up.includes('ISSUE') || up.includes('TATIZO') || up.includes('PROBLEM')){
+      var val = line.replace(/ISSUE\s*[:\/]?\s*/i,'').replace(/TATIZO\s*[:\/]?\s*/i,'').replace(/PROBLEM\s*[:\/]?\s*/i,'').trim();
+      if(val) found.issue = val;
+    }
+    // IC / Incharge
+    if(up.includes('IC:') || up.includes('I/C:') || up.includes('INCHARGE')){
+      var val = line.replace(/I\/C\s*[:\/]?\s*/i,'').replace(/IC\s*[:\/]?\s*/i,'').replace(/INCHARGE\s*[:\/]?\s*/i,'').trim();
+      if(val) found.ic = val;
+    }
+  });
+
+  // Fill fields
+  var filled = 0;
+  if(found.truck){ document.getElementById('bdTruckNo').value = found.truck+(found.issue?' - '+found.issue.toUpperCase():''); filled++; }
+  if(found.phone){ document.getElementById('bdContact').value = found.phone; filled++; }
+  if(found.location){ document.getElementById('bdLocation').value = found.location.toUpperCase(); filled++; }
+  if(found.status){ document.getElementById('bdStatus').value = found.status.toUpperCase(); filled++; }
+  if(found.driver){ document.getElementById('bdRemarks').value = 'Driver: '+found.driver+(found.ic?' | IC: '+found.ic:''); filled++; }
+
+  if(filled>0){
+    toast('✅ Filled '+filled+' fields — review and adjust','ok');
+    document.getElementById('bdPasteBox').value='';
+  } else {
+    toast('⚠️ Could not extract data — check message format','warn');
+  }
 }
 
 function logBreakdown(){
