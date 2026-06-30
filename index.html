@@ -5624,6 +5624,7 @@ function renderGroundLeaderboard(){
       var mech=((ins.deptStaff||{})[d]||'').trim();
       if(!mech) return;
       var jobs=(ins.jobs||{})[d]||[];
+      var truckHasActivityToday=false;
       jobs.forEach(function(j,i){
         var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
         var isDone = upd.done||j.done;
@@ -5631,18 +5632,21 @@ function renderGroundLeaderboard(){
         // older records without a stored date fall back to truck entry date.
         var completedToday = upd.date ? (upd.date===today) : (new Date(e.entryTime).toDateString()===today);
         if(!deptMap[d][mech]) deptMap[d][mech]={done:0,total:0,trucks:0,delivered:0,_truckSeen:{}};
-        if(!deptMap[d][mech]._truckSeen[ins.id]){
-          deptMap[d][mech]._truckSeen[ins.id]=true;
-          deptMap[d][mech].trucks++;
-          if(truckDelivered) deptMap[d][mech].delivered++;
-        }
         if(isDone && completedToday){
           deptMap[d][mech].total++;
           deptMap[d][mech].done++;
+          truckHasActivityToday=true;
         } else if(!isDone){
           deptMap[d][mech].total++;
         }
       });
+      // Only count this truck toward the mechanic's "trucks worked on" total if they
+      // actually completed something on it TODAY — matches the "— Today" board label.
+      if(truckHasActivityToday && deptMap[d][mech] && !deptMap[d][mech]._truckSeen[ins.id]){
+        deptMap[d][mech]._truckSeen[ins.id]=true;
+        deptMap[d][mech].trucks++;
+        if(truckDelivered) deptMap[d][mech].delivered++;
+      }
     });
   });
 
