@@ -3720,9 +3720,9 @@ function refreshInchargePage(){
     syncInchargeVisit();
   }
 
-  renderInchargeQueue();
-  renderInchargeStats();
-  updateInchargeCounter();
+  try{ renderInchargeQueue(); }catch(e){ console.error('renderInchargeQueue failed:',e); }
+  try{ renderInchargeStats(); }catch(e){ console.error('renderInchargeStats failed:',e); }
+  try{ updateInchargeCounter(); }catch(e){ console.error('updateInchargeCounter failed:',e); }
 }
 
 // Shows how many requests THIS Incharge has submitted today — live under the submit button
@@ -3981,6 +3981,7 @@ function renderInchargeQueue(){
   if(!S.appointments) return;
   const now=new Date();
   const threeDaysAgo=new Date(now-3*24*3600000);
+  const thisMonth=now.getMonth(); const thisYear=now.getFullYear();
 
   const active=S.appointments.filter(a=>{
     if(a.status==='closed') return false;
