@@ -684,7 +684,11 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- STATS STRIP -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px" id="inchargeStats">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px" id="inchargeStats">
+    <div class="incharge-stat-card" style="border-left:3px solid #1d4ed8">
+      <div class="isc-val" id="iscTodayReported">0</div>
+      <div class="isc-label">Today</div>
+    </div>
     <div class="incharge-stat-card" style="border-left:3px solid #f59e0b">
       <div class="isc-val" id="iscPending">0</div>
       <div class="isc-label">Pending</div>
@@ -4049,7 +4053,11 @@ function renderInchargeQueue(){
   ql.innerHTML=html;
 
   const hl=document.getElementById('inchargeHistoryList');
-  document.getElementById('inchargeHistoryCount').textContent='('+history.length+')';
+  var thisMonthCount = history.filter(function(a){
+    var d = new Date(a.reportedAt||a.plannedVisit);
+    return d.getMonth()===thisMonth && d.getFullYear()===thisYear;
+  }).length;
+  document.getElementById('inchargeHistoryCount').textContent='('+thisMonthCount+' this month \u00b7 '+history.length+' all-time)';
   hl.innerHTML=history.length ? history.map(a=>renderAptCard(a,true)).join('') :
     '<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:12px">No history yet</div>';
 
@@ -4073,13 +4081,20 @@ function renderInchargeQueue(){
 }
 
 function renderInchargeStats(){
-  if(!S.appointments){ ['iscPending','iscReported','iscOverdue','iscTotal'].forEach(id=>document.getElementById(id).textContent='0'); return; }
+  if(!S.appointments){ ['iscPending','iscReported','iscOverdue','iscTotal','iscTodayReported'].forEach(id=>document.getElementById(id).textContent='0'); return; }
   const now=new Date();
   const today=now.toDateString();
   const threeDaysAgo=new Date(now-3*24*3600000);
   const thisMonth=now.getMonth(); const thisYear=now.getFullYear();
   const active=S.appointments.filter(a=>a.status!=='closed' && new Date(a.plannedVisit)>=threeDaysAgo);
   const todayApts=S.appointments.filter(a=>new Date(a.submittedAt||a.plannedVisit).toDateString()===today);
+  // Today's reported count — those with status reported/closed AND reportedAt is today
+  const todayReportedCount = S.appointments.filter(a=>{
+    if(a.status!=='reported' && a.status!=='closed') return false;
+    var rDate = a.reportedAt ? new Date(a.reportedAt) : null;
+    return rDate && rDate.toDateString()===today;
+  }).length;
+  document.getElementById('iscTodayReported').textContent=todayReportedCount;
   document.getElementById('iscPending').textContent=active.filter(a=>aptStatusClass(a)==='pending').length;
   document.getElementById('iscReported').textContent=active.filter(a=>a.status==='reported').length;
   document.getElementById('iscOverdue').textContent=active.filter(a=>aptStatusClass(a)==='overdue').length;
