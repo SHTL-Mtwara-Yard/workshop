@@ -11481,8 +11481,9 @@ function punchStartJob(insId,dept,idx){
   if(!ins.jobOwners) ins.jobOwners={};
   const ownerKey=`owner_${insId}_${dept}_${idx}`;
   if(!ins.jobOwners[ownerKey]) ins.jobOwners[ownerKey]=curPunchWorker; // first person to start becomes the main responsible
-  if(!ins.deptStaff) ins.deptStaff={};
-  if(!ins.deptStaff[dept]) ins.deptStaff[dept]=curPunchWorker; // also credit as department mechanic if none assigned yet
+  // NOTE: Punching a job no longer auto-assigns/locks the department's ETD-setter name.
+  // ETD-setter assignment is only done via the explicit Assign dropdown (saveDeptStaff),
+  // not by whoever punches in to do the work.
 
   S.workerPunches[curPunchWorker]={
     status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo, dept, jobDesc:(ins.jobs||{})[dept][idx].desc,
