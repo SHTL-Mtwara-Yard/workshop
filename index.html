@@ -5606,24 +5606,35 @@ function renderGroundLeaderboard(){
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e) return;
-    if(new Date(e.entryTime).toDateString()!==today) return;
     var truckDelivered = !!e.exitTime;
     depts.forEach(function(d){
       var mech=((ins.deptStaff||{})[d]||'').trim();
       if(!mech) return;
-      if(!deptMap[d][mech]) deptMap[d][mech]={done:0,total:0,trucks:0,delivered:0};
       var jobs=(ins.jobs||{})[d]||[];
-      deptMap[d][mech].trucks++;
-      if(truckDelivered) deptMap[d][mech].delivered++;
       jobs.forEach(function(j,i){
         var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
-        deptMap[d][mech].total++;
-        if(upd.done||j.done) deptMap[d][mech].done++;
+        var isDone = upd.done||j.done;
+        // Count "today" by the job's OWN completion date if we have one;
+        // older records without a stored date fall back to truck entry date.
+        var completedToday = upd.date ? (upd.date===today) : (new Date(e.entryTime).toDateString()===today);
+        if(!deptMap[d][mech]) deptMap[d][mech]={done:0,total:0,trucks:0,delivered:0,_truckSeen:{}};
+        if(!deptMap[d][mech]._truckSeen[ins.id]){
+          deptMap[d][mech]._truckSeen[ins.id]=true;
+          deptMap[d][mech].trucks++;
+          if(truckDelivered) deptMap[d][mech].delivered++;
+        }
+        if(isDone && completedToday){
+          deptMap[d][mech].total++;
+          deptMap[d][mech].done++;
+        } else if(!isDone){
+          deptMap[d][mech].total++;
+        }
       });
     });
   });
 
-    // Also count from jobUpdates doneBy
+    // Also count from jobUpdates doneBy (covers Punch Status completions, which may not
+    // have an explicit deptStaff assignment — counted by the job's own completion date).
     Object.keys(S.jobUpdates||{}).forEach(function(key){
       var upd = S.jobUpdates[key];
       if(!upd || !upd.done || !upd.doneBy) return;
@@ -5634,7 +5645,8 @@ function renderGroundLeaderboard(){
       if(!ins2) return;
       var e2=S.entries.find(function(x){ return x.id==ins2.entryId; });
       if(!e2) return;
-      if(new Date(e2.entryTime).toDateString()!==today) return;
+      var completedToday = upd.date ? (upd.date===today) : (new Date(e2.entryTime).toDateString()===today);
+      if(!completedToday) return;
       depts.forEach(function(d2){
         if(kDept!==d2) return;
         var mechName=upd.doneBy;
@@ -6385,7 +6397,7 @@ function toggleJobGround(insId,dept,idx,cb){
     return;
   }
   const key=`${insId}_${dept}_${idx}`;
-  S.jobUpdates[key]={done:cb.checked,doneBy:'Ground Team',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  S.jobUpdates[key]={done:cb.checked,doneBy:'Ground Team',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
   // Track T4 quality check timestamp = last job done time
   const ins=S.inspections.find(i=>i.id==insId);
   if(ins && cb.checked){
@@ -11505,7 +11517,7 @@ function punchCompleteJob(insId,dept,idx){
     return;
   }
   const key=`${insId}_${dept}_${idx}`;
-  S.jobUpdates[key]={done:true, doneBy:curPunchWorker, time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  S.jobUpdates[key]={done:true, doneBy:curPunchWorker, time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), date:new Date().toDateString()};
   if(!ins.t4_qcDone) ins.t4_qcDone=new Date().toISOString();
   checkAutoCompletion(insId);
 
