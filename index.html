@@ -10300,7 +10300,7 @@ function renderMechPwa(){
     return !!e;
   });
 
-  var html = '<div style="background:linear-gradient(135deg,#e07b00,#c96a00);border-radius:14px;padding:14px 16px;margin-bottom:14px">'
+  var html = '<div style="background:linear-gradient(135deg,#e07b00,#c96a00);border-radius:14px;padding:14px 16px;margin-bottom:10px">'
     +'<div style="font-size:10px;opacity:.8;letter-spacing:1px">MY JOBS \u00B7 KAZI ZANGU</div>'
     +'<div style="font-size:17px;font-weight:800;margin:2px 0">'+_mechPwaName+'</div>'
     +'<div style="font-size:12px;opacity:.8">'+activeIns.length+' truck(s) in yard</div>'
@@ -10310,6 +10310,35 @@ function renderMechPwa(){
     html += '<div style="text-align:center;padding:40px 20px;color:#555"><div style="font-size:36px">\u2705</div>'
       +'<div style="margin-top:8px;font-size:13px">No trucks in yard</div>'
       +'<div style="font-size:12px;color:#444;margin-top:4px">Hakuna malori yardini</div></div>';
+  } else {
+    // Build bay strip — pre-compute status per truck
+    var bayChips = activeIns.map(function(ins){
+      var allJobs=[];
+      ['mech','elec','tyre','weld'].forEach(function(d){
+        ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+          var key=ins.id+'_'+d+'_'+i;
+          var upd=(S.jobUpdates||{})[key]||{};
+          allJobs.push(upd.done||j.done);
+        });
+      });
+      var allDone = allJobs.length>0 && allJobs.every(function(x){return x;});
+      var statusClass = allDone ? 'mech-bay-done' : 'mech-bay-pending';
+      var safeId = 'mt_'+String(ins.id).replace(/[^a-zA-Z0-9]/g,'');
+      return '<div class="mech-bay-chip '+statusClass+'" onclick="mechScrollToTruck(\''+safeId+'\',this)">'
+        +'<div style="font-size:13px;font-weight:900;color:#fff">'+ins.bayNo.replace('Bay ','B')+'</div>'
+        +'<div style="font-size:10px;font-weight:700;color:#aaa;margin-top:2px">'+ins.truckNo+'</div>'
+        +'<div class="mech-bay-dot"></div>'
+        +'</div>';
+    }).join('');
+
+    html += '<div style="position:sticky;top:0;z-index:10;background:#0a0a14;padding:8px 0;margin:0 -2px 10px;border-bottom:1px solid #2a2a3e">'
+      +'<div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.5px;margin-bottom:6px;padding:0 2px">\uD83D\uDCCD TAP BAY TO JUMP \u00B7 GUSA BAY KWENDA</div>'
+      +'<div style="display:flex;gap:6px;overflow-x:auto;padding:0 2px 4px">'+bayChips+'</div>'
+      +'</div>'
+      +'<style>.mech-bay-chip{flex-shrink:0;background:#12121f;border:2px solid #2a2a3e;border-radius:10px;padding:6px 10px;text-align:center;min-width:58px;cursor:pointer}'
+      +'.mech-bay-chip.mech-bay-pending{border-color:#f59e0b}.mech-bay-chip.mech-bay-pending .mech-bay-dot{background:#f59e0b;width:7px;height:7px;border-radius:50%;margin:3px auto 0}'
+      +'.mech-bay-chip.mech-bay-done{border-color:#16a34a}.mech-bay-chip.mech-bay-done .mech-bay-dot{background:#16a34a;width:7px;height:7px;border-radius:50%;margin:3px auto 0}'
+      +'.mech-bay-chip.mech-bay-active{border-color:#1d4ed8;background:#1d4ed8}</style>';
   }
 
   activeIns.forEach(function(ins){
@@ -10329,7 +10358,8 @@ function renderMechPwa(){
     var pct = allJobs.length ? Math.round(totalDone/allJobs.length*100) : 0;
     var pctColor = pct===100?'#22c55e':pct>50?'#e07b00':'#ef4444';
 
-    html += '<div style="background:#12121f;border:1px solid #2a2a3e;border-radius:12px;padding:12px;margin-bottom:14px">';
+    var safeId = 'mt_'+String(ins.id).replace(/[^a-zA-Z0-9]/g,'');
+    html += '<div id="'+safeId+'" style="background:#12121f;border:1px solid #2a2a3e;border-radius:12px;padding:12px;margin-bottom:14px;scroll-margin-top:90px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
       +'<div><span style="font-size:16px;font-weight:900;color:#fff">'+ins.truckNo+'</span>'
       +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo+'</span></div>'
@@ -10367,6 +10397,13 @@ function renderMechPwa(){
   html += '<div style="text-align:center;font-size:11px;color:#444;margin-top:16px">Updated / Imesasishwa: '+new Date().toLocaleTimeString('en-GB')+'</div>';
   el.innerHTML = html;
 }
+function mechScrollToTruck(id, el){
+  var target = document.getElementById(id);
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.mech-bay-chip').forEach(function(c){ c.classList.remove('mech-bay-active'); });
+  if(el) el.classList.add('mech-bay-active');
+}
+
 function mechMarkStart(key){
   if(!S.jobUpdates) S.jobUpdates={};
   S.jobUpdates[key] = S.jobUpdates[key]||{};
