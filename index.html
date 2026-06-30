@@ -4086,7 +4086,11 @@ function renderInchargeStats(){
   const today=now.toDateString();
   const threeDaysAgo=new Date(now-3*24*3600000);
   const thisMonth=now.getMonth(); const thisYear=now.getFullYear();
-  const active=S.appointments.filter(a=>a.status!=='closed' && new Date(a.plannedVisit)>=threeDaysAgo);
+  const active=S.appointments.filter(a=>{
+    if(a.status==='closed') return false;
+    const planned=new Date(a.plannedVisit);
+    return planned>=threeDaysAgo || a.status==='pending' || a.status==='reported';
+  });
   const todayApts=S.appointments.filter(a=>new Date(a.submittedAt||a.plannedVisit).toDateString()===today);
   // Today's reported count — those with status reported/closed AND reportedAt is today
   const todayReportedCount = S.appointments.filter(a=>{
