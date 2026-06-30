@@ -3505,7 +3505,8 @@ function showPage(id,el){
   try{ localStorage.setItem('shtl_lastPage', id); }catch(e){}
   // Clear manager tray when navigating away from manager page
   if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
-  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage};
+  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage,
+    security:function(){refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();refreshSecurityPanel();}};
   if(map[id])map[id]();
   // Auto-switch Ground to Punch Status by default
   if(id==='ground'){
