@@ -4099,7 +4099,9 @@ function renderInchargeStats(){
     var rDate = a.reportedAt ? new Date(a.reportedAt) : null;
     return rDate && rDate.toDateString()===today;
   }).length;
-  document.getElementById('iscTodayReported').textContent=todayReportedCount;
+  // Today's "Today" card = requests submitted today (regardless of arrival status yet) —
+  // this is what an Incharge expects to see immediately after raising a new request.
+  document.getElementById('iscTodayReported').textContent=todayApts.length;
   document.getElementById('iscPending').textContent=active.filter(a=>aptStatusClass(a)==='pending').length;
   document.getElementById('iscReported').textContent=active.filter(a=>a.status==='reported').length;
   document.getElementById('iscOverdue').textContent=active.filter(a=>aptStatusClass(a)==='overdue').length;
