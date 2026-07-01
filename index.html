@@ -4064,10 +4064,23 @@ function renderInchargeQueue(){
     html+='<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:13px">No entries today yet</div>';
   }
 
-  // PREVIOUS DAYS — collapsed
-  if(prevAll.length){
-    html+='<details style="margin-top:10px"><summary style="font-size:11px;font-weight:700;color:var(--text2);padding:4px 8px;background:var(--surface2);border-radius:6px;cursor:pointer">📅 PREVIOUS DAYS ('+prevAll.length+') — tap to show</summary>';
-    html+=prevAll.map(function(a){return renderAptCard(a);}).join('');
+  // PREVIOUS DAYS — current month only in main view, older collapsed
+  var thisMonthPrev=prevAll.filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  });
+  var olderPrev=prevAll.filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    return !(d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear());
+  });
+  if(thisMonthPrev.length){
+    html+='<details style="margin-top:10px"><summary style="font-size:11px;font-weight:700;color:var(--text2);padding:4px 8px;background:var(--surface2);border-radius:6px;cursor:pointer">📅 PREVIOUS DAYS — THIS MONTH ('+thisMonthPrev.length+') — tap to show</summary>';
+    html+=thisMonthPrev.map(function(a){return renderAptCard(a);}).join('');
+    html+='</details>';
+  }
+  if(olderPrev.length){
+    html+='<details style="margin-top:6px"><summary style="font-size:11px;font-weight:700;color:var(--text3);padding:4px 8px;background:var(--surface2);border-radius:6px;cursor:pointer">🗄️ OLDER MONTHS ('+olderPrev.length+') — tap to show</summary>';
+    html+=olderPrev.map(function(a){return renderAptCard(a);}).join('');
     html+='</details>';
   }
 
@@ -4075,13 +4088,24 @@ function renderInchargeQueue(){
   ql.innerHTML=html;
 
   const hl=document.getElementById('inchargeHistoryList');
-  var thisMonthCount = history.filter(function(a){
-    var d = new Date(a.reportedAt||a.plannedVisit);
+  var thisMonthHistory = history.filter(function(a){
+    var d = new Date(a.reportedAt||a.plannedVisit||a.submittedAt);
     return d.getMonth()===thisMonth && d.getFullYear()===thisYear;
-  }).length;
-  document.getElementById('inchargeHistoryCount').textContent='('+thisMonthCount+' this month \u00b7 '+history.length+' all-time)';
-  hl.innerHTML=history.length ? history.map(a=>renderAptCard(a,true)).join('') :
-    '<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:12px">No history yet</div>';
+  });
+  var olderHistory = history.filter(function(a){
+    var d = new Date(a.reportedAt||a.plannedVisit||a.submittedAt);
+    return !(d.getMonth()===thisMonth && d.getFullYear()===thisYear);
+  });
+  document.getElementById('inchargeHistoryCount').textContent='('+thisMonthHistory.length+' this month \u00b7 '+history.length+' all-time)';
+  var histHtml = thisMonthHistory.length
+    ? thisMonthHistory.map(a=>renderAptCard(a,true)).join('')
+    : '<div style="text-align:center;color:var(--text2);padding:12px 0;font-size:12px">No history this month</div>';
+  if(olderHistory.length){
+    histHtml+='<details style="margin-top:8px"><summary style="font-size:11px;font-weight:700;color:var(--text3);padding:4px 8px;background:var(--surface2);border-radius:6px;cursor:pointer">🗄️ OLDER MONTHS ('+olderHistory.length+') — tap to show</summary>';
+    histHtml+=olderHistory.map(a=>renderAptCard(a,true)).join('');
+    histHtml+='</details>';
+  }
+  hl.innerHTML=histHtml;
 
   // False complaint history — visible to Incharge
   const who=document.getElementById('inchargeName').value;
@@ -13349,6 +13373,41 @@ function markRequisitionReady(){
   toast('✅ Parts marked ready — Ground Team notified 🔊','ok');
 }
 
+function autoCleanStalePunches(){
+  // Auto-clear any mechanic punch open for more than 16 hours (overnight/forgotten)
+  var now = new Date();
+  var changed = false;
+  Object.keys(S.workerPunches||{}).forEach(function(name){
+    var wp = S.workerPunches[name];
+    if(!wp || !wp.startTime) return;
+    var ageHrs = (now - new Date(wp.startTime)) / 3600000;
+    if(ageHrs >= 16){
+      // Log it to workerLog as system-cleared before removing
+      if(!S.workerLog) S.workerLog=[];
+      S.workerLog.push({
+        worker: name,
+        truckNo: wp.truckNo||'',
+        insId: wp.insId||'',
+        dept: wp.dept||'',
+        jobDesc: wp.jobDesc||'',
+        startTime: wp.startTime,
+        endTime: now.toISOString(),
+        completeTime: now.toISOString(),
+        clearedBy: 'System — auto-cleared (open >16hrs)',
+        date: now.toDateString()
+      });
+      delete S.workerPunches[name];
+      changed = true;
+      console.log('Auto-cleared stale punch for:', name, '(open', Math.round(ageHrs), 'hrs)');
+    }
+  });
+  if(changed){
+    save();
+    try{ refreshGroundPage(); }catch(e){}
+    toast('🔄 Stale punches auto-cleared — see Mechanic Log for details','warn');
+  }
+}
+
 function runInitialRender(){
   try{
     refreshSecurityLog();
@@ -13383,6 +13442,9 @@ function runInitialRender(){
       showPage('security', secBtn2);
     }
   }catch(e){ console.warn('Initial render error:',e); }
+  // Auto-clean stale punches: run on load + every hour
+  try{ autoCleanStalePunches(); }catch(e){}
+  setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
 }
 </script>
 
