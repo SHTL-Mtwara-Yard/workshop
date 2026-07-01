@@ -783,7 +783,7 @@ tr:hover td { background: var(--surface2); }
           </div>
           <div>
             <label>📞 Driver Mobile</label>
-            <input type="tel" id="iat_driverMobile" placeholder="07XX XXX XXX">
+            <input type="tel" id="iat_driverMobile" placeholder="07XX XXX XXX" oninput="checkAptLastVisit()">
           </div>
         </div>
 
@@ -821,6 +821,13 @@ tr:hover td { background: var(--surface2); }
 
     <!-- RIGHT: LIVE QUEUE -->
     <div>
+      <!-- QUICK TRUCK SEARCH -->
+      <div class="card" style="border-top:3px solid #7c3aed;margin-bottom:10px;padding:12px 14px">
+        <div style="font-size:11px;font-weight:700;color:#7c3aed;letter-spacing:.5px;margin-bottom:8px">🔍 QUICK TRUCK SEARCH</div>
+        <input type="text" id="inchargeSearchInput" placeholder="Type truck number e.g. T217 DZT" oninput="runInchargeSearch()" style="width:100%;padding:9px 12px;border-radius:var(--radius);border:2px solid #7c3aed;background:var(--surface3);color:var(--text1);font-size:14px;font-weight:700;letter-spacing:.5px;box-sizing:border-box">
+        <div id="inchargeSearchResult" style="margin-top:8px;display:none"></div>
+      </div>
+
       <!-- OVERDUE BANNER -->
       <div id="inchargeOverdueBanner" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--radius2);padding:14px;margin-bottom:14px">
         <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px">⚠️ Not arrived — needs action</div>
@@ -3779,6 +3786,84 @@ function getLastVisitForTruck(truckNo){
   return matches.length ? matches[0] : null;
 }
 
+function runInchargeSearch(){
+  var q = (document.getElementById('inchargeSearchInput').value||'').toUpperCase().trim();
+  var res = document.getElementById('inchargeSearchResult');
+  if(!q || q.length < 3){ res.style.display='none'; return; }
+
+  // Find all entries for this truck
+  var visits = (S.entries||[]).filter(function(e){ return (e.truckNo||'').toUpperCase().indexOf(q)!==-1; })
+    .sort(function(a,b){ return new Date(b.entryTime)-new Date(a.entryTime); });
+  var apts = (S.appointments||[]).filter(function(a){ return (a.truckNo||'').toUpperCase().indexOf(q)!==-1; })
+    .sort(function(a,b){ return new Date(b.submittedAt||b.plannedVisit)-new Date(a.submittedAt||a.plannedVisit); });
+
+  if(!visits.length && !apts.length){
+    res.style.display='block';
+    res.innerHTML='<div style="color:var(--text2);font-size:12px;padding:6px 0">No records found for "'+q+'"</div>';
+    return;
+  }
+
+  var last = visits[0];
+  var lastApt = apts[0];
+  var html = '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:12px">';
+
+  // Visit summary
+  html += '<div style="font-weight:700;font-size:13px;color:#7c3aed;margin-bottom:6px">'+
+    (last ? last.truckNo : (lastApt ? lastApt.truckNo : q)) + '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:8px">';
+  html += '<div><span style="color:var(--text2)">Total visits:</span> <strong>'+visits.length+'</strong></div>';
+  if(last){
+    html += '<div><span style="color:var(--text2)">Last visit:</span> <strong>'+new Date(last.entryTime).toLocaleDateString('en-GB')+'</strong></div>';
+    html += '<div><span style="color:var(--text2)">Last origin:</span> <strong>'+(last.origin||'—')+'</strong></div>';
+    html += '<div><span style="color:var(--text2)">Last fuel:</span> <strong>'+(last.fuel||'—')+'L</strong></div>';
+  }
+  if(lastApt){
+    html += '<div><span style="color:var(--text2)">Last driver:</span> <strong>'+(lastApt.driverName||'—')+'</strong></div>';
+    html += '<div><span style="color:var(--text2)">Mobile:</span> <strong>'+(lastApt.driverMobile||'—')+'</strong></div>';
+  }
+  html += '</div>';
+
+  // Last complaint
+  if(lastApt && lastApt.complaint){
+    html += '<div style="background:#f3f4f6;border-radius:6px;padding:6px 8px;margin-bottom:8px;color:#374151;font-size:11px">'+
+      '<span style="color:var(--text2)">Last complaint:</span> '+lastApt.complaint+'</div>';
+  }
+
+  // Action buttons
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+  // Use this truck — fills form
+  html += '<button onclick="useSearchTruck(\''+( last ? last.truckNo : (lastApt ? lastApt.truckNo : q) )+'\')" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer">+ Use This Truck</button>';
+  // WhatsApp
+  if(lastApt && lastApt.driverMobile){
+    var waNum = lastApt.driverMobile.replace(/\D/g,'');
+    if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
+    html += '<a href="https://wa.me/'+waNum+'?text=Dear+Driver%2C+your+truck+is+scheduled+for+workshop+visit.+Please+confirm+arrival+time." target="_blank" style="background:#25d366;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none">📲 WhatsApp Driver</a>';
+  }
+  html += '</div></div>';
+
+  res.style.display='block';
+  res.innerHTML=html;
+}
+
+function useSearchTruck(truckNo){
+  // Fill truck number in form
+  var tnEl = document.getElementById('iat_truckNo');
+  if(tnEl){ tnEl.value=truckNo; onTruckInput(tnEl); checkAptLastVisit(); }
+  // Scroll to form
+  tnEl.scrollIntoView({behavior:'smooth',block:'center'});
+  // Auto-fill driver from last appointment
+  var lastApt = (S.appointments||[]).filter(function(a){ return a.truckNo===truckNo && a.driverName; })
+    .sort(function(a,b){ return new Date(b.submittedAt||b.plannedVisit)-new Date(a.submittedAt||a.plannedVisit); })[0];
+  if(lastApt){
+    var dn=document.getElementById('iat_driverName');
+    var dm=document.getElementById('iat_driverMobile');
+    if(dn && !dn.value) dn.value=lastApt.driverName||'';
+    if(dm && !dm.value) dm.value=lastApt.driverMobile||'';
+  }
+  document.getElementById('inchargeSearchInput').value='';
+  document.getElementById('inchargeSearchResult').style.display='none';
+}
+
 function checkAptLastVisit(){
   const tn=fmtTruck(document.getElementById('iat_truckNo').value||'');
   const banner=document.getElementById('iat_lastVisitBanner');
@@ -3793,7 +3878,6 @@ function checkAptLastVisit(){
     if(pending.length){
       pendingBanner.style.display='block';
       pendingList.innerHTML=pending.map(p=>`<div style="padding:3px 0;border-bottom:0.5px solid #fde68a">🔩 <strong>${p.partName}</strong> — ${p.jobDesc}${p.notes?' ('+p.notes+')':''}</div>`).join('');
-      // Auto-fill complaints with pending parts
       const existingComplaints=complaintsEl.value.trim();
       const pendingText='[PENDING FROM LAST VISIT]: '+pending.map(p=>p.partName+' — '+p.jobDesc).join('; ');
       if(!existingComplaints.includes('PENDING FROM LAST VISIT')){
@@ -3807,7 +3891,62 @@ function checkAptLastVisit(){
   }
 
   if(!tn){ banner.style.display='none'; lastOdoEl.value=''; return; }
+
+  // FEATURE 2: Auto-fill driver name & mobile from last appointment
+  var lastApt=(S.appointments||[]).filter(function(a){ return a.truckNo===tn && a.driverName; })
+    .sort(function(a,b){ return new Date(b.submittedAt||b.plannedVisit)-new Date(a.submittedAt||a.plannedVisit); })[0];
+  if(lastApt){
+    var dn=document.getElementById('iat_driverName');
+    var dm=document.getElementById('iat_driverMobile');
+    if(dn && !dn.value && lastApt.driverName) dn.value=lastApt.driverName;
+    if(dm && !dm.value && lastApt.driverMobile) dm.value=lastApt.driverMobile;
+  }
+
   const last=getLastVisitForTruck(tn);
+
+  // FEATURE 3: Repeat visit warning (visited within last 7 days)
+  var repeatWarnEl=document.getElementById('iat_repeatWarn');
+  if(!repeatWarnEl){
+    repeatWarnEl=document.createElement('div');
+    repeatWarnEl.id='iat_repeatWarn';
+    repeatWarnEl.style.cssText='display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#92400e';
+    banner.parentNode.insertBefore(repeatWarnEl,banner);
+  }
+  if(last){
+    var daysSince=Math.floor((new Date()-new Date(last.entryTime))/86400000);
+    if(daysSince<=7){
+      repeatWarnEl.style.display='block';
+      repeatWarnEl.innerHTML='⚠️ <strong>Repeat visit warning</strong> — '+tn+' was last here <strong>'+daysSince+' day'+(daysSince===1?'':'s')+' ago</strong> ('+new Date(last.entryTime).toLocaleDateString('en-GB')+').';
+    } else {
+      repeatWarnEl.style.display='none';
+    }
+  } else {
+    repeatWarnEl.style.display='none';
+  }
+
+  // FEATURE 4: WhatsApp driver link (shown after truck & mobile filled)
+  var waRowEl=document.getElementById('iat_whatsappRow');
+  if(!waRowEl){
+    waRowEl=document.createElement('div');
+    waRowEl.id='iat_whatsappRow';
+    waRowEl.style.cssText='display:none;margin-bottom:8px';
+    var mobileEl=document.getElementById('iat_driverMobile');
+    if(mobileEl && mobileEl.parentNode && mobileEl.parentNode.parentNode){
+      mobileEl.parentNode.parentNode.after(waRowEl);
+    }
+  }
+  var mobile=(document.getElementById('iat_driverMobile').value||'').trim();
+  if(tn && mobile){
+    var waNum=mobile.replace(/\D/g,'');
+    if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
+    var visitTime=document.getElementById('iat_visit_display').textContent||'';
+    var msg=encodeURIComponent('Dear Driver, your truck '+tn+' is scheduled for SHTL Mtwara Workshop visit. Planned time: '+visitTime+'. Please confirm.');
+    waRowEl.style.display='block';
+    waRowEl.innerHTML='<a href="https://wa.me/'+waNum+'?text='+msg+'" target="_blank" style="display:flex;align-items:center;gap:6px;background:#25d366;color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none;width:fit-content">📲 Send WhatsApp Confirmation to Driver</a>';
+  } else {
+    waRowEl.style.display='none';
+  }
+
   if(last && last.odoOnArrival){
     const d=new Date(last.entryTime).toLocaleDateString('en-GB');
     document.getElementById('iat_lastVisitText').textContent=`Last entry: ${last.odoOnArrival.toLocaleString()} km on ${d}`;
