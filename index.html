@@ -6615,9 +6615,29 @@ function toggleJobGround(insId,dept,idx,cb){
     toast('⚠️ Set this department\'s ETD before marking jobs done','warn');
     return;
   }
-  const key=`${insId}_${dept}_${idx}`;
-  S.jobUpdates[key]={done:cb.checked,doneBy:'Ground Team',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
-  // Track T4 = timestamp when ALL jobs across ALL depts are done (not just one)
+  // If checking done, verify a named mechanic is responsible
+  if(cb.checked){
+    var ins0=S.inspections.find(function(i){return i.id==insId;});
+    var key0=dept+'_'+idx;
+    var existingOwner=(ins0&&ins0.jobOwners&&ins0.jobOwners[key0])||'';
+    var existingPunch=Object.keys(S.workerPunches||{}).find(function(name){
+      var wp=S.workerPunches[name];
+      return wp && String(wp.insId)===String(insId) && wp.dept===dept;
+    });
+    var doneBy=existingOwner||existingPunch||'';
+    if(!doneBy){
+      // No punch and no owner — ask who completed it
+      cb.checked=false;
+      showJobCompletionAttribution(insId,dept,idx);
+      return;
+    }
+    // Has owner — save with their name
+    var key=insId+'_'+dept+'_'+idx;
+    S.jobUpdates[key]={done:true,doneBy:doneBy,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
+  } else {
+    var key=insId+'_'+dept+'_'+idx;
+    S.jobUpdates[key]={done:false,doneBy:'',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
+  }
   const ins=S.inspections.find(i=>i.id==insId);
   if(ins){
     var allDone=true;
@@ -6629,10 +6649,65 @@ function toggleJobGround(insId,dept,idx,cb){
       });
     });
     if(allDone && cb.checked){ ins.t4_qcDone=new Date().toISOString(); }
-    else if(!cb.checked){ ins.t4_qcDone=null; } // uncheck resets T4
+    else if(!cb.checked){ ins.t4_qcDone=null; }
   }
   checkAutoCompletion(insId);
   save();loadBayJobs();toast(cb.checked?'✅ Job marked done':'Job unmarked',cb.checked?'ok':'info');
+}
+
+function showJobCompletionAttribution(insId,dept,idx){
+  // Build staff list for this dept
+  var ins=S.inspections.find(function(i){return i.id==insId;});
+  var deptName={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept]||dept;
+  var jobDesc=ins&&(ins.jobs||{})[dept]&&(ins.jobs||{})[dept][idx]?(ins.jobs||{})[dept][idx].desc||('Job '+(idx+1)):'Job';
+  var staffList=(STAFF[dept]||[]);
+  // Show modal/overlay
+  var existing=document.getElementById('jobAttributionModal');
+  if(existing) existing.remove();
+  var modal=document.createElement('div');
+  modal.id='jobAttributionModal';
+  modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML='<div style="background:var(--surface);border-radius:16px;padding:24px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:6px">⚠️ Who completed this job?</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:16px">No mechanic punched <strong>'+jobDesc+'</strong> ('+deptName+'). Select the person who completed it to record accountability.</div>'
+    +'<select id="attributionName" style="width:100%;padding:10px;border-radius:var(--radius);border:2px solid var(--accent);background:var(--surface3);color:var(--text1);font-size:14px;margin-bottom:16px">'
+    +'<option value="">-- Select mechanic --</option>'
+    +staffList.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('')
+    +'</select>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button onclick="confirmJobAttribution(\''+insId+'\',\''+dept+'\','+idx+')" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:14px;cursor:pointer">✅ Confirm & Mark Done</button>'
+    +'<button onclick="document.getElementById(\'jobAttributionModal\').remove()" style="background:var(--surface2);color:var(--text1);border:1px solid var(--border);border-radius:8px;padding:10px;font-weight:600;font-size:13px;cursor:pointer">Cancel</button>'
+    +'</div>'
+    +'</div>';
+  modal.dataset.insId=insId; modal.dataset.dept=dept; modal.dataset.idx=idx;
+  document.body.appendChild(modal);
+}
+
+function confirmJobAttribution(insId,dept,idx){
+  var name=document.getElementById('attributionName').value;
+  if(!name){ toast('⚠️ Select a mechanic name first','warn'); return; }
+  var key=insId+'_'+dept+'_'+idx;
+  S.jobUpdates[key]={done:true,doneBy:name,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
+  // Also set as job owner
+  var ins=S.inspections.find(function(i){return i.id==insId;});
+  if(ins){
+    if(!ins.jobOwners) ins.jobOwners={};
+    ins.jobOwners[dept+'_'+idx]=name;
+    // Check T4
+    var allDone=true;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,ji){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+        if(!(upd.done||j.done)) allDone=false;
+      });
+    });
+    if(allDone) ins.t4_qcDone=new Date().toISOString();
+  }
+  document.getElementById('jobAttributionModal').remove();
+  checkAutoCompletion(insId);
+  save();loadBayJobs();
+  toast('✅ '+name+' recorded as completing: '+(ins&&(ins.jobs||{})[dept]&&(ins.jobs||{})[dept][idx]?(ins.jobs||{})[dept][idx].desc:'job'),'ok');
 }
 
 function saveDeptETD(insId,dept){
@@ -6644,18 +6719,31 @@ function saveDeptETD(insId,dept){
     toast('🔒 ETD is locked once set — cannot be changed','warn');
     return;
   }
-  S.deptETDs[key]=v;
+  // Must have a staff member assigned before setting ETD
   const ins=S.inspections.find(i=>i.id==insId);
+  const assignedName = (ins&&ins.deptStaff&&ins.deptStaff[dept])||'';
+  if(!assignedName){
+    toast('⚠️ Assign a mechanic for this department first before setting ETD','warn');
+    return;
+  }
+  S.deptETDs[key]=v;
   if(!S.etdRevisionLog) S.etdRevisionLog=[];
-  S.etdRevisionLog.push({insId, truckNo: ins?ins.truckNo:'', dept, oldValue:oldVal, newValue:v, time:new Date().toISOString()});
+  S.etdRevisionLog.push({insId, truckNo: ins?ins.truckNo:'', dept, oldValue:oldVal, newValue:v, time:new Date().toISOString(), setBy:assignedName});
   if(S.etdRevisionLog.length>6000) S.etdRevisionLog=S.etdRevisionLog.slice(-6000);
   if(ins){
     if(!ins.t2_etdSet) ins.t2_etdSet=new Date().toISOString();
     if(!ins.deptETDLocked) ins.deptETDLocked={};
     ins.deptETDLocked[dept]=true;
+    // Lock the assigned mechanic as the responsible owner for all jobs in this dept
+    if(!ins.jobOwners) ins.jobOwners={};
+    var jobs=(ins.jobs||{})[dept]||[];
+    jobs.forEach(function(_,i){
+      var ownerKey=dept+'_'+i;
+      if(!ins.jobOwners[ownerKey]) ins.jobOwners[ownerKey]=assignedName;
+    });
   }
   save();loadBayJobs();
-  toast('✅ ETD set and locked — '+formatETD24h(v)+' '+formatETDDate(v),'ok');
+  toast('✅ ETD set and locked for '+assignedName+' — '+formatETD24h(v)+' '+formatETDDate(v),'ok');
 }
 
 // ─── INCHARGE VISIT 24H SYNC ───
@@ -11849,8 +11937,18 @@ function renderPunchBayGrid(){
     var isSel=_selectedPunchBay===b;
     var label=b.replace('Bay ','B');
     var truckTxt=ins?'<br><span style="font-size:9px;font-weight:800">'+ins.truckNo+'</span>':'';
-    return '<div onclick="selectPunchBayGrid(\''+b+'\')" style="border:2px solid '+(isSel?'#b45309':isOcc?'#1d4ed8':'#ccc')+';background:'+(isSel?'#fde68a':isOcc?'#bfdbfe':'#f9f9f9')+';border-radius:8px;padding:6px 3px;text-align:center;cursor:pointer;font-size:11px;font-weight:800;color:'+(isSel?'#78350f':isOcc?'#1e3a8a':'#999')+'">'
-      +label+truckTxt+'</div>';
+    // Check if this mechanic is the assigned ETD-setter for any dept in this bay
+    var isAssigned=false;
+    if(ins && curPunchWorker){
+      var deptStaff=ins.deptStaff||{};
+      isAssigned=Object.values(deptStaff).some(function(n){ return n===curPunchWorker; });
+    }
+    var assignedTag=isAssigned?'<br><span style="font-size:8px;color:#15803d;font-weight:900">★ YOURS</span>':'';
+    var borderColor=isSel?'#b45309':isAssigned?'#15803d':isOcc?'#1d4ed8':'#ccc';
+    var bgColor=isSel?'#fde68a':isAssigned?'#dcfce7':isOcc?'#bfdbfe':'#f9f9f9';
+    var textColor=isSel?'#78350f':isAssigned?'#14532d':isOcc?'#1e3a8a':'#999';
+    return '<div onclick="selectPunchBayGrid(\''+b+'\')" style="border:2px solid '+borderColor+';background:'+bgColor+';border-radius:8px;padding:6px 3px;text-align:center;cursor:pointer;font-size:11px;font-weight:800;color:'+textColor+'">'
+      +label+truckTxt+assignedTag+'</div>';
   }).join('');
 }
 
