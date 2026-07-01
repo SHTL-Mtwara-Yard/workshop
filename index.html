@@ -2,12 +2,28 @@
 <html lang="en">
 <head>
 <script>
-// Auto-update: works on old and new Chrome
-// NOTE: Uses raw.githubusercontent.com (not api.github.com) to check for updates.
-// api.github.com is rate-limited to 60 unauthenticated requests/hour PER IP — easy to
-// exhaust when several yard devices (iPad, Lenovos, manager laptop, phones) share one
-// office WiFi IP and each poll every 5 minutes. That silently broke auto-update before.
-// raw.githubusercontent.com has no such low limit, so this is safe at yard scale.
+// IMMEDIATE VERSION CHECK — runs synchronously before anything else loads.
+// This means even an old cached version of this file will check for updates
+// and hard-reload itself. No waiting, no polling delay, no stuck devices.
+(function(){
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://raw.githubusercontent.com/shtl-mtwara-yard/workshop/main/version.json?t=' + Date.now(), false); // synchronous
+    xhr.send();
+    if(xhr.status === 200){
+      var d = JSON.parse(xhr.responseText);
+      var latest = d && d.v ? String(d.v) : null;
+      var stored = localStorage.getItem('shtl_ver');
+      if(latest && stored && stored !== latest){
+        localStorage.setItem('shtl_ver', latest);
+        window.location.reload(true); // hard reload, bypasses cache
+        return;
+      }
+      if(latest) localStorage.setItem('shtl_ver', latest);
+    }
+  } catch(e){}
+})();
+// Background re-check every 5 minutes while page is open
 function checkForUpdate(){
   try {
     var xhr = new XMLHttpRequest();
@@ -16,24 +32,20 @@ function checkForUpdate(){
       if(xhr.readyState === 4 && xhr.status === 200){
         try {
           var d = JSON.parse(xhr.responseText);
-          var latestV = d && d.v ? String(d.v) : null;
-          var stored = localStorage.getItem('shtl_last_v');
-          if(latestV && stored && stored !== latestV){
-            localStorage.setItem('shtl_last_v', latestV);
-            window.location.href = window.location.pathname + '?v=auto&t=' + Date.now();
-          } else if(latestV && !stored){
-            localStorage.setItem('shtl_last_v', latestV);
-          }
+          var latest = d && d.v ? String(d.v) : null;
+          var stored = localStorage.getItem('shtl_ver');
+          if(latest && stored && stored !== latest){
+            localStorage.setItem('shtl_ver', latest);
+            window.location.reload(true);
+          } else if(latest) localStorage.setItem('shtl_ver', latest);
         } catch(e){}
       }
     };
     xhr.send();
   } catch(e){}
 }
-// Check on load and every 5 minutes
 window.addEventListener('load', function(){
-  setTimeout(checkForUpdate, 10000);
-  setInterval(checkForUpdate, 300000);
+  setInterval(checkForUpdate, 300000); // every 5 min
 });
 </script>
 <meta charset="UTF-8">
