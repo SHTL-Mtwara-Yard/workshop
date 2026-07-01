@@ -4700,7 +4700,10 @@ function sendSecurityAlert(){
 
 function refreshSecurityLog(){
   const today=new Date().toDateString();
-  const rows=S.entries.filter(e=>new Date(e.entryTime).toDateString()===today);
+  const rows=S.entries.filter(e=>
+    new Date(e.entryTime).toDateString()===today ||
+    (e.exitTime && new Date(e.exitTime).toDateString()===today)
+  ).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
   const tb=document.getElementById('securityLog');
   if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr>';return;}
   tb.innerHTML=rows.map((e,i)=>{
