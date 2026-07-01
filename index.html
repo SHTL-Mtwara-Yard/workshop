@@ -5913,7 +5913,9 @@ function renderGroundLeaderboard(){
   // Build punched leaderboard
   var html='';
   depts.forEach(function(d){
-    var entries=Object.entries(deptMap[d]).filter(function(e){ return e[1].done>0; }).sort(function(a,b){ return b[1].done-a[1].done; });
+    var entries=Object.entries(deptMap[d]).filter(function(e){
+      return e[1].done>0 && e[0]!=='Ground Team' && e[0]!=='Ground Team (auto)';
+    }).sort(function(a,b){ return b[1].done-a[1].done; });
     if(!entries.length) return;
     html+='<div style="margin-bottom:16px">'
       +'<div style="font-size:12px;font-weight:800;color:'+dColor[d]+';margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px">'+dLabel[d]+'</div>';
@@ -6615,10 +6617,19 @@ function toggleJobGround(insId,dept,idx,cb){
   }
   const key=`${insId}_${dept}_${idx}`;
   S.jobUpdates[key]={done:cb.checked,doneBy:'Ground Team',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
-  // Track T4 quality check timestamp = last job done time
+  // Track T4 = timestamp when ALL jobs across ALL depts are done (not just one)
   const ins=S.inspections.find(i=>i.id==insId);
-  if(ins && cb.checked){
-    ins.t4_qcDone = new Date().toISOString();
+  if(ins){
+    var allDone=true;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,ji){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+        if(!(upd.done||j.done)) allDone=false;
+      });
+    });
+    if(allDone && cb.checked){ ins.t4_qcDone=new Date().toISOString(); }
+    else if(!cb.checked){ ins.t4_qcDone=null; } // uncheck resets T4
   }
   checkAutoCompletion(insId);
   save();loadBayJobs();toast(cb.checked?'✅ Job marked done':'Job unmarked',cb.checked?'ok':'info');
@@ -7065,7 +7076,18 @@ function toggleJobJC(insId,dept,idx,cb){
   }
   S.jobUpdates[`${insId}_${dept}_${idx}`]={done:cb.checked,doneBy:'Workshop',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
   const ins=S.inspections.find(i=>i.id==insId);
-  if(ins && cb.checked) ins.t4_qcDone=new Date().toISOString();
+  if(ins){
+    var allDoneJC=true;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,ji){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+        if(!(upd.done||j.done)) allDoneJC=false;
+      });
+    });
+    if(allDoneJC && cb.checked){ ins.t4_qcDone=new Date().toISOString(); }
+    else if(!cb.checked){ ins.t4_qcDone=null; }
+  }
   checkAutoCompletion(insId);
   save();loadJobCard();toast(cb.checked?'✅ Job complete':'Job unmarked',cb.checked?'ok':'info');
 }
