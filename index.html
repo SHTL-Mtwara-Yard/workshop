@@ -2097,16 +2097,26 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
-    <!-- Monthly Report Download -->
-    <div class="card" style="border-top:3px solid var(--accent)">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report — EOD Balance & Postponed Jobs</div>
-      <div class="text-xs text2 mb-12">Download a month-wise Excel report with two sheets: EOD Balance trucks and all Postponed Jobs with reasons.</div>
+    <!-- FULL MONTHLY DATA EXPORT -->
+    <div class="card" style="border-top:4px solid #1d4ed8">
+      <div class="card-title"><span class="dot" style="background:#1d4ed8"></span>📦 Full Monthly Data Export — All Areas</div>
+      <div class="text-xs text2 mb-12">Downloads one Excel file with 7 sheets covering every area of the system for the selected month.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;font-size:12px;color:var(--text2)">
+        <div>📋 Sheet 1 — Vehicle Movement (In/Out + Appointment)</div>
+        <div>📅 Sheet 2 — Incharge Appointments</div>
+        <div>🔧 Sheet 3 — Inspection &amp; Jobs (All Depts)</div>
+        <div>👤 Sheet 4 — Mechanic Punch Log</div>
+        <div>⏱️ Sheet 5 — SLA Time Stamping (T0–T5)</div>
+        <div>🏪 Sheet 6 — Stores Requisitions</div>
+        <div>🛠️ Sheet 7 — Support Services</div>
+      </div>
       <div class="flex gap-8 items-center flex-wrap">
         <div>
           <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">SELECT MONTH</label>
           <input type="month" id="monthlyReportMonth" style="padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
         </div>
-        <button class="btn btn-primary" style="margin-top:18px" onclick="downloadMonthlyReport()">📥 Download Monthly Report</button>
+        <button class="btn btn-primary" style="margin-top:18px;background:#1d4ed8" onclick="downloadFullMonthlyExport()">📥 Download Full Month Report (Excel)</button>
+        <button class="btn btn-ghost" style="margin-top:18px" onclick="downloadMonthlyReport()">📥 EOD &amp; Postponed Only</button>
       </div>
     </div>
   </div>
@@ -8067,6 +8077,218 @@ function downloadMonthlyReport(){
 
   XLSX.writeFile(wb, 'SHTL_MonthlyReport_'+selectedMonth+'.xlsx');
   toast('📥 Monthly report downloaded — '+label,'ok');
+}
+
+function downloadFullMonthlyExport(){
+  if(typeof XLSX === 'undefined'){ toast('⚠️ Excel library not loaded — try again','warn'); return; }
+  var monthSel = document.getElementById('monthlyReportMonth');
+  if(!monthSel || !monthSel.value){ toast('⚠️ Please select a month first','warn'); return; }
+  var selectedMonth = monthSel.value; // e.g. "2026-06"
+  var parts = selectedMonth.split('-');
+  var selYear = parseInt(parts[0]); var selMon = parseInt(parts[1])-1;
+  var monthName = new Date(selYear, selMon, 1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+
+  function inMonth(dateStr){
+    if(!dateStr) return false;
+    var d = new Date(dateStr);
+    return d.getFullYear()===selYear && d.getMonth()===selMon;
+  }
+  function fmt(dateStr){ return dateStr ? new Date(dateStr).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''; }
+  function fmtDate(dateStr){ return dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : ''; }
+  function dur(a,b){ if(!a||!b) return ''; var m=Math.round((new Date(b)-new Date(a))/60000); return m+'min'; }
+
+  var wb = XLSX.utils.book_new();
+
+  // ── SHEET 1: VEHICLE MOVEMENT ────────────────────────────────────────────
+  var s1h = ['#','Truck No','Entry Date','Entry Time','Exit Date','Exit Time','Duration','Origin','Fuel (L)','Departments','Bay','Safety Issues','With Appointment','Appt Planned Time','Driver','Driver Mobile'];
+  var s1r = [];
+  S.entries.filter(function(e){ return inMonth(e.entryTime); }).forEach(function(e,i){
+    var ins = S.inspections.find(function(x){ return x.entryId===e.id; });
+    var apt = (S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && inMonth(a.submittedAt); });
+    var depts = [e.needsMech&&'Mechanical',e.needsElec&&'Electrician',e.needsTyre&&'Tyre',e.needsWeld&&'Welding',e.needsWash&&'Washing',e.needsPanel&&'Panel Beater'].filter(Boolean).join(', ');
+    var safety = (e.safetyMissing||[]).join(', ')||'All OK';
+    var entD = new Date(e.entryTime);
+    var exitD = e.exitTime ? new Date(e.exitTime) : null;
+    s1r.push([
+      i+1,
+      e.truckNo||'',
+      fmtDate(e.entryTime),
+      entD.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+      exitD ? fmtDate(e.exitTime) : 'Still in yard',
+      exitD ? exitD.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '',
+      exitD ? dur(e.entryTime,e.exitTime) : '',
+      e.origin||'',
+      e.fuelLevel||0,
+      depts,
+      ins ? ins.bayNo||'' : '',
+      safety,
+      apt ? 'YES' : 'NO — Walk-in',
+      apt ? fmt(apt.plannedVisit) : '',
+      apt ? apt.driverName||'' : e.driverName||'',
+      apt ? apt.driverMobile||'' : e.driverMobile||''
+    ]);
+  });
+  var ws1 = XLSX.utils.aoa_to_sheet([s1h].concat(s1r.length?s1r:[['No vehicle movement records for '+monthName]]));
+  ws1['!cols']=[{wch:4},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10},{wch:10},{wch:16},{wch:8},{wch:30},{wch:8},{wch:20},{wch:18},{wch:18},{wch:20},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, '1-Vehicle Movement');
+
+  // ── SHEET 2: INCHARGE APPOINTMENTS ──────────────────────────────────────
+  var s2h = ['#','Truck No','Driver','Driver Mobile','Complaint','Planned Visit','Submitted By','Submitted At','Status','Arrived','Arrival Time','Variance (planned vs actual)'];
+  var s2r = [];
+  (S.appointments||[]).filter(function(a){ return inMonth(a.submittedAt)||inMonth(a.plannedVisit); }).forEach(function(a,i){
+    var entry = S.entries.find(function(e){ return e.truckNo===a.truckNo && inMonth(e.entryTime); });
+    var variance = '';
+    if(entry && a.plannedVisit){
+      var diff = Math.round((new Date(entry.entryTime)-new Date(a.plannedVisit))/60000);
+      variance = diff>=0 ? diff+'min late' : Math.abs(diff)+'min early';
+    }
+    s2r.push([
+      i+1,
+      a.truckNo||'',
+      a.driverName||'',
+      a.driverMobile||'',
+      a.complaint||'',
+      fmt(a.plannedVisit),
+      a.submittedBy||'',
+      fmt(a.submittedAt),
+      a.status||'',
+      entry ? 'YES' : 'NO',
+      entry ? fmt(entry.entryTime) : '',
+      variance
+    ]);
+  });
+  var ws2 = XLSX.utils.aoa_to_sheet([s2h].concat(s2r.length?s2r:[['No appointments for '+monthName]]));
+  ws2['!cols']=[{wch:4},{wch:12},{wch:20},{wch:16},{wch:30},{wch:18},{wch:20},{wch:18},{wch:12},{wch:8},{wch:18},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws2, '2-Appointments');
+
+  // ── SHEET 3: INSPECTION & JOBS ───────────────────────────────────────────
+  var s3h = ['#','Truck No','Bay','Entry Date','Dept','Job Description','Priority','Source','Accidental','ETD Set','ETD Set By','Completed','Completed By','Completion Time'];
+  var s3r = [];
+  var s3i = 0;
+  S.inspections.forEach(function(ins){
+    var e = S.entries.find(function(x){ return x.id===ins.entryId; });
+    if(!e||!inMonth(e.entryTime)) return;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,ji){
+        s3i++;
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{};
+        var etd=(S.deptETDs||{})[ins.id+'_'+d]||{};
+        s3r.push([
+          s3i,
+          e.truckNo,
+          ins.bayNo||'',
+          fmtDate(e.entryTime),
+          dLabel,
+          j.desc||j.text||'',
+          j.priority||'Normal',
+          j.source||'',
+          j.accidental?'YES':'NO',
+          etd.time ? etd.date+' '+etd.time : '',
+          etd.setBy||((ins.deptStaff||{})[d])||'',
+          (upd.done||j.done)?'YES':'NO',
+          upd.doneBy||'',
+          upd.date&&upd.time ? upd.date+' '+upd.time : ''
+        ]);
+      });
+    });
+  });
+  var ws3 = XLSX.utils.aoa_to_sheet([s3h].concat(s3r.length?s3r:[['No inspection records for '+monthName]]));
+  ws3['!cols']=[{wch:4},{wch:12},{wch:6},{wch:12},{wch:12},{wch:35},{wch:10},{wch:16},{wch:10},{wch:18},{wch:22},{wch:10},{wch:22},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws3, '3-Jobs & Inspection');
+
+  // ── SHEET 4: MECHANIC PUNCH LOG ──────────────────────────────────────────
+  var s4h = ['#','Mechanic','Truck No','Bay','Dept','Job','Punch Start','Punch Complete','Duration'];
+  var s4r = [];
+  (S.workerLog||[]).filter(function(w){ return inMonth(w.startTime||w.date); }).forEach(function(w,i){
+    var ins = S.inspections.find(function(x){ return x.id===w.insId; });
+    var e = ins ? S.entries.find(function(x){ return x.id===ins.entryId; }) : null;
+    s4r.push([
+      i+1,
+      w.worker||w.name||'',
+      e ? e.truckNo : w.truckNo||'',
+      ins ? ins.bayNo||'' : '',
+      w.dept||'',
+      w.jobDesc||w.job||'',
+      fmt(w.startTime),
+      fmt(w.endTime||w.completeTime),
+      (w.startTime&&(w.endTime||w.completeTime)) ? dur(w.startTime,w.endTime||w.completeTime) : ''
+    ]);
+  });
+  // Also capture from workerPunches for currently active
+  Object.keys(S.workerPunches||{}).forEach(function(name){
+    var wp=S.workerPunches[name]; if(!wp||!inMonth(wp.startTime)) return;
+    var ins=S.inspections.find(function(x){return x.id===wp.insId;});
+    var e=ins?S.entries.find(function(x){return x.id===ins.entryId;}):null;
+    s4r.push([s4r.length+1,name,e?e.truckNo:wp.truckNo||'',ins?ins.bayNo||'':'',wp.dept||'',wp.jobDesc||'',fmt(wp.startTime),'Active (not yet complete)','']);
+  });
+  var ws4 = XLSX.utils.aoa_to_sheet([s4h].concat(s4r.length?s4r:[['No punch records for '+monthName]]));
+  ws4['!cols']=[{wch:4},{wch:24},{wch:12},{wch:6},{wch:14},{wch:35},{wch:18},{wch:18},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws4, '4-Mechanic Punch Log');
+
+  // ── SHEET 5: SLA TIME STAMPING (T0–T5) ──────────────────────────────────
+  var s5h = ['#','Truck No','Bay','T0 Gate In','T1 Bay Alloc','T1-T0','T2 ETD Set','T2-T1','T4 QC Done','T4-T2','T5 Gate Out','T5-T4','Total T0→T5','SLA Pass/Fail'];
+  var s5r = [];
+  S.entries.filter(function(e){ return inMonth(e.entryTime); }).forEach(function(e,i){
+    var ins = S.inspections.find(function(x){ return x.entryId===e.id; });
+    var t0 = e.entryTime;
+    var t1 = ins ? ins.savedAt||ins.baySetAt : null;
+    var t2 = null;
+    if(ins){ ['mech','elec','tyre','weld'].forEach(function(d){ var et=(S.deptETDs||{})[ins.id+'_'+d]; if(et&&et.setAt&&(!t2||new Date(et.setAt)<new Date(t2))) t2=et.setAt; }); }
+    var t4 = null;
+    if(ins){ var allDone=true; ['mech','elec','tyre','weld'].forEach(function(d){ var jobs=(ins.jobs||{})[d]||[]; jobs.forEach(function(j,ji){ var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{}; if(!(upd.done||j.done)) allDone=false; else if(upd.date&&upd.time){ var dt=new Date(upd.date+' '+upd.time); if(!t4||dt>new Date(t4)) t4=upd.date+' '+upd.time; } }); }); }
+    var t5 = e.exitTime;
+    var total = (t0&&t5) ? dur(t0,t5) : '';
+    var slaPass = (t0&&t5) ? ((new Date(t5)-new Date(t0))/3600000 <= 5 ? 'PASS' : 'FAIL') : '';
+    s5r.push([i+1,e.truckNo,ins?ins.bayNo||'':'',fmt(t0),fmt(t1),dur(t0,t1),fmt(t2),dur(t1,t2),fmt(t4),dur(t2,t4),fmt(t5),dur(t4,t5),total,slaPass]);
+  });
+  var ws5 = XLSX.utils.aoa_to_sheet([s5h].concat(s5r.length?s5r:[['No SLA records for '+monthName]]));
+  ws5['!cols']=[{wch:4},{wch:12},{wch:6},{wch:18},{wch:18},{wch:8},{wch:18},{wch:8},{wch:18},{wch:8},{wch:18},{wch:8},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws5, '5-SLA T0 to T5');
+
+  // ── SHEET 6: STORES REQUISITIONS ─────────────────────────────────────────
+  var s6h = ['#','Truck No','Part Name','Qty','Urgency','Requested By','Requested At','Status','Ready At','Issued At'];
+  var s6r = [];
+  (S.spareRequests||[]).filter(function(r){ return inMonth(r.requestedAt||r.createdAt); }).forEach(function(r,i){
+    s6r.push([
+      i+1,
+      r.truckNo||'',
+      r.partName||r.part||'',
+      r.qty||'',
+      r.urgency||'',
+      r.requestedBy||'',
+      fmt(r.requestedAt||r.createdAt),
+      r.status||'',
+      fmt(r.readyAt),
+      fmt(r.issuedAt)
+    ]);
+  });
+  var ws6 = XLSX.utils.aoa_to_sheet([s6h].concat(s6r.length?s6r:[['No stores requisitions for '+monthName]]));
+  ws6['!cols']=[{wch:4},{wch:12},{wch:28},{wch:6},{wch:10},{wch:20},{wch:18},{wch:12},{wch:18},{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws6, '6-Stores Requisitions');
+
+  // ── SHEET 7: SUPPORT SERVICES ─────────────────────────────────────────────
+  var s7h = ['#','Type','Truck No','Started At','Completed At','Duration','Operator','Notes'];
+  var s7r = [];
+  (S.supportJobs||[]).filter(function(j){ return inMonth(j.startTime||j.createdAt); }).forEach(function(j,i){
+    s7r.push([
+      i+1,
+      j.type||j.serviceType||'',
+      j.truckNo||'',
+      fmt(j.startTime||j.createdAt),
+      fmt(j.endTime||j.completedAt),
+      (j.startTime&&(j.endTime||j.completedAt)) ? dur(j.startTime,j.endTime||j.completedAt) : '',
+      j.operator||j.by||'',
+      j.notes||''
+    ]);
+  });
+  var ws7 = XLSX.utils.aoa_to_sheet([s7h].concat(s7r.length?s7r:[['No support service records for '+monthName]]));
+  ws7['!cols']=[{wch:4},{wch:16},{wch:12},{wch:18},{wch:18},{wch:10},{wch:20},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws7, '7-Support Services');
+
+  XLSX.writeFile(wb, 'SHTL_Full_Report_'+selectedMonth+'.xlsx');
+  toast('📥 Full monthly report downloaded — '+monthName+' (7 sheets)','ok');
 }
 
 function refreshPostponePage(){
