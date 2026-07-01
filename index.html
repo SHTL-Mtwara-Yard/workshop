@@ -1055,7 +1055,7 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- YARD STATUS STRIP -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
     <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:12px;text-align:center;padding:16px 8px">
       <div id="secYardInBay" style="color:var(--blue);font-size:36px;font-weight:900;line-height:1">0</div>
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:6px;letter-spacing:.5px">🔧 IN BAY</div>
@@ -1071,6 +1071,10 @@ tr:hover td { background: var(--surface2); }
     <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--red);border-radius:12px;text-align:center;padding:16px 8px">
       <div id="secYardTotal" style="color:var(--red);font-size:36px;font-weight:900;line-height:1">0</div>
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:6px;letter-spacing:.5px">TOTAL IN YARD</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid #7c3aed;border-radius:12px;text-align:center;padding:16px 8px">
+      <div id="secYardExited" style="color:#7c3aed;font-size:36px;font-weight:900;line-height:1">0</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-top:6px;letter-spacing:.5px">🚛 EXITED TODAY</div>
     </div>
   </div>
 
@@ -4465,10 +4469,13 @@ function refreshSecurityPanel(){
   const uninsp = inYard.filter(e => !S.inspections.some(i => i.entryId === e.id));
 
   // Stats strip
+  const today2 = new Date().toDateString();
+  const exitedToday = S.entries.filter(e => e.exitTime && new Date(e.exitTime).toDateString()===today2);
   document.getElementById('secYardInBay').textContent = inBay.length + uninsp.length;
   document.getElementById('secYardParking').textContent = parked.length;
   document.getElementById('secYardReady').textContent = ready.length;
   document.getElementById('secYardTotal').textContent = inYard.length;
+  document.getElementById('secYardExited').textContent = exitedToday.length;
 
   // Alerts strip — unread security alerts
   const unreadAlerts = (S.securityAlerts||[]).filter(a => !a.acknowledgedAt);
