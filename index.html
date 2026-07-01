@@ -1738,8 +1738,13 @@ tr:hover td { background: var(--surface2); }
 
   <!-- SUB: TIME STAMPING -->
   <div class="subpage" id="sub-mgr-timestamp">
+    <div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:600;color:var(--text2)">📅 FILTER BY MONTH</span>
+      <input type="month" id="tsMonthPicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="refreshTimeStamping()">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('tsMonthPicker').value='';refreshTimeStamping()">Show All</button>
+    </div>
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--teal)"></span>SLA Adherence — T0 to T5 Turnaround</div>
+      <div class="card-title"><span class="dot" style="background:var(--teal)"></span>SLA Adherence — T0 to T5 Turnaround <span id="tsMonthLabel" style="font-size:12px;color:var(--text2);font-weight:400;margin-left:8px"></span></div>
       <div class="sla-bars" id="slaBars"></div>
       <div class="sla-row" id="slaCells"></div>
       <div class="text-xs text2">T0 = Gate In · T1 = Bay Allocated / Inspection Saved · T2 = Department ETD Set · T4 = Last Job Marked Done (Quality Check) · T5 = Gate Out. SLA target: turnaround within FRT + 3 hrs.</div>
@@ -6994,11 +6999,29 @@ function refreshMgrJobCards(){
 
 // ═══ MANAGER: TIME STAMPING ═══
 function refreshTimeStamping(){
+  // Month filter
+  var tsPicker = document.getElementById('tsMonthPicker');
+  var selMonth = tsPicker ? tsPicker.value : '';
+  // Default to current month on first load
+  if(tsPicker && !tsPicker.value){
+    var now=new Date();
+    tsPicker.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    selMonth=tsPicker.value;
+  }
+  var lblEl=document.getElementById('tsMonthLabel');
+  if(lblEl) lblEl.textContent=selMonth ? ('— '+new Date(selMonth+'-01').toLocaleString('en-GB',{month:'long',year:'numeric'})) : '— All Time';
+
   const allRows=[];
   const slaRows=[]; // only non-accidental for SLA score
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
     if(!e)return;
+    // Apply month filter
+    if(selMonth){
+      var eDate=new Date(e.entryTime);
+      var eMon=eDate.getFullYear()+'-'+String(eDate.getMonth()+1).padStart(2,'0');
+      if(eMon!==selMonth) return;
+    }
     const isAccidental=(ins.jobType||'').toLowerCase().includes('accident');
     const t0=new Date(e.entryTime);
     const t1=ins.t1_allocated?new Date(ins.t1_allocated):null;
