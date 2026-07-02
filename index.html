@@ -7949,22 +7949,96 @@ function playSupETDBeep(){ // supervisor ETD 1hr warning — long single tone
   }catch(e){}
 }
 
-function playCelebrationMelody(){ // all jobs done — cheerful rising melody
+function playCelebrationMelody(){ // ALL depts done within ETD — full rising melody
   var ctx=getAlertAudio(); if(!ctx) return;
   try{
-    // Notes: C5 E5 G5 C6 — classic "well done" ascending chord
-    var notes=[523, 659, 784, 1047];
-    notes.forEach(function(freq, i){
+    var notes=[523,659,784,1047,1319]; // C5 E5 G5 C6 E6 — triumphant
+    notes.forEach(function(freq,i){
       var osc=ctx.createOscillator(); var gain=ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type='sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime+i*0.18);
-      gain.gain.setValueAtTime(0, ctx.currentTime+i*0.18);
-      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+i*0.18+0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+i*0.18+0.35);
-      osc.start(ctx.currentTime+i*0.18);
-      osc.stop(ctx.currentTime+i*0.18+0.35);
+      osc.frequency.setValueAtTime(freq, ctx.currentTime+i*0.15);
+      gain.gain.setValueAtTime(0, ctx.currentTime+i*0.15);
+      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+i*0.15+0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+i*0.15+0.35);
+      osc.start(ctx.currentTime+i*0.15); osc.stop(ctx.currentTime+i*0.15+0.35);
     });
+  }catch(e){}
+}
+
+// Per-department completion sounds — each distinctly different
+function playDeptCompleteSound(dept){
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    if(dept==='mech'){ // Mechanical — two solid low tones (heavy work)
+      [[220,0],[330,0.25]].forEach(function(p){
+        var osc=ctx.createOscillator(); var gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type='square'; osc.frequency.value=p[0];
+        gain.gain.setValueAtTime(0.3, ctx.currentTime+p[1]);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+p[1]+0.3);
+        osc.start(ctx.currentTime+p[1]); osc.stop(ctx.currentTime+p[1]+0.3);
+      });
+    } else if(dept==='elec'){ // Electrician — rapid ascending electric zap
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type='sawtooth';
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime+0.2);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.25);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.25);
+    } else if(dept==='tyre'){ // Tyre — deep thump (like tyre hitting ground)
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type='sine';
+      osc.frequency.setValueAtTime(120, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime+0.3);
+      gain.gain.setValueAtTime(0.6, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.35);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.35);
+    } else if(dept==='weld'){ // Welding — buzzing crackle then clear tone
+      [0,0.05,0.1].forEach(function(t){
+        var osc=ctx.createOscillator(); var gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type='sawtooth'; osc.frequency.value=150+Math.random()*100;
+        gain.gain.setValueAtTime(0.2, ctx.currentTime+t);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+t+0.08);
+        osc.start(ctx.currentTime+t); osc.stop(ctx.currentTime+t+0.08);
+      });
+      var osc2=ctx.createOscillator(); var gain2=ctx.createGain();
+      osc2.connect(gain2); gain2.connect(ctx.destination);
+      osc2.frequency.value=660;
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime+0.2);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.5);
+      osc2.start(ctx.currentTime+0.2); osc2.stop(ctx.currentTime+0.5);
+    } else if(dept==='pneumatic'){ // Pneumatic — air release hiss then ping
+      var bufSize=ctx.sampleRate*0.15;
+      var buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+      var data=buf.getChannelData(0);
+      for(var i=0;i<bufSize;i++) data[i]=(Math.random()*2-1)*0.3;
+      var src=ctx.createBufferSource(); src.buffer=buf;
+      var gain3=ctx.createGain();
+      src.connect(gain3); gain3.connect(ctx.destination);
+      gain3.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain3.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.15);
+      src.start(ctx.currentTime);
+      var osc3=ctx.createOscillator(); var gain4=ctx.createGain();
+      osc3.connect(gain4); gain4.connect(ctx.destination);
+      osc3.frequency.value=880; osc3.type='sine';
+      gain4.gain.setValueAtTime(0.3, ctx.currentTime+0.18);
+      gain4.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+0.4);
+      osc3.start(ctx.currentTime+0.18); osc3.stop(ctx.currentTime+0.4);
+    } else if(dept==='suspension'){ // Suspension — two mid tones spring-like
+      [[440,0],[550,0.2],[440,0.4]].forEach(function(p){
+        var osc=ctx.createOscillator(); var gain=ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type='triangle'; osc.frequency.value=p[0];
+        gain.gain.setValueAtTime(0.3, ctx.currentTime+p[1]);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+p[1]+0.18);
+        osc.start(ctx.currentTime+p[1]); osc.stop(ctx.currentTime+p[1]+0.18);
+      });
+    }
   }catch(e){}
 }
 
@@ -12685,14 +12759,58 @@ function punchCompleteJob(insId,dept,idx){
       if(!(upd.done||j.done)) allDoneCheck=false;
     });
   });
+  // Check per-department completion — play dept-specific sound
+  var deptLabels={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'};
+  var justCompletedDept=null;
+  ['mech','elec','tyre','weld'].forEach(function(d){
+    if(d!==dept) return; // only check the dept that was just completed
+    var dJobs=(ins.jobs||{})[d]||[];
+    if(!dJobs.length) return;
+    var dAllDone=dJobs.every(function(j,ji){
+      var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+      return upd.done||j.done;
+    });
+    if(dAllDone) justCompletedDept=d;
+  });
+
+  if(justCompletedDept){
+    playDeptCompleteSound(justCompletedDept);
+    if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+      speakAnnouncement(deptLabels[justCompletedDept]+' jobs completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Well done '+curPunchWorker+'!');
+    }
+    showFloatingETDAlert('✅ '+deptLabels[justCompletedDept].toUpperCase()+' DONE',ins.truckNo+' · '+ins.bayNo,curPunchWorker+' completed all '+deptLabels[justCompletedDept]+' jobs','celebrate');
+  }
+
   if(allDoneCheck){
     ins.t4_qcDone=new Date().toISOString();
-    // Celebration — all jobs done!
-    playCelebrationMelody();
-    if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-      speakAnnouncement('Congratulations! All jobs completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Well done '+curPunchWorker+'!');
-    }
-    showFloatingETDAlert('✅ ALL JOBS DONE!',ins.truckNo+' · '+ins.bayNo,curPunchWorker+' has completed all department jobs — truck ready for QC','celebrate');
+    // Check if all done WITHIN Ground Team ETD (true appreciation)
+    var now=new Date();
+    var withinETD=false;
+    var latestETD=null;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var dk=S.deptETDs[ins.id+'_'+d];
+      if(dk){
+        var ed=typeof dk==='object'&&dk.time&&dk.date?new Date(dk.date+' '+dk.time):new Date(dk);
+        if(!isNaN(ed)&&(!latestETD||ed>latestETD)) latestETD=ed;
+      }
+    });
+    if(latestETD) withinETD=(now<=latestETD);
+    // Short delay so dept sound plays first, then celebration
+    setTimeout(function(){
+      playCelebrationMelody();
+      if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+        var msg=withinETD
+          ?'Outstanding! All departments completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Delivered within ETD. Excellent work team!'
+          :'All departments completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Truck is ready for gate out.';
+        speakAnnouncement(msg);
+      }
+      showFloatingETDAlert(
+        withinETD?'🏆 ALL DONE — WITHIN ETD!':'✅ ALL DEPARTMENTS DONE',
+        ins.truckNo+' · '+ins.bayNo,
+        withinETD?'Delivered within committed ETD — excellent team performance!':'All jobs complete — ready for Supervisor QC and gate out',
+        'celebrate'
+      );
+    }, 800);
   }
   checkAutoCompletion(insId);
 
