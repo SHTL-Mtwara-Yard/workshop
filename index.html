@@ -2779,11 +2779,19 @@ tr:hover td { background: var(--surface2); }
         </div>
       </div>
       <div id="boomTruckRow" style="display:none" class="form-row">
-        <div>
-          <label>Truck (fitted on)</label>
-          <select id="boomActionTruck" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
-            <option value="">-- Select truck --</option>
-          </select>
+        <div class="form-row cols-2" style="margin:0">
+          <div>
+            <label>Truck (fitted on)</label>
+            <select id="boomActionTruck" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+              <option value="">-- Select truck --</option>
+            </select>
+          </div>
+          <div>
+            <label>Trailer (if applicable)</label>
+            <select id="boomActionTrailer" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+              <option value="">-- No trailer / select --</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -2802,8 +2810,8 @@ tr:hover td { background: var(--surface2); }
         <button class="btn btn-ghost btn-sm" onclick="downloadBoomLog()">⬇️ Download CSV</button>
       </div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Date/Time</th><th>Boom Type</th><th>Action</th><th>Qty</th><th>Staff</th><th>Truck</th><th>Remarks</th></tr></thead>
-        <tbody id="boomRepairLog"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr></tbody>
+        <thead><tr><th>Date/Time</th><th>Boom Type</th><th>Action</th><th>Qty</th><th>Staff</th><th>Truck</th><th>Trailer</th><th>Remarks</th></tr></thead>
+        <tbody id="boomRepairLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr></tbody>
       </table></div>
     </div>
   </div>
@@ -8928,12 +8936,14 @@ function refreshSupportPage(){
   const refs=document.getElementById('refName'); if(refs) refs.innerHTML='<option value="">-- Select --</option>'+refStaff.map(n=>`<option>${n}</option>`).join('');
   const sbs=document.getElementById('sbName'); if(sbs) sbs.innerHTML='<option value="">-- Select --</option>'+sbStaff.map(n=>`<option>${n}</option>`).join('');
 
-  // Boom repairs dropdowns
-  var boomStaffList=(STAFF['mech']||STAFF['mechanical']||ALL_STAFF||[]);
+  // Boom repairs dropdowns — only show boom repair section staff
+  var boomStaffList=(STAFF['boom']||[]);
   var boomStaffEl=document.getElementById('boomActionStaff');
   if(boomStaffEl) boomStaffEl.innerHTML='<option value="">-- Select --</option>'+boomStaffList.map(function(n){return '<option>'+n+'</option>';}).join('');
   var boomTruckEl=document.getElementById('boomActionTruck');
   if(boomTruckEl) boomTruckEl.innerHTML='<option value="">-- Select truck --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
+  var boomTrailerEl=document.getElementById('boomActionTrailer');
+  if(boomTrailerEl) boomTrailerEl.innerHTML='<option value="">-- No trailer / select --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
   renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog();
   const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
 
@@ -9287,6 +9297,8 @@ function saveBoomAction(){
   var remarks=document.getElementById('boomActionRemarks').value.trim();
   var truckSel=document.getElementById('boomActionTruck');
   var truckNo=kind==='fitted'?(truckSel.options[truckSel.selectedIndex]?truckSel.options[truckSel.selectedIndex].text:''):'';
+  var trailerSel=document.getElementById('boomActionTrailer');
+  var trailerNo=kind==='fitted'&&trailerSel&&trailerSel.value?(trailerSel.options[trailerSel.selectedIndex]?trailerSel.options[trailerSel.selectedIndex].text:''):'';
   if(!type) return toast('⚠️ Select boom type','warn');
   if(!kind) return toast('⚠️ Select action','warn');
   if(kind==='kit_waiting'&&!remarks) return toast('⚠️ Enter what kit/parts are required in Remarks','warn');
@@ -9301,6 +9313,7 @@ function saveBoomAction(){
     qty:qty,
     staff:staff||'—',
     truckNo:truckNo||'—',
+    trailerNo:trailerNo||'—',
     remarks:remarks
   });
   save();
@@ -9316,7 +9329,7 @@ function saveBoomAction(){
 function renderBoomRepairLog(){
   var tb=document.getElementById('boomRepairLog'); if(!tb) return;
   var logs=(S.boomRepairs||[]).slice().reverse();
-  if(!logs.length){ tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr>'; return; }
+  if(!logs.length){ tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr>'; return; }
   var actionLabels={repaired:'✅ Repaired',fitted:'🚛 Fitted on truck',kit_waiting:'⏳ Waiting for kit',kit_received:'📦 Kit received',damaged_in:'🔴 Damaged in'};
   tb.innerHTML=logs.map(function(r,i){
     var bt=BOOM_TYPES[r.boomType]||{label:r.boomType,color:'#374151',bg:'#f9fafb'};
@@ -9327,6 +9340,7 @@ function renderBoomRepairLog(){
       +'<td style="text-align:center;font-weight:700">'+r.qty+'</td>'
       +'<td style="font-size:12px">'+r.staff+'</td>'
       +'<td style="font-size:12px">'+r.truckNo+'</td>'
+      +'<td style="font-size:12px">'+(r.trailerNo&&r.trailerNo!=='—'?r.trailerNo:'—')+'</td>'
       +'<td style="font-size:11px;max-width:180px;color:var(--text2)">'+( r.remarks||'—')+'</td>'
       +'</tr>';
   }).join('');
@@ -12183,8 +12197,18 @@ function refreshPunchTab(){
   if(isClosed) return; // Don't render name cards if closed
   // Populate worker name cards
   var nameGrid = document.getElementById('punchNameGrid');
-  if(nameGrid && ALL_STAFF.length){
-    nameGrid.innerHTML = ALL_STAFF.map(function(n){
+  if(nameGrid){
+    // Only show workshop floor staff — mech, elec, tyre, weld sections
+    var workshopDepts=['mech','elec','tyre','weld'];
+    var workshopStaff=[];
+    workshopDepts.forEach(function(d){
+      var names=(STAFF[d]||[]);
+      names.forEach(function(n){
+        if(!workshopStaff.includes(n)) workshopStaff.push(n);
+      });
+    });
+    workshopStaff.sort();
+    nameGrid.innerHTML = workshopStaff.map(function(n){
       var safeName = n.replace(/'/g,"\\'");
       var isSelected = curPunchWorker===n;
       return '<div onclick="selectPunchName(\''+safeName+'\')" style="'
