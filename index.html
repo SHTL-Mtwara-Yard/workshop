@@ -307,6 +307,7 @@ tr:hover td { background: var(--surface2); }
 .bay-cell.ready { border-color: #14b8a6 !important; background: rgba(20,184,166,.25) !important; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(.96)} }
+@keyframes slideInRight { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
 
 /* PROGRESS */
 .progress-bar { height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
@@ -1415,6 +1416,7 @@ tr:hover td { background: var(--surface2); }
 
     <!-- Bay Grid View -->
     <div id="groundBayWorkContent">
+      <div id="groundETDAlertBanner" style="display:none;margin-bottom:10px"></div>
     <!-- Bay Grid Selector -->
     <div style="margin-bottom:16px">
       <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:6px">TEAM A — BAYS 1–10</div>
@@ -7890,7 +7892,224 @@ function refreshFleet(){
 // Speaks aloud every 15 min when a truck's ETD is within 1 hour, naming the mechanic and jobs
 var _etdAnnouncementsEnabled=false;
 var _etdAnnounceInterval=null;
-var _lastAnnounced={}; // {insId_dept: lastAnnouncedMinute} prevents repeat within same 15-min window
+var _lastAnnounced={}; // prevent repeat alerts within same window
+var _alertAudioCtx=null;
+
+// ── ALERT AUDIO ENGINE ─────────────────────────────────────────────────────
+// Three distinct sounds for speakers:
+// WARNING (30min): two ascending tones — "heads up"
+// BREACH (overdue): three urgent descending tones — "action needed now"
+// SUPERVISOR: long single tone — "management attention"
+function getAlertAudio(){
+  if(!_alertAudioCtx){
+    try{ _alertAudioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; }
+  }
+  return _alertAudioCtx;
+}
+
+function playETDWarningBeep(){ // 30min warning — double ascending
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    [0, 0.35].forEach(function(delay){
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(600+delay*600, ctx.currentTime+delay);
+      osc.frequency.linearRampToValueAtTime(900+delay*200, ctx.currentTime+delay+0.25);
+      gain.gain.setValueAtTime(0.5, ctx.currentTime+delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+delay+0.4);
+      osc.start(ctx.currentTime+delay); osc.stop(ctx.currentTime+delay+0.4);
+    });
+  }catch(e){}
+}
+
+function playETDBreachBeep(){ // overdue — triple urgent descending
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    [0, 0.3, 0.6].forEach(function(delay){
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(1000, ctx.currentTime+delay);
+      osc.frequency.linearRampToValueAtTime(400, ctx.currentTime+delay+0.25);
+      gain.gain.setValueAtTime(0.6, ctx.currentTime+delay);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+delay+0.3);
+      osc.start(ctx.currentTime+delay); osc.stop(ctx.currentTime+delay+0.3);
+    });
+  }catch(e){}
+}
+
+function playSupETDBeep(){ // supervisor ETD 1hr warning — long single tone
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    var osc=ctx.createOscillator(); var gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(750, ctx.currentTime);
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+1.0);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+1.0);
+  }catch(e){}
+}
+
+// ── GROUND TEAM ETD BANNER ────────────────────────────────────────────────
+// Shows live warning/breach banners at top of Ground Team bay work screen
+function updateGroundETDBanners(){
+  var container=document.getElementById('groundETDAlertBanner');
+  if(!container) return;
+  var now=new Date();
+  var banners=[];
+  S.inspections.forEach(function(ins){
+    if(ins.parked) return;
+    var e=S.entries.find(function(x){ return x.id==ins.entryId&&!x.exitTime; });
+    if(!e) return;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var deptETDStr=S.deptETDs[ins.id+'_'+d];
+      if(!deptETDStr) return;
+      var deptETDDate=null;
+      if(typeof deptETDStr==='object'&&deptETDStr.time&&deptETDStr.date){
+        deptETDDate=new Date(deptETDStr.date+' '+deptETDStr.time);
+      } else if(typeof deptETDStr==='string'&&deptETDStr.length>5){
+        deptETDDate=new Date(deptETDStr);
+      }
+      if(!deptETDDate||isNaN(deptETDDate)) return;
+      // Check if dept jobs are all done
+      var jobs=(ins.jobs||{})[d]||[];
+      if(!jobs.length) return;
+      var allDone=jobs.every(function(j,ji){ var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; });
+      if(allDone) return; // already done, no alert needed
+      var minsLeft=Math.round((deptETDDate-now)/60000);
+      var mechName=(ins.deptStaff||{})[d]||'—';
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      if(minsLeft<=0){
+        // BREACH — overdue
+        banners.push({type:'breach',truck:ins.truckNo,bay:ins.bayNo,dept:dLabel,mech:mechName,minsLate:Math.abs(minsLeft)});
+      } else if(minsLeft<=30){
+        // WARNING — 30min or less
+        banners.push({type:'warning',truck:ins.truckNo,bay:ins.bayNo,dept:dLabel,mech:mechName,minsLeft:minsLeft});
+      }
+    });
+  });
+  if(!banners.length){ container.innerHTML=''; container.style.display='none'; return; }
+  container.style.display='block';
+  container.innerHTML=banners.map(function(b){
+    if(b.type==='breach'){
+      return '<div style="background:#dc2626;color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px;animation:pulse 1s infinite">'
+        +'<span style="font-size:20px">🚨</span>'
+        +'<div><div style="font-weight:900;font-size:14px">ETD BREACHED — '+b.truck+' · '+b.bay+' · '+b.dept+'</div>'
+        +'<div style="font-size:12px;opacity:.9">'+b.mech+' is '+b.minsLate+'min overdue — immediate attention required</div></div></div>';
+    } else {
+      var urgColor=b.minsLeft<=10?'#b45309':'#92400e';
+      return '<div style="background:#fef3c7;border-left:4px solid #f59e0b;color:'+urgColor+';padding:10px 14px;border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px">'
+        +'<span style="font-size:18px">⏰</span>'
+        +'<div><div style="font-weight:800;font-size:13px">ETD in '+b.minsLeft+'min — '+b.truck+' · '+b.bay+' · '+b.dept+'</div>'
+        +'<div style="font-size:12px">'+b.mech+' — please complete jobs now</div></div></div>';
+    }
+  }).join('');
+}
+
+// ── MAIN ETD CHECK LOOP ───────────────────────────────────────────────────
+// Runs every 2 minutes — checks all depts for 30min warning + breach
+function checkETDAlerts(){
+  var now=new Date();
+  var min2bucket=Math.floor(now.getTime()/120000); // 2-min bucket for dedup
+
+  S.inspections.forEach(function(ins){
+    if(ins.parked) return;
+    var e=S.entries.find(function(x){ return x.id==ins.entryId&&!x.exitTime; });
+    if(!e) return;
+
+    // ── Ground Team dept ETD alerts ──
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var deptETDStr=S.deptETDs[ins.id+'_'+d];
+      if(!deptETDStr) return;
+      var deptETDDate=null;
+      if(typeof deptETDStr==='object'&&deptETDStr.time&&deptETDStr.date){
+        deptETDDate=new Date(deptETDStr.date+' '+deptETDStr.time);
+      } else if(typeof deptETDStr==='string'&&deptETDStr.length>5){
+        deptETDDate=new Date(deptETDStr);
+      }
+      if(!deptETDDate||isNaN(deptETDDate)) return;
+      var jobs=(ins.jobs||{})[d]||[];
+      if(!jobs.length) return;
+      var allDone=jobs.every(function(j,ji){ var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; });
+      if(allDone) return;
+      var minsLeft=Math.round((deptETDDate-now)/60000);
+      var mechName=(ins.deptStaff||{})[d]||'Ground Team';
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      var alertKey=ins.id+'_'+d;
+
+      if(minsLeft>0&&minsLeft<=30){
+        // 30-min WARNING
+        var warnBucket=alertKey+'_warn_'+Math.floor(minsLeft/10); // re-alert every 10min window
+        if(_lastAnnounced[warnBucket]!==min2bucket){
+          _lastAnnounced[warnBucket]=min2bucket;
+          playETDWarningBeep();
+          if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+            speakAnnouncement(mechName+', ETD for '+ins.truckNo+' '+dLabel+' in '+minsLeft+' minutes. Please complete jobs now.');
+          }
+          // Send to Manager via Yard Alert
+          showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+dLabel+' · '+mechName,'ETD in '+minsLeft+'min — jobs still pending','warning');
+        }
+      } else if(minsLeft<=0){
+        // BREACH
+        var breachBucket=alertKey+'_breach_'+Math.floor(Math.abs(minsLeft)/5); // repeat every 5min late
+        if(_lastAnnounced[breachBucket]!==min2bucket){
+          _lastAnnounced[breachBucket]=min2bucket;
+          playETDBreachBeep();
+          if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+            speakAnnouncement('Alert! '+ins.truckNo+' '+dLabel+' ETD breached. '+mechName+', '+Math.abs(minsLeft)+' minutes overdue.');
+          }
+          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+dLabel+' · '+mechName,Math.abs(minsLeft)+'min overdue — supervisor action required','breach');
+        }
+      }
+    });
+
+    // ── Supervisor ETD alert — 1hr warning ──
+    if(ins.etd){
+      var supETD=new Date(ins.etd);
+      if(!isNaN(supETD)){
+        var jobs2=(ins.jobs||{});
+        var allDept=(['mech','elec','tyre','weld'].every(function(d){
+          return ((jobs2[d]||[]).every(function(j,ji){ var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; }));
+        }));
+        if(!e.exitTime&&!allDept){
+          var supMinsLeft=Math.round((supETD-now)/60000);
+          if(supMinsLeft>0&&supMinsLeft<=60){
+            var supKey=ins.id+'_sup_'+Math.floor(supMinsLeft/20);
+            if(_lastAnnounced[supKey]!==min2bucket){
+              _lastAnnounced[supKey]=min2bucket;
+              playSupETDBeep();
+              showFloatingETDAlert('🏁 SUPERVISOR ETD',ins.truckNo+' · '+ins.bayNo,'Truck ETD in '+supMinsLeft+'min — ensure all depts finishing','supervisor');
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Update live banners on Ground Team screen
+  updateGroundETDBanners();
+}
+
+var _alertToastQueue=[];
+function showFloatingETDAlert(title,subtitle,body,type){
+  var colors={warning:{bg:'#fef3c7',border:'#f59e0b',text:'#92400e'},breach:{bg:'#fee2e2',border:'#dc2626',text:'#991b1b'},supervisor:{bg:'#dbeafe',border:'#2563eb',text:'#1e3a8a'}};
+  var c=colors[type]||colors.warning;
+  var div=document.createElement('div');
+  div.style.cssText='position:fixed;top:'+(70+_alertToastQueue.length*90)+'px;right:16px;z-index:99999;'
+    +'background:'+c.bg+';border:2px solid '+c.border+';border-radius:12px;padding:12px 16px;max-width:320px;'
+    +'box-shadow:0 8px 32px rgba(0,0,0,.2);animation:slideInRight .3s ease';
+  div.innerHTML='<div style="font-weight:900;font-size:13px;color:'+c.text+'">'+title+'</div>'
+    +'<div style="font-weight:700;font-size:12px;color:'+c.text+';margin-top:2px">'+subtitle+'</div>'
+    +'<div style="font-size:11px;color:'+c.text+';margin-top:3px;opacity:.8">'+body+'</div>';
+  document.body.appendChild(div);
+  _alertToastQueue.push(div);
+  setTimeout(function(){
+    div.style.opacity='0'; div.style.transition='opacity .5s';
+    setTimeout(function(){
+      if(div.parentNode) div.parentNode.removeChild(div);
+      _alertToastQueue=_alertToastQueue.filter(function(d){ return d!==div; });
+    },500);
+  },8000);
+}
 
 function toggleETDAnnouncements(){
   if(_etdAnnouncementsEnabled){
@@ -7899,40 +8118,26 @@ function toggleETDAnnouncements(){
     document.getElementById('etdAnnounceBtn').textContent='🔊 Enable ETD Announcements';
     toast('🔇 Announcements disabled','info');
   } else {
-    if(!window.speechSynthesis){ toast('⚠️ This browser does not support text-to-speech','warn'); return; }
+    // Init audio context on user gesture
+    try{ if(!_alertAudioCtx) _alertAudioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+    if(!window.speechSynthesis){ toast('⚠️ This browser does not support text-to-speech','warn'); }
     _etdAnnouncementsEnabled=true;
     document.getElementById('etdAnnounceBtn').textContent='🔇 Disable Announcements';
-    toast('🔊 Announcements enabled — will speak when ETD is within 1 hour','ok');
-    checkETDAnnouncements(); // run once immediately
-    _etdAnnounceInterval=setInterval(checkETDAnnouncements, 15*60*1000); // every 15 mins
+    toast('🔊 ETD alerts enabled — warning at 30min, breach alarm when overdue','ok');
+    playETDWarningBeep(); // confirm sound working
+    checkETDAlerts();
+    if(_etdAnnounceInterval) clearInterval(_etdAnnounceInterval);
+    _etdAnnounceInterval=setInterval(checkETDAlerts, 2*60*1000); // every 2 min
   }
 }
 
-function checkETDAnnouncements(){
-  if(!_etdAnnouncementsEnabled) return;
-  const now=new Date();
-  const currentMinuteBucket=Math.floor(now.getTime()/900000); // 15-min bucket
-  S.inspections.forEach(ins=>{
-    if(ins.parked) return;
-    const e=S.entries.find(x=>x.id==ins.entryId);
-    if(!e||e.exitTime) return;
-    const etd=new Date(ins.etd);
-    const minsLeft=Math.round((etd-now)/60000);
-    if(minsLeft<0||minsLeft>60) return; // only announce when within 1 hour
-    ['mech','elec','tyre','weld'].forEach(d=>{
-      const jobs=(ins.jobs||{})[d]||[];
-      const pending=jobs.filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
-      if(!pending.length) return;
-      const key=`${ins.id}_${d}`;
-      if(_lastAnnounced[key]===currentMinuteBucket) return; // already announced this 15-min window
-      _lastAnnounced[key]=currentMinuteBucket;
-      const mechanic=(ins.deptStaff||{})[d]||'Ground Team';
-      const messages=buildETDMessage(ins.truckNo,d,mechanic,minsLeft,pending,_announceLang);
-      window.speechSynthesis.cancel();
-      speakSequence(messages,0);
-    });
-  });
-}
+// Auto-start silent ETD check (banners only, no sound) even when announcements off
+// This keeps Ground Team bay screen banners live
+setInterval(function(){
+  updateGroundETDBanners();
+  // Run full alert check silently (beeps only if announcements enabled)
+  checkETDAlerts();
+}, 60000); // every 1 minute
 
 function speakAnnouncement(text){
   if(!window.speechSynthesis) return;
