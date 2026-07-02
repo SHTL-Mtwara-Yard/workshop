@@ -3990,8 +3990,33 @@ function submitAppointment(){
     return toast(`⚠️ ${tn} already has a pending request (planned: ${visitStr}, submitted by ${submitter}). Close or Re-raise that one first.`,'warn');
   }
 
+  // Generate serial reference number MTW-YYYYMMDD-XXX
+  var refDate=new Date();
+  var refDateStr=refDate.getFullYear()+String(refDate.getMonth()+1).padStart(2,'0')+String(refDate.getDate()).padStart(2,'0');
+  var todayApts=(S.appointments||[]).filter(function(a){
+    return a.refNo && a.refNo.indexOf('MTW-'+refDateStr)===0;
+  });
+  var seqNo=String(todayApts.length+1).padStart(3,'0');
+  var refNo='MTW-'+refDateStr+'-'+seqNo;
+
+  // Get last visit problems for driver message
+  var lastEntry=(S.entries||[]).filter(function(e){ return e.truckNo===tn && e.exitTime; })
+    .sort(function(a,b){ return new Date(b.entryTime)-new Date(a.entryTime); })[0];
+  var problemLines=[];
+  if(lastEntry){
+    if(lastEntry.safetyMissing && lastEntry.safetyMissing.length){
+      problemLines.push('⚠️ Safety items missing on last visit: '+lastEntry.safetyMissing.join(', ')+' — please ensure these are present on arrival.');
+    }
+  }
+  var lastAptComplaint=(S.appointments||[]).filter(function(a){ return a.truckNo===tn && a.status==='reported' && a.complaints; })
+    .sort(function(a,b){ return new Date(b.submittedAt)-new Date(a.submittedAt); })[0];
+  if(lastAptComplaint && lastAptComplaint.complaints){
+    problemLines.push('🔧 Previous complaint on record: '+lastAptComplaint.complaints.slice(0,120)+(lastAptComplaint.complaints.length>120?'...':''));
+  }
+
   const apt={
     id:Date.now(),
+    refNo:refNo,
     submittedBy:who,
     submittedAt:new Date().toISOString(),
     truckNo:tn,
@@ -4017,32 +4042,53 @@ function submitAppointment(){
   save();
   renderInchargeQueue();
   renderInchargeStats();
-  // Clear form after successful submission
-  document.getElementById('iat_truckNo').value='';
-  document.getElementById('iat_driverName').value='';
-  document.getElementById('iat_driverMobile').value='';
-  document.getElementById('iat_complaints').value='';
-  if(document.getElementById('iat_odo')) document.getElementById('iat_odo').value='';
-  if(document.getElementById('iat_tripKms')) document.getElementById('iat_tripKms').value='';
-  // Reset time to next hour
-  var next=new Date(); next.setHours(next.getHours()+1,0,0,0);
-  var pad=function(n){return String(n).padStart(2,'0');};
-  if(document.getElementById('iat_hh')) document.getElementById('iat_hh').value=pad(next.getHours());
-  if(document.getElementById('iat_mm')) document.getElementById('iat_mm').value='00';
-  if(document.getElementById('iat_visit_display')) document.getElementById('iat_visit_display').textContent='';
+
+  // Build rich WhatsApp message
+  var visitDateObj=new Date(visit);
+  var visitFmt=String(visitDateObj.getHours()).padStart(2,'0')+':'+String(visitDateObj.getMinutes()).padStart(2,'0')+
+    ' \u00b7 '+visitDateObj.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  var waMsg='Dear Driver '+(driverName||'')+',\n\n'+
+    'Your truck *'+tn+'* is scheduled for SHTL Mtwara Workshop visit.\n\n'+
+    '*Reference: '+refNo+'*\n'+
+    'Planned arrival: '+visitFmt+'\n';
+  if(complaints){
+    waMsg+='\nRegistered complaints:\n'+complaints+'\n';
+  }
+  if(problemLines.length){
+    waMsg+='\n'+problemLines.join('\n')+'\n';
+  }
+  waMsg+='\nPlease show Reference *'+refNo+'* to Security on arrival.\n\nSHTL Mtwara Workshop';
+
+  // Show WhatsApp button with rich message
+  if(driverMobile){
+    var waNum=driverMobile.replace(/\D/g,'');
+    if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
+    var waLink='https://wa.me/'+waNum+'?text='+encodeURIComponent(waMsg);
+    var waRow=document.getElementById('iat_waRow')||document.createElement('div');
+    waRow.id='iat_waRow';
+    waRow.style.cssText='margin:12px 0;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px';
+    waRow.innerHTML='<div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:8px">✅ Request submitted — Ref: <strong>'+refNo+'</strong></div>'+
+      '<a href="'+waLink+'" target="_blank" style="display:flex;align-items:center;gap:8px;background:#25d366;color:#fff;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;text-decoration:none;width:fit-content">'+
+      '📲 Send WhatsApp to '+( driverName||'Driver')+'</a>';
+    var form=document.getElementById('iat_truckNo');
+    if(form && form.parentNode && form.parentNode.parentNode){
+      form.parentNode.parentNode.appendChild(waRow);
+      setTimeout(function(){ if(waRow.parentNode) waRow.parentNode.removeChild(waRow); }, 30000);
+    }
+  }
 
   // Build mailto link
-  const subject=encodeURIComponent(`[SHTL Mtwara] Truck Arrival Request — ${tn}`);
+  const subject=encodeURIComponent('[SHTL Mtwara] '+refNo+' — Truck Arrival Request — '+tn);
   const body=encodeURIComponent(
-    `Truck Arrival Request — SHTL Mtwara Workshop\n\n`+
-    `Submitted by: ${who}\nSubmitted at: ${new Date().toLocaleString('en-GB')}\n\n`+
-    `Truck No: ${tn}\nDriver: ${driverName}\nMobile: ${driverMobile||'—'}\n`+
-    `Planned Visit: ${new Date(visit).toLocaleString('en-GB')}\n`+
-    `Current ODO: ${odo?odo.toLocaleString()+' km':'—'}\n`+
-    `Last Visit ODO: ${lastOdo?lastOdo.toLocaleString()+' km':'—'}\n\n`+
-    `Complaints / Maintenance:\n${complaints||'—'}`
+    'Truck Arrival Request — SHTL Mtwara Workshop\n\n'+
+    'Reference: '+refNo+'\n'+
+    'Submitted by: '+who+'\nSubmitted at: '+new Date().toLocaleString('en-GB')+'\n\n'+
+    'Truck No: '+tn+'\nDriver: '+driverName+'\nMobile: '+(driverMobile||'—')+'\n'+
+    'Planned Visit: '+new Date(visit).toLocaleString('en-GB')+'\n'+
+    'Current ODO: '+(odo?odo.toLocaleString()+' km':'—')+'\n\n'+
+    'Complaints / Maintenance:\n'+(complaints||'—')
   );
-  const mailto=`mailto:ymary4001@gmail.com,mongipatrick360@gmail.com?subject=${subject}&body=${body}`;
+  const mailto='mailto:ymary4001@gmail.com,mongipatrick360@gmail.com?subject='+subject+'&body='+body;
   document.getElementById('iat_emailLink').href=mailto;
   document.getElementById('iat_emailRow').style.display='block';
 
@@ -4120,7 +4166,7 @@ function renderAptCard(apt, showHistory){
   return `<div class="apt-card status-${sc}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
       <div>
-        <div class="apt-truck">${apt.truckNo}</div>
+        <div class="apt-truck">${apt.truckNo} ${apt.refNo?`<span style="font-size:11px;font-weight:700;color:#7c3aed;background:#ede9fe;padding:2px 7px;border-radius:10px;margin-left:6px">${apt.refNo}</span>`:''}</div>
         <div class="apt-driver"><i class="ti ti-user" aria-hidden="true" style="font-size:11px"></i> ${apt.driverName} ${apt.driverMobile?'· '+apt.driverMobile:''}</div>
       </div>
       ${aptStatusBadge(apt)}
@@ -4871,9 +4917,11 @@ function refreshSecurityLog(){
     const dTags=e.depts.map(d=>`<span class="tag tag-${dC(d)}">${dL(d)}</span>`).join(' ');
     let statusTag = outT ? '<span class="tag tag-green">IN YARD</span>'.replace('IN YARD','EXITED') : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
     const invTag = (e.missingItems&&e.missingItems.length) ? `<span class="tag tag-red" title="${e.missingItems.map(m=>m.item+': '+m.qtyPresent).join(', ')}">⚠️ ${e.missingItems.length} short</span>` : '<span class="tag tag-green">OK</span>';
+    const apt=(S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && a.refNo; });
+    const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
     return `<tr>
       <td>${i+1}</td>
-      <td class="fw-700">${e.truckNo}</td>
+      <td class="fw-700">${e.truckNo}${refTag}</td>
       <td><span class="tag tag-blue">${e.origin}</span></td>
       <td>${dTags||'—'}</td>
       <td>${e.fuel}L</td>
