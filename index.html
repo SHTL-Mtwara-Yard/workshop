@@ -7949,6 +7949,25 @@ function playSupETDBeep(){ // supervisor ETD 1hr warning — long single tone
   }catch(e){}
 }
 
+function playCelebrationMelody(){ // all jobs done — cheerful rising melody
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    // Notes: C5 E5 G5 C6 — classic "well done" ascending chord
+    var notes=[523, 659, 784, 1047];
+    notes.forEach(function(freq, i){
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type='sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime+i*0.18);
+      gain.gain.setValueAtTime(0, ctx.currentTime+i*0.18);
+      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+i*0.18+0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+i*0.18+0.35);
+      osc.start(ctx.currentTime+i*0.18);
+      osc.stop(ctx.currentTime+i*0.18+0.35);
+    });
+  }catch(e){}
+}
+
 // ── GROUND TEAM ETD BANNER ────────────────────────────────────────────────
 // Shows live warning/breach banners at top of Ground Team bay work screen
 function updateGroundETDBanners(){
@@ -8043,10 +8062,9 @@ function checkETDAlerts(){
           _lastAnnounced[warnBucket]=min2bucket;
           playETDWarningBeep();
           if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-            speakAnnouncement(mechName+', ETD for '+ins.truckNo+' '+dLabel+' in '+minsLeft+' minutes. Please complete jobs now.');
+            speakAnnouncement('Attention '+dLabel+' team. '+mechName+' in '+ins.bayNo+', your ETD for truck '+ins.truckNo+' is in '+minsLeft+' minutes. Please complete your jobs now.');
           }
-          // Send to Manager via Yard Alert
-          showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+dLabel+' · '+mechName,'ETD in '+minsLeft+'min — jobs still pending','warning');
+          showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' — ETD in '+minsLeft+'min · Please complete jobs now','warning');
         }
       } else if(minsLeft<=0){
         // BREACH
@@ -8055,9 +8073,9 @@ function checkETDAlerts(){
           _lastAnnounced[breachBucket]=min2bucket;
           playETDBreachBeep();
           if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-            speakAnnouncement('Alert! '+ins.truckNo+' '+dLabel+' ETD breached. '+mechName+', '+Math.abs(minsLeft)+' minutes overdue.');
+            speakAnnouncement('Urgent alert! '+mechName+' in '+ins.bayNo+', your '+dLabel+' ETD for truck '+ins.truckNo+' has been missed by '+Math.abs(minsLeft)+' minutes. Supervisor attention required immediately.');
           }
-          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+dLabel+' · '+mechName,Math.abs(minsLeft)+'min overdue — supervisor action required','breach');
+          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' is '+Math.abs(minsLeft)+'min overdue — supervisor action required','breach');
         }
       }
     });
@@ -8091,7 +8109,7 @@ function checkETDAlerts(){
 
 var _alertToastQueue=[];
 function showFloatingETDAlert(title,subtitle,body,type){
-  var colors={warning:{bg:'#fef3c7',border:'#f59e0b',text:'#92400e'},breach:{bg:'#fee2e2',border:'#dc2626',text:'#991b1b'},supervisor:{bg:'#dbeafe',border:'#2563eb',text:'#1e3a8a'}};
+  var colors={warning:{bg:'#fef3c7',border:'#f59e0b',text:'#92400e'},breach:{bg:'#fee2e2',border:'#dc2626',text:'#991b1b'},supervisor:{bg:'#dbeafe',border:'#2563eb',text:'#1e3a8a'},celebrate:{bg:'#dcfce7',border:'#16a34a',text:'#14532d'}};
   var c=colors[type]||colors.warning;
   var div=document.createElement('div');
   div.style.cssText='position:fixed;top:'+(70+_alertToastQueue.length*90)+'px;right:16px;z-index:99999;'
@@ -12667,7 +12685,15 @@ function punchCompleteJob(insId,dept,idx){
       if(!(upd.done||j.done)) allDoneCheck=false;
     });
   });
-  if(allDoneCheck){ ins.t4_qcDone=new Date().toISOString(); }
+  if(allDoneCheck){
+    ins.t4_qcDone=new Date().toISOString();
+    // Celebration — all jobs done!
+    playCelebrationMelody();
+    if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+      speakAnnouncement('Congratulations! All jobs completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Well done '+curPunchWorker+'!');
+    }
+    showFloatingETDAlert('✅ ALL JOBS DONE!',ins.truckNo+' · '+ins.bayNo,curPunchWorker+' has completed all department jobs — truck ready for QC','celebrate');
+  }
   checkAutoCompletion(insId);
 
   S.workerPunches[curPunchWorker]={ status:'available', since:new Date().toISOString() };
