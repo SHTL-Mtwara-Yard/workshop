@@ -3477,6 +3477,16 @@ fbRoot.on('value', snapshot=>{
   // Keep STAFF / ALL_STAFF pointed at the current live roster so every dropdown
   // across the app (job assignment, breakdown mechanic, punch worker list) always
   // reflects Manager's latest add/remove changes with zero other code changes needed.
+  // Also merge any NEW sections added to DEFAULT_STAFF_SEED after initial Firebase seeding
+  // (e.g. pneumatic, inspection added later won't exist in older Firebase instances).
+  var mergeChanged=false;
+  Object.keys(DEFAULT_STAFF_SEED).forEach(function(k){
+    if(!S.staffRoster[k] || S.staffRoster[k].length===0){
+      S.staffRoster[k]=DEFAULT_STAFF_SEED[k].slice();
+      mergeChanged=true;
+    }
+  });
+  if(mergeChanged) fbRoot.child('staffRoster').set(S.staffRoster).catch(function(){});
   STAFF = S.staffRoster;
   ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
 
