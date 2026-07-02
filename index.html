@@ -2445,7 +2445,7 @@ tr:hover td { background: var(--surface2); }
 <!-- ════════════════ SUPPORT SERVICES PAGE ════════════════ -->
 <div class="page" id="page-support">
   <div class="page-title">🛠️ Support Services</div>
-  <div class="page-sub">Greasing · Panel Beater · Refurbish · Sand Blasting · Washing · Drivers</div>
+  <div class="page-sub">Greasing · Panel Beater · Refurbish · Sand Blasting · Washing · Drivers · Boom Repairs</div>
 
   <div class="subnav">
     <div class="subtab active" onclick="showSupportSub('greasing',this)">🟢 Greasing</div>
@@ -2454,6 +2454,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSupportSub('sandblasting',this)">💨 Sand Blasting</div>
     <div class="subtab" onclick="showSupportSub('washing',this)">🚿 Washing</div>
     <div class="subtab" onclick="showSupportSub('drivers',this)">🚗 Drivers</div>
+    <div class="subtab" onclick="showSupportSub('boomrepairs',this)">🏗️ Boom Repairs</div>
     <div class="subtab" onclick="showSupportSub('edit',this)" style="color:var(--accent)">✏️ Edit Records</div>
   </div>
 
@@ -2720,6 +2721,70 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- SUPPORT EDIT -->
+  <!-- BOOM REPAIRS -->
+  <div class="support-subpage" id="ssub-boomrepairs">
+    <div class="card" style="border-top:4px solid #b45309">
+      <div class="card-title"><span class="dot" style="background:#b45309"></span>🏗️ Log Boom Repair Entry</div>
+      <div class="form-row cols-2">
+        <div><label>Staff Name</label><select id="boomName"><option value="">-- Select --</option></select></div>
+        <div><label>Truck / Unit</label><select id="boomTruck"><option value="">-- Select truck --</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Booms Repaired (Qty)</label>
+          <input type="number" id="boomRepaired" min="0" placeholder="e.g. 3" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:16px;font-weight:700;box-sizing:border-box">
+        </div>
+        <div>
+          <label>Booms Remaining (Qty)</label>
+          <input type="number" id="boomRemaining" min="0" placeholder="e.g. 5" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:16px;font-weight:700;box-sizing:border-box">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Ready to Use (Qty)</label>
+          <input type="number" id="boomReady" min="0" placeholder="e.g. 8" style="width:100%;padding:9px;border-radius:var(--radius);border:2px solid #15803d;background:var(--surface3);color:var(--text1);font-size:16px;font-weight:700;box-sizing:border-box">
+        </div>
+        <div>
+          <label>Priority</label>
+          <select id="boomPriority" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+            <option>Normal</option><option>Urgent</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Remarks / What is Required</label>
+          <textarea id="boomRemarks" rows="3" placeholder="e.g. Requires welding on pin joints, 4 pins needed from stores, 2 chains to replace..." style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" style="background:#b45309;margin-top:4px" onclick="saveBoomRepair()">💾 Save Boom Repair Entry</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid #15803d;border-radius:12px;text-align:center;padding:12px 8px">
+        <div id="boomSumReady" style="color:#15803d;font-size:32px;font-weight:900">0</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text2);margin-top:4px">✅ READY TO USE</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid #b45309;border-radius:12px;text-align:center;padding:12px 8px">
+        <div id="boomSumRepaired" style="color:#b45309;font-size:32px;font-weight:900">0</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text2);margin-top:4px">🔧 REPAIRED TODAY</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--red);border-radius:12px;text-align:center;padding:12px 8px">
+        <div id="boomSumRemaining" style="color:var(--red);font-size:32px;font-weight:900">0</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text2);margin-top:4px">⏳ REMAINING</div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#b45309"></span>Boom Repair Log</div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadBoomLog()">⬇️ Download CSV</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Repaired</th><th>Remaining</th><th>Ready</th><th>Priority</th><th>Remarks</th></tr></thead>
+        <tbody id="boomRepairLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
   <div class="support-subpage" id="ssub-edit">
     <!-- NAME GATE -->
     <div id="supportEditGate" class="card" style="max-width:400px;margin:0 auto;border-top:4px solid var(--accent)">
@@ -3279,7 +3344,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[] };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -8840,8 +8905,13 @@ function refreshSupportPage(){
   const refs=document.getElementById('refName'); if(refs) refs.innerHTML='<option value="">-- Select --</option>'+refStaff.map(n=>`<option>${n}</option>`).join('');
   const sbs=document.getElementById('sbName'); if(sbs) sbs.innerHTML='<option value="">-- Select --</option>'+sbStaff.map(n=>`<option>${n}</option>`).join('');
 
-  // Driver dropdown
-  const driverStaff=[...(STAFF['busdriver']||[]),...(STAFF['pickupdriver']||[])];
+  // Boom repairs dropdowns
+  const boomStaff=(STAFF['mech']||STAFF['mechanical']||ALL_STAFF||[]);
+  const boomNameEl=document.getElementById('boomName');
+  if(boomNameEl) boomNameEl.innerHTML='<option value="">-- Select --</option>'+boomStaff.map(function(n){return '<option>'+n+'</option>';}).join('');
+  const boomTruckEl=document.getElementById('boomTruck');
+  if(boomTruckEl) boomTruckEl.innerHTML='<option value="">-- Select truck --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
+  renderBoomRepairLog();
   const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
 
   refreshGreasingLog();
@@ -9088,6 +9158,84 @@ function downloadRefurbishLog(){
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download='Refurbish_Log_'+new Date().toLocaleDateString('en-GB').replace(/\//g,'-')+'.csv';
   a.click();
+}
+
+function saveBoomRepair(){
+  var name=document.getElementById('boomName').value;
+  var truckSel=document.getElementById('boomTruck');
+  var truckNo=truckSel.options[truckSel.selectedIndex]?truckSel.options[truckSel.selectedIndex].text:'';
+  var repaired=parseInt(document.getElementById('boomRepaired').value)||0;
+  var remaining=parseInt(document.getElementById('boomRemaining').value)||0;
+  var ready=parseInt(document.getElementById('boomReady').value)||0;
+  var remarks=document.getElementById('boomRemarks').value.trim();
+  var priority=document.getElementById('boomPriority').value;
+  if(!name) return toast('⚠️ Select staff name','warn');
+  if(!repaired && !remaining && !ready) return toast('⚠️ Enter at least one quantity','warn');
+  if(!S.boomRepairs) S.boomRepairs=[];
+  S.boomRepairs.push({
+    id:Date.now(),
+    date:new Date().toDateString(),
+    time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    loggedAt:new Date().toISOString(),
+    staff:name,
+    truckNo:truckNo||'—',
+    repaired:repaired,
+    remaining:remaining,
+    ready:ready,
+    priority:priority,
+    remarks:remarks
+  });
+  save();
+  // Clear form
+  document.getElementById('boomRepaired').value='';
+  document.getElementById('boomRemaining').value='';
+  document.getElementById('boomReady').value='';
+  document.getElementById('boomRemarks').value='';
+  renderBoomRepairLog();
+  toast('✅ Boom repair entry saved','ok');
+}
+
+function renderBoomRepairLog(){
+  var today=new Date().toDateString();
+  var logs=(S.boomRepairs||[]).slice().reverse();
+  var todayLogs=logs.filter(function(r){ return r.date===today; });
+  // Summary cards
+  var sumReady=todayLogs.reduce(function(a,r){ return a+(r.ready||0); },0);
+  var sumRepaired=todayLogs.reduce(function(a,r){ return a+(r.repaired||0); },0);
+  var sumRemaining=todayLogs.length ? todayLogs[todayLogs.length-1].remaining||0 : 0;
+  var rEl=document.getElementById('boomSumReady'); if(rEl) rEl.textContent=sumReady;
+  var rpEl=document.getElementById('boomSumRepaired'); if(rpEl) rpEl.textContent=sumRepaired;
+  var rmEl=document.getElementById('boomSumRemaining'); if(rmEl) rmEl.textContent=sumRemaining;
+  // Log table
+  var tb=document.getElementById('boomRepairLog');
+  if(!tb) return;
+  if(!logs.length){ tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No entries yet</td></tr>'; return; }
+  tb.innerHTML=logs.map(function(r,i){
+    var isToday=r.date===today;
+    return '<tr style="'+(isToday?'background:#fff7ed':i%2?'background:var(--surface2)':'')+'">'
+      +'<td style="font-size:11px">'+r.date+'<br><span style="color:var(--text2)">'+r.time+'</span></td>'
+      +'<td class="fw-700">'+r.truckNo+'</td>'
+      +'<td>'+r.staff+'</td>'
+      +'<td style="text-align:center;font-weight:700;color:#b45309">'+r.repaired+'</td>'
+      +'<td style="text-align:center;font-weight:700;color:var(--red)">'+r.remaining+'</td>'
+      +'<td style="text-align:center;font-weight:700;color:#15803d">'+r.ready+'</td>'
+      +'<td><span class="tag '+(r.priority==='Urgent'?'tag-red':'tag-green')+'">'+r.priority+'</span></td>'
+      +'<td style="font-size:12px;max-width:200px">'+( r.remarks||'—')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function downloadBoomLog(){
+  var rows=(S.boomRepairs||[]).slice().reverse();
+  if(!rows.length) return toast('No boom repair entries to download','warn');
+  var csv='Date,Time,Truck,Staff,Repaired,Remaining,Ready to Use,Priority,Remarks\n';
+  rows.forEach(function(r){
+    csv+='"'+r.date+'","'+r.time+'","'+r.truckNo+'","'+r.staff+'",'+r.repaired+','+r.remaining+','+r.ready+',"'+r.priority+'","'+(r.remarks||'').replace(/"/g,"'")+'"\n';
+  });
+  var blob=new Blob([csv],{type:'text/csv'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='SHTL_BoomRepairs_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  toast('✅ Boom repair log downloaded','ok');
 }
 
 function downloadSupportLog(type){
