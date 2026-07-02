@@ -14452,6 +14452,151 @@ function runInitialRender(){
   // Auto-clean stale punches: run on load + every hour
   try{ autoCleanStalePunches(); }catch(e){}
   setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
+
+  // Morning announcement: check at 8:30 AM daily
+  scheduleMorningAnnouncement();
+  setInterval(scheduleMorningAnnouncement, 60000); // check every minute
+}
+
+var _morningAnnouncedDate='';
+
+function playMorningFanfare(){
+  var ctx=getAlertAudio(); if(!ctx) return;
+  try{
+    // Uplifting fanfare — rising then held chord
+    var notes=[[261,0,0.4],[329,0.15,0.4],[392,0.30,0.6],[523,0.50,0.8],[659,0.65,0.6],[784,0.80,1.0]];
+    notes.forEach(function(n){
+      var osc=ctx.createOscillator(); var gain=ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type='sine'; osc.frequency.value=n[0];
+      gain.gain.setValueAtTime(0, ctx.currentTime+n[1]);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime+n[1]+0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime+n[1]+n[2]);
+      osc.start(ctx.currentTime+n[1]); osc.stop(ctx.currentTime+n[1]+n[2]);
+    });
+  }catch(e){}
+}
+
+function scheduleMorningAnnouncement(){
+  try{
+    var now=new Date();
+    var h=now.getHours(); var m=now.getMinutes();
+    var todayStr=now.toDateString();
+    if(h===8&&m===30&&_morningAnnouncedDate!==todayStr){
+      _morningAnnouncedDate=todayStr;
+      setTimeout(deliverMorningAnnouncement, 2000); // 2s delay so page is ready
+    }
+  }catch(e){}
+}
+
+function buildYesterdaySummary(){
+  var yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
+  var yStr=yesterday.toDateString();
+
+  // Trucks completed yesterday (exited)
+  var yEntries=S.entries.filter(function(e){
+    return e.exitTime && new Date(e.exitTime).toDateString()===yStr;
+  });
+
+  // Jobs done by each mechanic yesterday
+  var mechJobs={};
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e||new Date(e.entryTime).toDateString()!==yStr) return;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,ji){
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{};
+        var doneBy=upd.doneBy||(ins.deptStaff&&ins.deptStaff[d])||'';
+        if((upd.done||j.done)&&doneBy&&doneBy!=='Ground Team'&&doneBy!=='—'){
+          mechJobs[doneBy]=(mechJobs[doneBy]||0)+1;
+        }
+      });
+    });
+  });
+
+  // Top mechanic(s)
+  var sorted=Object.entries(mechJobs).sort(function(a,b){ return b[1]-a[1]; });
+  var topMechs=sorted.slice(0,3);
+
+  // ETD met count
+  var etdMet=0; var etdTotal=0;
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e||new Date(e.entryTime).toDateString()!==yStr) return;
+    if(!ins.t4_qcDone) return;
+    etdTotal++;
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var dk=S.deptETDs[ins.id+'_'+d];
+      if(!dk) return;
+      var etdDate=typeof dk==='object'&&dk.time&&dk.date?new Date(dk.date+' '+dk.time):new Date(dk);
+      if(!isNaN(etdDate)&&new Date(ins.t4_qcDone)<=etdDate) etdMet++;
+    });
+  });
+
+  return {
+    trucks:yEntries.length,
+    topMechs:topMechs,
+    totalJobs:Object.values(mechJobs).reduce(function(a,b){return a+b;},0),
+    etdMet:etdMet,
+    etdTotal:etdTotal,
+    date:yesterday.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
+  };
+}
+
+function deliverMorningAnnouncement(){
+  try{
+    var s=buildYesterdaySummary();
+
+    // Build Swahili speech (under 60 seconds)
+    var sw='Habari za asubuhi timu ya SHTL Mtwara! ';
+
+    if(s.trucks>0){
+      sw+='Jana tarehe '+s.date+', timu yetu ilikamilisha magari '+s.trucks+'. ';
+    } else {
+      sw+='Jana hakukuwa na magari yaliyokamilika. ';
+    }
+
+    if(s.totalJobs>0){
+      sw+='Jumla ya kazi '+s.totalJobs+' zilifanywa vizuri. ';
+    }
+
+    if(s.etdMet>0&&s.etdTotal>0){
+      sw+='Idadi ya '+s.etdMet+' kazi zilikamilika ndani ya muda uliowekwa. Hongera! ';
+    }
+
+    if(s.topMechs.length>0){
+      sw+='Mfanyakazi bora wa jana ni ';
+      s.topMechs.forEach(function(m,i){
+        var firstName=m[0].split(' ')[0];
+        sw+=firstName+(i<s.topMechs.length-1?' na ':'. ');
+      });
+      sw+='Kazi nzuri sana! ';
+    }
+
+    sw+='Leo tunaanza saa mbili na nusu asubuhi. Kila mtu awe tayari. Tufanye kazi kwa bidii na usalama. Asante!';
+
+    // Play fanfare first, then speak
+    playMorningFanfare();
+    setTimeout(function(){
+      if(window.speechSynthesis&&_etdAnnouncementsEnabled){
+        var utt=new SpeechSynthesisUtterance(sw);
+        utt.lang='sw-TZ'; utt.rate=0.85; utt.pitch=1.1; utt.volume=1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utt);
+      }
+    }, 2500);
+
+    // Show morning banner on all screens
+    showFloatingETDAlert(
+      '🌅 HABARI ZA ASUBUHI — SHTL MTWARA',
+      'Jana: Magari '+s.trucks+' · Kazi '+s.totalJobs+' · ETD Met: '+s.etdMet,
+      s.topMechs.length?'Bora: '+s.topMechs.map(function(m){return m[0].split(' ')[0]+' ('+m[1]+')';}).join(', '):'Asante timu yote!',
+      'celebrate'
+    );
+
+    console.log('Morning announcement delivered:', sw);
+  }catch(e){ console.warn('Morning announcement error:',e); }
 }
 </script>
 
