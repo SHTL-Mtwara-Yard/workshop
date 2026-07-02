@@ -12438,7 +12438,16 @@ function punchCompleteJob(insId,dept,idx){
   }
   const key=`${insId}_${dept}_${idx}`;
   S.jobUpdates[key]={done:true, doneBy:curPunchWorker, time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), date:new Date().toDateString()};
-  if(!ins.t4_qcDone) ins.t4_qcDone=new Date().toISOString();
+  // T4 = only when ALL jobs across ALL departments are done (not just one job)
+  var allDoneCheck=true;
+  ['mech','elec','tyre','weld'].forEach(function(d){
+    var jobs=(ins.jobs||{})[d]||[];
+    jobs.forEach(function(j,ji){
+      var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+      if(!(upd.done||j.done)) allDoneCheck=false;
+    });
+  });
+  if(allDoneCheck){ ins.t4_qcDone=new Date().toISOString(); }
   checkAutoCompletion(insId);
 
   S.workerPunches[curPunchWorker]={ status:'available', since:new Date().toISOString() };
