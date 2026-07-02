@@ -3933,7 +3933,7 @@ function runInchargeSearch(){
   if(lastApt && lastApt.driverMobile){
     var waNum = lastApt.driverMobile.replace(/\D/g,'');
     if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
-    html += '<a href="https://wa.me/'+waNum+'?text=Dear+Driver%2C+your+truck+is+scheduled+for+workshop+visit.+Please+confirm+arrival+time." target="_blank" style="background:#25d366;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none">📲 WhatsApp Driver</a>';
+    html += '<a href="https://wa.me/'+waNum+'?text='+encodeURIComponent('Dear Driver '+(lastApt&&lastApt.driverName||'')+',\n\nYour truck *'+( last ? last.truckNo : (lastApt ? lastApt.truckNo : q) )+'* has a workshop visit scheduled at SHTL Mtwara. Please contact the Incharge to confirm your arrival time.\n\nSHTL Mtwara Workshop')+'" target="_blank" style="background:#25d366;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;text-decoration:none">📲 WhatsApp Driver</a>';
   }
   html += '</div></div>';
 
@@ -4036,7 +4036,17 @@ function checkAptLastVisit(){
     var waNum=mobile.replace(/\D/g,'');
     if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
     var visitTime=document.getElementById('iat_visit_display').textContent||'';
-    var msg=encodeURIComponent('Dear Driver, your truck '+tn+' is scheduled for SHTL Mtwara Workshop visit. Planned time: '+visitTime+'. Please confirm.');
+    var driverNameVal=(document.getElementById('iat_driverName').value||'').trim();
+    var lastAptForMsg=(S.appointments||[]).filter(function(a){ return a.truckNo===tn && a.driverName; })
+      .sort(function(a,b){ return new Date(b.submittedAt||b.plannedVisit)-new Date(a.submittedAt||a.plannedVisit); })[0];
+    var complaintsVal=(document.getElementById('iat_complaints').value||'').trim();
+    // Build rich message preview
+    var richMsg='Dear Driver '+(driverNameVal||( lastAptForMsg&&lastAptForMsg.driverName)||'')+',\n\n'
+      +'Your truck *'+tn+'* is scheduled for SHTL Mtwara Workshop visit.\n\n'
+      +'Planned arrival: '+visitTime+'\n';
+    if(complaintsVal) richMsg+='\nRegistered complaints:\n'+complaintsVal+'\n';
+    richMsg+='\nPlease confirm your arrival time.\nSHTL Mtwara Workshop';
+    var msg=encodeURIComponent(richMsg);
     waRowEl.style.display='block';
     waRowEl.innerHTML='<a href="https://wa.me/'+waNum+'?text='+msg+'" target="_blank" style="display:flex;align-items:center;gap:6px;background:#25d366;color:#fff;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none;width:fit-content">📲 Send WhatsApp Confirmation to Driver</a>';
   } else {
