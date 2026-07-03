@@ -1156,6 +1156,8 @@ tr:hover td { background: var(--surface2); }
           <div class="dept-check" id="dc-elec" onclick="toggleDept('elec')"><input type="checkbox" id="d_elec" onclick="event.stopPropagation()"><span class="dept-icon">⚡</span><span>Electrician</span></div>
           <div class="dept-check" id="dc-tyre" onclick="toggleDept('tyre')"><input type="checkbox" id="d_tyre" onclick="event.stopPropagation()"><span class="dept-icon">🔵</span><span>Tyre Job</span></div>
           <div class="dept-check" id="dc-weld" onclick="toggleDept('weld')"><input type="checkbox" id="d_weld" onclick="event.stopPropagation()"><span class="dept-icon">🔥</span><span>Welding</span></div>
+          <div class="dept-check" id="dc-pneumatic" onclick="toggleDept('pneumatic')"><input type="checkbox" id="d_pneumatic" onclick="event.stopPropagation()"><span class="dept-icon">🔩</span><span>Pneumatic</span></div>
+          <div class="dept-check" id="dc-suspension" onclick="toggleDept('suspension')"><input type="checkbox" id="d_suspension" onclick="event.stopPropagation()"><span class="dept-icon">🔧</span><span>Suspension</span></div>
         </div>
 
         <label>⛽ Fuel Balance on Arrival (Litres)</label>
@@ -4685,7 +4687,7 @@ function punchEntry(){
   }
 
   _punchEntryInProgress=true;
-  const depts=['mech','elec','tyre','weld'].filter(d=>document.getElementById('d_'+d).checked);
+  const depts=['mech','elec','tyre','weld','pneumatic','suspension'].filter(d=>document.getElementById('d_'+d).checked);
   const missingItems = Object.entries(invFlags).map(([idx,qty])=>({item:INVENTORY_ITEMS[idx],qtyPresent:qty||0}));
   const odoVal=document.getElementById('secOdo').value.trim();
   const entry={id:Date.now(),truckNo:tn,origin:org,fuel:fuel||'-',depts,missingItems,odoOnArrival:odoVal?parseInt(odoVal):null,entryTime:new Date().toISOString(),exitTime:null,status:'in_yard',readyToLeave:false,photo:document.getElementById('camBox').dataset.img||null};
@@ -4721,7 +4723,7 @@ function resetSecForm(){
   document.getElementById('fuelSlider').value=0;
   document.getElementById('fuelSliderVal').textContent='0';
   document.getElementById('secOdo').value='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     document.getElementById('d_'+d).checked=false;
     document.getElementById('dc-'+d).className='dept-check';
   });
@@ -5186,8 +5188,8 @@ function updateBadge(){
 // ═══ SUPERVISOR ═══
 var jobCounts={mech:0,elec:0,tyre:0,weld:0};
 
-const deptColors={mech:'var(--blue)',elec:'var(--yellow)',tyre:'var(--green)',weld:'var(--purple)'};
-const deptNames={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
+const deptColors={mech:'var(--blue)',elec:'var(--yellow)',tyre:'var(--green)',weld:'var(--purple)',pneumatic:'#a78bfa',suspension:'#fb923c'};
+const deptNames={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding',pneumatic:'🔩 Pneumatic',suspension:'🔧 Suspension'};
 
 function buildDeptBlocks(depts){
   const container=document.getElementById('jobDeptBlocks');
@@ -5205,7 +5207,7 @@ function buildDeptBlocks(depts){
       </div>
       <div id="rows-${d}" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px"></div>
     </div>`).join('');
-  jobCounts={mech:0,elec:0,tyre:0,weld:0};
+  jobCounts={mech:0,elec:0,tyre:0,weld:0,pneumatic:0,suspension:0};
 }
 
 function addJobRow(d){
@@ -5490,7 +5492,7 @@ function saveSupervisorEntry(){
   const trailerNo=document.getElementById('supTrailerNo').value.trim();
 
   const jobs={};
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     jobs[d]=Array.from(document.querySelectorAll(`#rows-${d} .job-row`)).map((r,i)=>({
       sno:i+1,desc:r.querySelector('input').value,priority:'Normal',source:(r.querySelector('.job-source')||{value:'driver'}).value||'driver',fault:(r.querySelector('.fault-tag.selected')||{dataset:{}}).dataset.fault||'mechanic',done:false,doneBy:null,doneTime:null,addedBy:null
     })).filter(j=>j.desc.trim());
@@ -5544,7 +5546,7 @@ function saveSupervisorEntry(){
   toast('✅ Inspection saved — '+bay+' allocated','ok');
 
   // Clear job rows
-  ['mech','elec','tyre','weld'].forEach(d=>{document.getElementById('rows-'+d).innerHTML='';jobCounts[d]=0;});
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{document.getElementById('rows-'+d).innerHTML='';jobCounts[d]=0;});
   // Clear all input/select values
   ['supTruckSelect','supOrigin','supGateIn','supFuel','supDepts','supTrailerNo','supJobType','supDriverName','supDriverMobile','supETD','supETD_hh','supETD_mm','supETD_dd','supTripKms','supBaseOdo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   // Clear display elements
@@ -5571,7 +5573,7 @@ function refreshMechPulse(){
     var e = S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e || e.exitTime) return;
     if(new Date(e.entryTime).toDateString()!==today) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var mechName = ((ins.deptStaff||{})[d]||'').trim();
       if(!mechName) return;
       var jobs = (ins.jobs||{})[d]||[];
@@ -5638,8 +5640,8 @@ function refreshSupBayTable(){
     // Live job progress per department
     var progressHtml='';
     var totalDone=0, totalJobs=0;
-    var deptIcons={mech:'⚙️',elec:'⚡',tyre:'🔵',weld:'🔥'};
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    var deptIcons={mech:'⚙️',elec:'⚡',tyre:'🔵',weld:'🔥',pneumatic:'🔩',suspension:'🔧'};
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       var done=jobs.filter(function(j,ji){ var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; }).length;
@@ -5944,8 +5946,8 @@ function downloadMechMonthlyReport(){
   var yr = parseInt(monthVal.split('-')[0]);
   var mo = parseInt(monthVal.split('-')[1])-1; // 0-based
 
-  var depts=['mech','elec','tyre','weld'];
-  var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'};
+  var depts=['mech','elec','tyre','weld','pneumatic','suspension'];
+  var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
 
   // Build per-mechanic stats
   var mechStats = {}; // name -> {dept, jobs:[{date,truck,bay,jobDesc,dept}], trucks:Set}
@@ -6018,9 +6020,9 @@ function renderGroundLeaderboard(){
     mp.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   }
   var today=new Date().toDateString();
-  var depts=['mech','elec','tyre','weld'];
-  var dLabel={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
-  var dColor={mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171'};
+  var depts=['mech','elec','tyre','weld','pneumatic','suspension'];
+  var dLabel={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding',pneumatic:'🔩 Pneumatic',suspension:'🔧 Suspension'};
+  var dColor={mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171',pneumatic:'#a78bfa',suspension:'#fb923c'};
 
   // Build mechanic stats: done jobs, total jobs, trucks worked on
   var deptMap={};
@@ -6248,7 +6250,7 @@ function loadBayJobs(){
         +'<div id="noInsJobAdd"></div>';
       // Show add job buttons for all depts using entryId as insId
       var addHtml='';
-      ['mech','elec','tyre','weld'].forEach(function(d){
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
         var di={mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'}[d];
         addHtml+='<div class="jc-dept-block mb-12"><div class="jc-dept-head '+d+'"><span style="font-weight:700">'+di+'</span>'
           +'<button class="btn btn-ghost btn-sm" onclick="showAddGroundJob(\''+entryInBay.id+'\',\''+d+'\')">+ Add Job</button></div>'
@@ -6272,7 +6274,7 @@ function loadBayJobs(){
   curGroundInsId=ins.id;
 
   const dFilter=document.getElementById('groundDeptFilter').value;
-  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
+  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'},pneumatic:{l:'🔩 Pneumatic',c:'purple'},suspension:{l:'🔧 Suspension',c:'yellow'}};
   const now=new Date();
 
   const e=S.entries.find(x=>x.id==ins.entryId);
@@ -6286,7 +6288,7 @@ function loadBayJobs(){
     jHtml+=`<div class="text-xs text2 mb-12">🤝 Assisting this bay: ${assisters.map(label).join(', ')}</div>`;
   }
   let totalJobs=0, totalDone=0;
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     if(dFilter!=='all'&&dFilter!==d)return;
     const jobs=(ins.jobs||{})[d]||[];
     const di=dInfo[d];
@@ -6337,7 +6339,7 @@ function loadBayJobs(){
       <div style="font-size:12px;color:var(--text2);font-weight:700">${bay} · ${ins.jobType||'Repair'}</div>
     </div>
   </div>`;
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];if(!jobs.length)return;
     const di=dInfo[d];
     const doneC=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
@@ -6528,7 +6530,7 @@ function computeETDStories(truckFilter){
   const rows=[];
   S.inspections.forEach(ins=>{
     if(truckFilter && !ins.truckNo.toUpperCase().includes(truckFilter.toUpperCase())) return;
-    ['mech','elec','tyre','weld'].forEach(d=>{
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
       const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const promised=ins.etd||null;
@@ -6572,7 +6574,7 @@ function checkAutoCompletion(insId){
   if(!ins)return;
   let total=0, done=0;
   const byDept={};
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     let dTotal=0, dDone=0;
     ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
       total++; dTotal++;
@@ -6747,6 +6749,19 @@ function resolveCompletionAlert(){
   if(!reason)return toast('⚠️ Select a reason','warn');
   const note=document.getElementById('caNote').value.trim();
   const ins=S.inspections.find(i=>i.id==_completionAlertCurrentId);
+
+  // Check for any still-open Support Services jobs on this truck before closing
+  if(ins){
+    const openSupport=(S.supportJobs||[]).filter(j=>j.truckNo===ins.truckNo && j.status!=='done');
+    if(openSupport.length){
+      const svcNames={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing'};
+      const list=openSupport.map(j=>svcNames[j.type]||j.type).join(', ');
+      if(!confirm('⚠️ '+ins.truckNo+' still has open Support Services job(s): '+list+'.\n\nMove to parking anyway?')){
+        return;
+      }
+    }
+  }
+
   if(ins){
     ins.supervisorRemark={reason, note, enteredBy:'Supervisor', enteredAt:new Date().toISOString()};
     const e=S.entries.find(x=>x.id==ins.entryId);
@@ -6852,7 +6867,7 @@ function toggleJobGround(insId,dept,idx,cb){
   const ins=S.inspections.find(i=>i.id==insId);
   if(ins){
     var allDone=true;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
@@ -6906,7 +6921,7 @@ function confirmJobAttribution(insId,dept,idx){
     ins.jobOwners[dept+'_'+idx]=name;
     // Check T4
     var allDone=true;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
@@ -7317,10 +7332,10 @@ function loadJobCard(){
   if(!allIns.length){document.getElementById('jobCardDetail').innerHTML='<div class="alert alert-warn">No inspection data for '+truck+'.</div>';return;}
   const ins=allIns[allIns.length-1];
   const dFilter=document.getElementById('jcDeptFilter').value;
-  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
+  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'},pneumatic:{l:'🔩 Pneumatic',c:'purple'},suspension:{l:'🔧 Suspension',c:'yellow'}};
 
   let tot=0,don=0;
-  ['mech','elec','tyre','weld'].forEach(d=>((ins.jobs||{})[d]||[]).forEach((j,i)=>{tot++;if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done)don++;}));
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>((ins.jobs||{})[d]||[]).forEach((j,i)=>{tot++;if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done)don++;}));
   const pct=tot?Math.round(don/tot*100):0;
 
   let html=`<div class="card mb-12" style="border-top:3px solid var(--accent)">
@@ -7334,7 +7349,7 @@ function loadJobCard(){
     <div class="progress-bar" style="height:10px"><div class="progress-fill ${pct>=100?'fill-green':pct>=50?'fill-yellow':'fill-red'}" style="width:${pct}%"></div></div>
   </div>`;
 
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     if(dFilter!=='all'&&dFilter!==d)return;
     const jobs=(ins.jobs||{})[d]||[];if(!jobs.length)return;
     const di=dInfo[d];
@@ -7377,7 +7392,7 @@ function toggleJobJC(insId,dept,idx,cb){
   const ins=S.inspections.find(i=>i.id==insId);
   if(ins){
     var allDoneJC=true;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
@@ -7443,7 +7458,7 @@ function refreshMgrJobCards(){
   let rows=[];
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
-    ['mech','elec','tyre','weld'].forEach(d=>{
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
       ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
         const key=`${ins.id}_${d}_${i}`;
         const upd=S.jobUpdates[key]||{};
@@ -7475,7 +7490,7 @@ function refreshMgrJobCards(){
   if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No job cards match</td></tr>';return;}
 
   tb.innerHTML=rows.map((r,idx)=>{
-    const dInfo={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'};
+    const dInfo={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
     const t0=r.e?new Date(r.e.entryTime).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     const t1=r.ins.t1_allocated?new Date(r.ins.t1_allocated).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     const t2=S.deptETDs[`${r.ins.id}_${r.d}`]?new Date(S.deptETDs[`${r.ins.id}_${r.d}`]).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
@@ -7537,7 +7552,7 @@ function refreshTimeStamping(){
 
     // Ground Team committed ETD: latest dept ETD set (their final ceiling commitment)
     var groundETD=null;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var dk=S.deptETDs[ins.id+'_'+d];
       if(dk){
         var etdDate=null;
@@ -7695,7 +7710,7 @@ function refreshUptime(){
     const pmVisits = visits.filter(v=>{
       const ins=S.inspections.find(i=>i.entryId===v.id);
       if(!ins) return true; // no defects logged = preventive/check only
-      const anyJobs = ['mech','elec','tyre','weld'].some(d=>((ins.jobs||{})[d]||[]).length>0);
+      const anyJobs = ['mech','elec','tyre','weld','pneumatic','suspension'].some(d=>((ins.jobs||{})[d]||[]).length>0);
       return !anyJobs;
     }).length;
     const rrVisits = visits.length - pmVisits;
@@ -7813,7 +7828,7 @@ function refreshFleet(){
     if(ins){
       hasInspection=true; bay=ins.bayNo; etd=new Date(ins.etd);
       minsLeft=Math.round((etd-now)/60000);
-      ['mech','elec','tyre','weld'].forEach(d=>{
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
         ((ins.jobs||{})[d]||[]).forEach((j,i)=>{ totalCount++; if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++; });
       });
     }
@@ -8098,7 +8113,7 @@ function updateGroundETDBanners(){
     if(ins.parked) return;
     var e=S.entries.find(function(x){ return x.id==ins.entryId&&!x.exitTime; });
     if(!e) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var deptETDStr=S.deptETDs[ins.id+'_'+d];
       if(!deptETDStr) return;
       var deptETDDate=null;
@@ -8115,7 +8130,7 @@ function updateGroundETDBanners(){
       if(allDone) return; // already done, no alert needed
       var minsLeft=Math.round((deptETDDate-now)/60000);
       var mechName=(ins.deptStaff||{})[d]||'—';
-      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'}[d];
       if(minsLeft<=0){
         // BREACH — overdue
         banners.push({type:'breach',truck:ins.truckNo,bay:ins.bayNo,dept:dLabel,mech:mechName,minsLate:Math.abs(minsLeft)});
@@ -8155,7 +8170,7 @@ function checkETDAlerts(){
     if(!e) return;
 
     // ── Ground Team dept ETD alerts ──
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var deptETDStr=S.deptETDs[ins.id+'_'+d];
       if(!deptETDStr) return;
       var deptETDDate=null;
@@ -8171,7 +8186,7 @@ function checkETDAlerts(){
       if(allDone) return;
       var minsLeft=Math.round((deptETDDate-now)/60000);
       var mechName=(ins.deptStaff||{})[d]||'Ground Team';
-      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'}[d];
       var alertKey=ins.id+'_'+d;
 
       if(minsLeft>0&&minsLeft<=30){
@@ -8204,7 +8219,7 @@ function checkETDAlerts(){
       var supETD=new Date(ins.etd);
       if(!isNaN(supETD)){
         var jobs2=(ins.jobs||{});
-        var allDept=(['mech','elec','tyre','weld'].every(function(d){
+        var allDept=(['mech','elec','tyre','weld','pneumatic','suspension'].every(function(d){
           return ((jobs2[d]||[]).every(function(j,ji){ var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; }));
         }));
         if(!e.exitTime&&!allDept){
@@ -8325,8 +8340,8 @@ function refreshOverview(){
   document.getElementById('ov-waiting').textContent=uninsp.length;
 
   const dc={mech:0,elec:0,tyre:0,weld:0};
-  actIns.forEach(i=>['mech','elec','tyre','weld'].forEach(d=>{dc[d]+=((i.jobs||{})[d]||[]).length;}));
-  ['mech','elec','tyre','weld'].forEach(d=>document.getElementById('ov-'+d).textContent=dc[d]);
+  actIns.forEach(i=>['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{dc[d]+=((i.jobs||{})[d]||[]).length;}));
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>document.getElementById('ov-'+d).textContent=dc[d]);
 
   const allBays=[...Array.from({length:21},(_,i)=>'Bay '+(i+1)),'Express Bay','Free Bay'];
   document.getElementById('bayMapGrid').innerHTML=allBays.map(b=>{
@@ -9028,8 +9043,8 @@ function downloadFullMonthlyExport(){
   S.inspections.forEach(function(ins){
     var e = S.entries.find(function(x){ return x.id===ins.entryId; });
     if(!e||!inMonth(e.entryTime)) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
-      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'}[d];
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         s3i++;
@@ -9095,9 +9110,9 @@ function downloadFullMonthlyExport(){
     var t0 = e.entryTime;
     var t1 = ins ? ins.savedAt||ins.baySetAt : null;
     var t2 = null;
-    if(ins){ ['mech','elec','tyre','weld'].forEach(function(d){ var et=(S.deptETDs||{})[ins.id+'_'+d]; if(et&&et.setAt&&(!t2||new Date(et.setAt)<new Date(t2))) t2=et.setAt; }); }
+    if(ins){ ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){ var et=(S.deptETDs||{})[ins.id+'_'+d]; if(et&&et.setAt&&(!t2||new Date(et.setAt)<new Date(t2))) t2=et.setAt; }); }
     var t4 = null;
-    if(ins){ var allDone=true; ['mech','elec','tyre','weld'].forEach(function(d){ var jobs=(ins.jobs||{})[d]||[]; jobs.forEach(function(j,ji){ var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{}; if(!(upd.done||j.done)) allDone=false; else if(upd.date&&upd.time){ var dt=new Date(upd.date+' '+upd.time); if(!t4||dt>new Date(t4)) t4=upd.date+' '+upd.time; } }); }); }
+    if(ins){ var allDone=true; ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){ var jobs=(ins.jobs||{})[d]||[]; jobs.forEach(function(j,ji){ var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{}; if(!(upd.done||j.done)) allDone=false; else if(upd.date&&upd.time){ var dt=new Date(upd.date+' '+upd.time); if(!t4||dt>new Date(t4)) t4=upd.date+' '+upd.time; } }); }); }
     var t5 = e.exitTime;
     var total = (t0&&t5) ? dur(t0,t5) : '';
     var slaPass = (t0&&t5) ? ((new Date(t5)-new Date(t0))/3600000 <= 5 ? 'PASS' : 'FAIL') : '';
@@ -9187,7 +9202,7 @@ function loadPostponeDetails(){
   det.style.display='block';
   let txt=`Truck: <strong>${e.truckNo}</strong> · Gate In: ${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
   if(ins) txt+=` · Bay: ${ins.bayNo} · ETD: ${new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;
-  const pending=ins?['mech','elec','tyre','weld'].reduce((acc,d)=>{
+  const pending=ins?['mech','elec','tyre','weld','pneumatic','suspension'].reduce((acc,d)=>{
     const p=((ins.jobs||{})[d]||[]).filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
     return acc+p.length;
   },0):0;
@@ -9348,13 +9363,12 @@ function refreshSupportPage(){
   if(boomTruckEl) boomTruckEl.innerHTML='<option value="">-- Select truck --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
   var boomTrailerEl=document.getElementById('boomActionTrailer');
   if(boomTrailerEl) boomTrailerEl.innerHTML='<option value="">-- No trailer / select --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
-  try{ renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog(); }catch(e){ console.warn('Boom render failed:',e); }
-  var driverStaff=[...(STAFF['busdriver']||[]),...(STAFF['pickupdriver']||[])];
+  renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog();
   const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
 
-  try{ refreshGreasingLog(); }catch(e){ console.warn('refreshGreasingLog failed:',e); }
-  try{ refreshSupportLogs(); }catch(e){ console.warn('refreshSupportLogs failed:',e); }
-  try{ refreshTripLog(); }catch(e){ console.warn('refreshTripLog failed:',e); }
+  refreshGreasingLog();
+  refreshSupportLogs();
+  refreshTripLog();
 
   // Restore active job banners for in-progress jobs (survives page reload)
   ['panelbeater','sandblasting','washing'].forEach(type=>{
@@ -10534,9 +10548,9 @@ function printJobCard(insId){
   const e=S.entries.find(x=>x.id==ins.entryId);
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
   let jobHtml='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length) return;
     jobHtml+=`<tr><td colspan="4" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
@@ -10552,6 +10566,30 @@ function printJobCard(insId){
       </tr>`;
     });
   });
+
+  // Support Services jobs for this truck (Panel Beater, Sand Blasting, Washing, Refurbish, Greasing, Boom Repair)
+  let supportHtml='';
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish / Wheel Alignment',greasing:'Greasing'};
+  const truckSupportJobs=(S.supportJobs||[]).filter(j=>j.truckNo===ins.truckNo);
+  if(truckSupportJobs.length){
+    supportHtml+='<h3>Support Services</h3><table><thead><tr><th>Service</th><th>Job</th><th>Staff</th><th>Status</th></tr></thead><tbody>';
+    truckSupportJobs.forEach(j=>{
+      const svcLabel=supportTypeLabels[j.type]||j.type;
+      const statusBadge=j.status==='done'?'<span class="badge badge-green">DONE</span>':'<span class="badge badge-red">IN PROGRESS</span>';
+      supportHtml+=`<tr><td>${svcLabel}</td><td>${j.job||'—'}</td><td>${j.name||'—'}</td><td style="text-align:center">${statusBadge}</td></tr>`;
+    });
+    supportHtml+='</tbody></table>';
+  }
+  const truckBoomJobs=(S.boomRepairs||[]).filter(r=>r.truckNo===ins.truckNo);
+  if(truckBoomJobs.length){
+    supportHtml+='<h3>Boom Repairs</h3><table><thead><tr><th>Boom Type</th><th>Action</th><th>Qty</th><th>Staff</th></tr></thead><tbody>';
+    const boomActionLabels={repaired:'Repaired',fitted:'Fitted on Truck',kit_waiting:'Waiting for Kit',kit_received:'Kit Received',damaged_in:'Damaged In'};
+    truckBoomJobs.forEach(r=>{
+      const btLabel=(BOOM_TYPES[r.boomType]&&BOOM_TYPES[r.boomType].label)||r.boomType;
+      supportHtml+=`<tr><td>${btLabel}</td><td>${boomActionLabels[r.action]||r.action}</td><td style="text-align:center">${r.qty}</td><td>${r.staff||'—'}</td></tr>`;
+    });
+    supportHtml+='</tbody></table>';
+  }
 
   const html=`
     <div class="print-header">
@@ -10575,6 +10613,8 @@ function printJobCard(insId){
       <tbody>${jobHtml}</tbody>
     </table>
 
+    ${supportHtml}
+
     <div class="sig-row">
       <div class="sig-box"><div class="sig-line">Supervisor</div></div>
       <div class="sig-box"><div class="sig-line">Workshop Manager</div></div>
@@ -10592,9 +10632,9 @@ function printGatePass(insId){
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
   const isDifferentDriver=(e&&e.driverOutcome)==='different';
-  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
   let workSummary='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(jobs.length) workSummary+=`<tr><td>${depts[d]}</td><td>${jobs.length} job${jobs.length>1?'s':''}</td><td><span class="badge badge-green">COMPLETED</span></td></tr>`;
   });
@@ -10642,9 +10682,9 @@ function printInspectionSheet(insId){
   const e=S.entries.find(x=>x.id==ins.entryId);
   const now=new Date();
   const fmtDt=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding'};
+  const depts={mech:'Mechanical',elec:'Electrician',tyre:'Tyre Section',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
   let jobHtml='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length) return;
     jobHtml+=`<tr><td colspan="3" style="background:#f0f0f0;font-weight:bold">${depts[d]}</td></tr>`;
@@ -10842,7 +10882,7 @@ function loadDcDateTruckPreview(){
   var ins = S.inspections.find(function(i){ return String(i.entryId)===String(entryId); });
   if(!e){ preview.innerHTML='<div class="alert alert-warn">Entry not found.</div>'; return; }
   var jobCount=0;
-  if(ins && ins.jobs){ ['mech','elec','tyre','weld'].forEach(function(d){ jobCount+=(ins.jobs[d]||[]).length; }); }
+  if(ins && ins.jobs){ ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){ jobCount+=(ins.jobs[d]||[]).length; }); }
   preview.innerHTML='<div class="alert" style="background:rgba(230,120,0,.1);border:1px solid var(--accent);font-size:13px;line-height:1.8">'
     +'<strong>'+e.truckNo+'</strong><br>'
     +'Gate In: '+new Date(e.entryTime).toLocaleString('en-GB')+'<br>'
@@ -11315,7 +11355,7 @@ function refreshMechPerf(){
 
   // Workshop jobs: walk every inspection, every dept job, check completion time falls in month
   S.inspections.forEach(ins=>{
-    ['mech','elec','tyre','weld'].forEach(d=>{
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
       if(deptFilter!=='all' && deptFilter!==d) return;
       const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
@@ -11380,7 +11420,7 @@ function refreshMechPerf(){
   const tb=document.getElementById('mechPerfTable');
   if(!names.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr>';return;}
 
-  const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'};
+  const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
   tb.innerHTML=names.map(n=>{
     const p=perf[n];
     const totalJobsForPct = p.originalAssigned+p.extraFound;
@@ -11488,7 +11528,7 @@ function renderViewPwa(){
     return;
   }
 
-  var depts = _viewPwaDept ? [_viewPwaDept] : ['mech','elec','tyre','weld'];
+  var depts = _viewPwaDept ? [_viewPwaDept] : ['mech','elec','tyre','weld','pneumatic','suspension'];
   var dLabel = {mech:'⚙️ Mechanical',elec:'⚡ Electrician',tyre:'🔵 Tyre',weld:'🔥 Welding'};
   var dColor = {mech:'#60a5fa',elec:'#fbbf24',tyre:'#34d399',weld:'#f87171'};
 
@@ -11621,7 +11661,7 @@ function renderMechPwa(){
     // Build bay strip — pre-compute status per truck
     var bayChips = activeIns.map(function(ins){
       var allJobs=[];
-      ['mech','elec','tyre','weld'].forEach(function(d){
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
         ((ins.jobs||{})[d]||[]).forEach(function(j,i){
           var key=ins.id+'_'+d+'_'+i;
           var upd=(S.jobUpdates||{})[key]||{};
@@ -11651,7 +11691,7 @@ function renderMechPwa(){
   activeIns.forEach(function(ins){
     var e = S.entries.find(function(x){ return x.id==ins.entryId; });
     var allJobs = [];
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       ((ins.jobs||{})[d]||[]).forEach(function(j,i){
         var key = ins.id+'_'+d+'_'+i;
         var upd = (S.jobUpdates||{})[key]||{};
@@ -11859,13 +11899,13 @@ function exportJobCardsCSV(){
   var truckMap={};
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       ((ins.jobs||{})[d]||[]).forEach(function(j,i){
         idx++;
         var key=ins.id+'_'+d+'_'+i;
         var upd=S.jobUpdates[key]||{};
         var isDone=upd.done||j.done;
-        var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[d];
+        var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'}[d];
         var mechanic=(ins.deptStaff||{})[d]||'';
         var t0=e?new Date(e.entryTime).toLocaleString('en-GB'):'';
         var t1=ins.t1_allocated?new Date(ins.t1_allocated).toLocaleString('en-GB'):'';
@@ -11884,7 +11924,7 @@ function exportJobCardsCSV(){
           var exitTime=e?e.exitTime:null;
           // ETD: use earliest dept ETD set, fallback to t1_allocated
           var etdVal='';
-          ['mech','elec','tyre','weld'].forEach(function(dd){
+          ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(dd){
             var dk=S.deptETDs[ins.id+'_'+dd];
             if(dk && (!etdVal || new Date(dk)<new Date(etdVal))) etdVal=dk;
           });
@@ -11981,7 +12021,7 @@ function exportUptimeCSV(){
     const pmVisits=visits.filter(v=>{
       const ins=S.inspections.find(i=>i.entryId===v.id);
       if(!ins) return true;
-      const anyJobs=['mech','elec','tyre','weld'].some(d=>((ins.jobs||{})[d]||[]).length>0);
+      const anyJobs=['mech','elec','tyre','weld','pneumatic','suspension'].some(d=>((ins.jobs||{})[d]||[]).length>0);
       return !anyJobs;
     }).length;
     const rrVisits=visits.length-pmVisits;
@@ -12016,7 +12056,7 @@ function exportMechPerfCSV(){
   function ensure(name){ if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0}; return perf[name]; }
 
   S.inspections.forEach(ins=>{
-    ['mech','elec','tyre','weld'].forEach(d=>{
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
       const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assignedMechanic=(ins.deptStaff||{})[d];
@@ -12048,7 +12088,7 @@ function exportMechPerfCSV(){
     ensure(b.mechanic).breakdownCount++;
   });
 
-  const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'};
+  const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
   const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Time/Job Hrs','Originally Assigned','Extra Found (Ground)','Extra %'];
   const rows=Object.keys(perf).map(n=>{
     const p=perf[n];
@@ -12361,7 +12401,7 @@ function renderInspectionEditPanel(ins){
   // a name is set; this panel is the one place that can always reassign, regardless of lock state.
   const dInfo2={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
   let staffHtml='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo2[d];
@@ -12385,9 +12425,9 @@ function renderInspectionEditPanel(ins){
   }
 
   // ── Job description edit panel (per department) ──
-  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
+  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'},pneumatic:{l:'🔩 Pneumatic',c:'purple'},suspension:{l:'🔧 Suspension',c:'yellow'}};
   let jobsHtml='';
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo[d];
@@ -12609,7 +12649,8 @@ function refreshPunchTab(){
       {key:'tyre',       label:'🔵 Tyre',         color:'#34d399'},
       {key:'weld',       label:'🔥 Welding',      color:'#f87171'},
       {key:'pneumatic',  label:'🔩 Pneumatic',    color:'#a78bfa'},
-      {key:'suspension', label:'🔧 Suspension',   color:'#fb923c'}
+      {key:'suspension', label:'🔧 Suspension',   color:'#fb923c'},
+      {key:'refurbish',  label:'♻️ Wheel Alignment', color:'#0ea5e9'}
     ];
     var html='';
     workshopDepts.forEach(function(dept){
@@ -12750,7 +12791,7 @@ function loadPunchJobs(){
   const ins=S.inspections.find(i=>i.bayNo===bay && !i.parked && !S.entries.find(e=>e.id===i.entryId&&e.exitTime));
   if(!ins){ listDiv.innerHTML='<div class="alert alert-info">No active truck in '+bay+'.</div>'; return; }
 
-  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
+  const dInfo={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'},pneumatic:{l:'🔩 Pneumatic',c:'purple'},suspension:{l:'🔧 Suspension',c:'yellow'}};
   let html=`<div class="mb-12 flex items-center gap-8"><span class="fw-700">${ins.truckNo}</span><span class="tag tag-blue">${bay}</span></div>`;
   const assisters=(S.assistingWorkers && S.assistingWorkers[bay]) || [];
   if(assisters.length){
@@ -12758,7 +12799,7 @@ function loadPunchJobs(){
     html+=`<div class="text-xs text2 mb-12">🤝 Assisting this bay: ${assisters.map(label).join(', ')}</div>`;
   }
 
-  ['mech','elec','tyre','weld'].forEach(d=>{
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
     if(!jobs.length)return;
     const di=dInfo[d];
@@ -12825,7 +12866,7 @@ function punchCompleteJob(insId,dept,idx){
   S.jobUpdates[key]={done:true, doneBy:curPunchWorker, time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), date:new Date().toDateString()};
   // T4 = only when ALL jobs across ALL departments are done (not just one job)
   var allDoneCheck=true;
-  ['mech','elec','tyre','weld'].forEach(function(d){
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
     var jobs=(ins.jobs||{})[d]||[];
     jobs.forEach(function(j,ji){
       var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
@@ -12835,7 +12876,7 @@ function punchCompleteJob(insId,dept,idx){
   // Check per-department completion — play dept-specific sound
   var deptLabels={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'};
   var justCompletedDept=null;
-  ['mech','elec','tyre','weld'].forEach(function(d){
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
     if(d!==dept) return; // only check the dept that was just completed
     var dJobs=(ins.jobs||{})[d]||[];
     if(!dJobs.length) return;
@@ -12860,7 +12901,7 @@ function punchCompleteJob(insId,dept,idx){
     var now=new Date();
     var withinETD=false;
     var latestETD=null;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var dk=S.deptETDs[ins.id+'_'+d];
       if(dk){
         var ed=typeof dk==='object'&&dk.time&&dk.date?new Date(dk.date+' '+dk.time):new Date(dk);
@@ -12902,7 +12943,7 @@ function bayHasOpenJobs(bayNo,dept){
   const ins=S.inspections.find(i=>i.bayNo===bayNo && !i.parked && !S.entries.find(e=>e.id===i.entryId&&e.exitTime));
   if(!ins)return false;
   let total=0, done=0;
-  (dept?[dept]:['mech','elec','tyre','weld']).forEach(d=>{
+  (dept?[dept]:['mech','elec','tyre','weld','pneumatic','suspension']).forEach(d=>{
     ((ins.jobs||{})[d]||[]).forEach((j,i)=>{
       total++;
       if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) done++;
@@ -12979,7 +13020,7 @@ function getOpenJobLocksFor(workerName){
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
     if(!e || e.exitTime) return; // truck already left, nothing open here
-    ['mech','elec','tyre','weld'].forEach(d=>{
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
       const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assigned=(ins.deptStaff||{})[d];
@@ -13004,7 +13045,7 @@ function refreshWorkerBoard(){
 
   if(!names.length){ board.innerHTML='<div class="alert alert-info">No workers have punched in today yet.</div>'; return; }
 
-  const dInfo={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'};
+  const dInfo={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
 
   // Compute REAL status per worker: open locks always win over a stale self-declaration.
   const resolved=names.map(name=>{
@@ -13128,7 +13169,7 @@ function refreshStaffRoster(){
         const assignedBay=(S.bayAssignments||{})[name]||'';
         const safeName=name.replace(/'/g,"\\'");
         const nameUpper=name.trim().toUpperCase();
-        const isMechDept=['mech','elec','tyre','weld'].includes(key);
+        const isMechDept=['mech','elec','tyre','weld','pneumatic','suspension'].includes(key);
         const isViewDept=['floorsupervisor','incharge'].includes(key);
         const isSecurityDept=key==='security';
         const hasQr=isMechDept && (!!(S.qrAccess||{})[nameUpper]||!!(S.qrAccess||{})[name]);
@@ -13800,7 +13841,7 @@ function initMgrPunch(){
   if(!sel) return;
   var all = [];
   var roster = S.staffRoster || {};
-  ['mech','elec','tyre','weld'].forEach(function(d){
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
     (roster[d]||[]).forEach(function(n){ if(n && all.indexOf(n)<0) all.push(n); });
   });
   all.sort();
@@ -13942,7 +13983,7 @@ function detectRevisits(newIns){
 
     // Check for matching jobs
     var allNewJobs = [];
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       ((newIns.jobs||{})[d]||[]).forEach(function(j){ allNewJobs.push({dept:d,job:j}); });
     });
 
@@ -13953,7 +13994,7 @@ function detectRevisits(newIns){
 
       // Check similarity with previous jobs
       var prevJobs = [];
-      ['mech','elec','tyre','weld'].forEach(function(d){
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
         ((prev.jobs||{})[d]||[]).forEach(function(j){ prevJobs.push({dept:d,job:j}); });
       });
 
@@ -14117,7 +14158,7 @@ function renderIncentiveReport(revisits){
   // Get all mechanics from roster
   var allMechs=[];
   var roster=S.staffRoster||{};
-  ['mech','elec','tyre','weld'].forEach(function(d){
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
     (roster[d]||[]).forEach(function(n){ if(n&&allMechs.indexOf(n)<0) allMechs.push(n); });
   });
 
@@ -14175,7 +14216,7 @@ function notifyIncharge(mechanic){
 function printIncentiveReport(){
   var roster=S.staffRoster||{};
   var allMechs=[];
-  ['mech','elec','tyre','weld'].forEach(function(d){
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
     (roster[d]||[]).forEach(function(n){ if(n) allMechs.push(n); });
   });
   var mechRevisits=(S.revisits||[]).filter(function(r){ return r.fault==='mechanic'||r.fault==='spare'; });
@@ -14737,7 +14778,7 @@ function buildYesterdaySummary(){
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e||new Date(e.entryTime).toDateString()!==yStr) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{};
@@ -14760,7 +14801,7 @@ function buildYesterdaySummary(){
     if(!e||new Date(e.entryTime).toDateString()!==yStr) return;
     if(!ins.t4_qcDone) return;
     etdTotal++;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var dk=S.deptETDs[ins.id+'_'+d];
       if(!dk) return;
       var etdDate=typeof dk==='object'&&dk.time&&dk.date?new Date(dk.date+' '+dk.time):new Date(dk);
@@ -14849,7 +14890,7 @@ function buildTodaySummary(){
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var jobs=(ins.jobs||{})[d]||[];
       jobs.forEach(function(j,ji){
         var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{};
@@ -14875,7 +14916,7 @@ function buildTodaySummary(){
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e||!ins.t4_qcDone) return;
-    ['mech','elec','tyre','weld'].forEach(function(d){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       var dk=S.deptETDs[ins.id+'_'+d];
       if(!dk) return;
       var etdDate=typeof dk==='object'&&dk.time&&dk.date?new Date(dk.date+' '+dk.time):new Date(dk);
