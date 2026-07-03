@@ -1729,6 +1729,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSub('mgr-false',this)">🚫 False Complaints</div>
     <div class="subtab" onclick="showSub('mgr-edit',this)">✏️ Edit Records</div>
     <div class="subtab" onclick="showSub('mgr-staff',this)">👥 Staff Roster</div>
+    <div class="subtab" onclick="showSub('mgr-attendance',this);renderAttendanceSheet()">📅 Attendance</div>
     <div class="subtab" onclick="showSub('mgr-datacontrol',this)" style="color:var(--red);border-color:var(--red)">🗄️ Data Control</div>
   </div>
 
@@ -2307,6 +2308,25 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
     <div id="editRecordPanels"></div>
+    </div>
+  </div>
+
+  <!-- SUB: STAFF ROSTER -->
+  <!-- SUB: ATTENDANCE -->
+  <div class="subpage" id="sub-mgr-attendance">
+    <div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--text2)">📅 MONTH</span>
+      <input type="month" id="attMonthPicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="renderAttendanceSheet()">
+      <button class="btn btn-ghost btn-sm" onclick="downloadAttendanceCSV()">⬇️ Download CSV</button>
+      <div style="font-size:11px;color:var(--text2);margin-left:auto">
+        Tap a day cell to cycle: <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:6px;font-weight:700">P</span> →
+        <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:6px;font-weight:700">A</span> →
+        <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:700">OFF</span> → blank
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#7c3aed"></span>Attendance Sheet <span id="attMonthLabel" style="font-size:12px;color:var(--text2);font-weight:400;margin-left:8px"></span></div>
+      <div id="attendanceSheetWrap" style="overflow-x:auto"></div>
     </div>
   </div>
 
@@ -3377,7 +3397,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{} };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{} };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -14413,6 +14433,155 @@ function autoCleanStalePunches(){
     try{ refreshGroundPage(); }catch(e){}
     toast('🔄 Stale punches auto-cleared — see Mechanic Log for details','warn');
   }
+}
+
+
+// ═══ ATTENDANCE SHEET ═══
+// S.attendance = { "2026-07": { "STAFF NAME": { off:"Sun", days:{ "1":"P", "2":"A", "3":"OFF" } } } }
+var ATT_SECTIONS=[
+  {key:'mech',label:'⚙️ Mechanical'},{key:'elec',label:'⚡ Electrician'},
+  {key:'tyre',label:'🔵 Tyre'},{key:'weld',label:'🔥 Welding'},
+  {key:'pneumatic',label:'🔩 Pneumatic'},{key:'suspension',label:'🔧 Suspension'},
+  {key:'boom',label:'🏗️ Boom Repair'},{key:'brakes',label:'Brakes Bonding'},
+  {key:'greasing',label:'Greasing'},{key:'panelbeater',label:'Panel Beater'},
+  {key:'washing',label:'Washing'},{key:'sandblast',label:'Sand Blasting'}
+];
+var ATT_DAYS=['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function attKey(){
+  var mp=document.getElementById('attMonthPicker');
+  if(mp&&!mp.value){
+    var now=new Date();
+    mp.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  }
+  return mp?mp.value:'';
+}
+
+function getAttMonth(){
+  var k=attKey();
+  if(!S.attendance) S.attendance={};
+  if(!S.attendance[k]) S.attendance[k]={};
+  return S.attendance[k];
+}
+
+function renderAttendanceSheet(){
+  var k=attKey(); if(!k) return;
+  var parts=k.split('-');
+  var year=parseInt(parts[0]); var mon=parseInt(parts[1])-1;
+  var daysInMonth=new Date(year,mon+1,0).getDate();
+  var monthName=new Date(year,mon,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+  var lbl=document.getElementById('attMonthLabel');
+  if(lbl) lbl.textContent='— '+monthName;
+  var attData=getAttMonth();
+  var today=new Date();
+  var isCurMonth=(today.getFullYear()===year&&today.getMonth()===mon);
+  var todayD=today.getDate();
+
+  var html='<table style="border-collapse:collapse;font-size:11px;min-width:100%">';
+  // Header
+  html+='<thead><tr style="background:#f1f5f9">';
+  html+='<th style="position:sticky;left:0;background:#f1f5f9;padding:6px 8px;text-align:left;min-width:150px;border:1px solid #e2e8f0;z-index:2">NAME</th>';
+  html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;min-width:52px">OFF DAY</th>';
+  for(var d=1;d<=daysInMonth;d++){
+    var dow=new Date(year,mon,d).getDay();
+    var isSun=dow===0;
+    var isToday=isCurMonth&&d===todayD;
+    html+='<th style="padding:4px 3px;border:1px solid #e2e8f0;min-width:26px;text-align:center;'
+      +(isToday?'background:#fef3c7;':isSun?'background:#fee2e2;':'')+'">'
+      +d+'<br><span style="font-weight:400;font-size:9px;color:#94a3b8">'+['S','M','T','W','T','F','S'][dow]+'</span></th>';
+  }
+  html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;background:#dcfce7">P</th>';
+  html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;background:#fee2e2">A</th>';
+  html+='</tr></thead><tbody>';
+
+  ATT_SECTIONS.forEach(function(sec){
+    var names=(STAFF[sec.key]||[]);
+    if(!names.length) return;
+    html+='<tr><td colspan="'+(daysInMonth+4)+'" style="background:var(--surface2);padding:5px 8px;font-weight:800;font-size:11px;border:1px solid #e2e8f0">'+sec.label+'</td></tr>';
+    names.forEach(function(n){
+      if(!attData[n]) attData[n]={off:'',days:{}};
+      var rec=attData[n];
+      var pCount=0,aCount=0;
+      Object.values(rec.days||{}).forEach(function(v){ if(v==='P')pCount++; if(v==='A')aCount++; });
+      html+='<tr>';
+      html+='<td style="position:sticky;left:0;background:var(--surface);padding:4px 8px;font-weight:700;border:1px solid #e2e8f0;white-space:nowrap;z-index:1">'+n+'</td>';
+      // Off day selector
+      html+='<td style="border:1px solid #e2e8f0;padding:1px"><select onchange="setAttOffDay(\''+n.replace(/'/g,"\\'")+'\',this.value)" style="width:100%;border:none;background:transparent;font-size:10px;font-weight:700;color:#1d4ed8;text-align:center">'
+        +ATT_DAYS.map(function(dd){ return '<option value="'+dd+'"'+(rec.off===dd?' selected':'')+'>'+(dd||'—')+'</option>'; }).join('')
+        +'</select></td>';
+      for(var d=1;d<=daysInMonth;d++){
+        var dow=new Date(year,mon,d).getDay();
+        var dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow];
+        var v=(rec.days||{})[String(d)]||'';
+        var isOffDay=rec.off&&rec.off===dayName;
+        var bg='',fg='',txt=v;
+        if(v==='P'){bg='#dcfce7';fg='#15803d';}
+        else if(v==='A'){bg='#fee2e2';fg='#dc2626';}
+        else if(v==='OFF'){bg='#dbeafe';fg='#1d4ed8';}
+        else if(isOffDay){bg='#eff6ff';fg='#93c5fd';txt='off';}
+        var isToday=isCurMonth&&d===todayD;
+        html+='<td onclick="tapAttendance(\''+n.replace(/'/g,"\\'")+'\','+d+')" style="border:1px solid #e2e8f0;text-align:center;cursor:pointer;padding:4px 2px;font-weight:800;font-size:10px;'
+          +'background:'+(bg||(isToday?'#fffbeb':'transparent'))+';color:'+(fg||'#cbd5e1')+'">'+(txt||'·')+'</td>';
+      }
+      html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#15803d">'+pCount+'</td>';
+      html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#dc2626">'+aCount+'</td>';
+      html+='</tr>';
+    });
+  });
+  html+='</tbody></table>';
+  document.getElementById('attendanceSheetWrap').innerHTML=html;
+}
+
+function tapAttendance(name,day){
+  var attData=getAttMonth();
+  if(!attData[name]) attData[name]={off:'',days:{}};
+  if(!attData[name].days) attData[name].days={};
+  var cur=attData[name].days[String(day)]||'';
+  // Cycle: blank -> P -> A -> OFF -> blank
+  var next=cur===''?'P':cur==='P'?'A':cur==='A'?'OFF':'';
+  if(next) attData[name].days[String(day)]=next;
+  else delete attData[name].days[String(day)];
+  save();
+  renderAttendanceSheet();
+}
+
+function setAttOffDay(name,dayName){
+  var attData=getAttMonth();
+  if(!attData[name]) attData[name]={off:'',days:{}};
+  attData[name].off=dayName;
+  save();
+  renderAttendanceSheet();
+  toast('✅ '+name.split(' ')[0]+' off day: '+(dayName||'none'),'ok');
+}
+
+function downloadAttendanceCSV(){
+  var k=attKey(); if(!k) return;
+  var parts=k.split('-');
+  var year=parseInt(parts[0]); var mon=parseInt(parts[1])-1;
+  var daysInMonth=new Date(year,mon+1,0).getDate();
+  var attData=getAttMonth();
+  var csv='Section,Name,Off Day';
+  for(var d=1;d<=daysInMonth;d++) csv+=','+d;
+  csv+=',Present,Absent\n';
+  ATT_SECTIONS.forEach(function(sec){
+    var names=(STAFF[sec.key]||[]);
+    names.forEach(function(n){
+      var rec=attData[n]||{off:'',days:{}};
+      var p=0,a=0;
+      var row='"'+sec.label.replace(/[^\w ]/g,'').trim()+'","'+n+'","'+(rec.off||'')+'"';
+      for(var d=1;d<=daysInMonth;d++){
+        var v=(rec.days||{})[String(d)]||'';
+        if(v==='P')p++; if(v==='A')a++;
+        row+=',"'+v+'"';
+      }
+      row+=','+p+','+a+'\n';
+      csv+=row;
+    });
+  });
+  var blob=new Blob([csv],{type:'text/csv'});
+  var el=document.createElement('a'); el.href=URL.createObjectURL(blob);
+  el.download='SHTL_Attendance_'+k+'.csv'; el.click();
+  toast('✅ Attendance sheet downloaded','ok');
 }
 
 function runInitialRender(){
