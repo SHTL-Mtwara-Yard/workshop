@@ -8251,6 +8251,7 @@ function showFloatingETDAlert(title,subtitle,body,type){
 function toggleETDAnnouncements(){
   if(_etdAnnouncementsEnabled){
     _etdAnnouncementsEnabled=false;
+    localStorage.setItem('shtl_etd_announce','off');
     if(_etdAnnounceInterval){ clearInterval(_etdAnnounceInterval); _etdAnnounceInterval=null; }
     document.getElementById('etdAnnounceBtn').textContent='🔊 Enable ETD Announcements';
     toast('🔇 Announcements disabled','info');
@@ -8259,6 +8260,7 @@ function toggleETDAnnouncements(){
     try{ if(!_alertAudioCtx) _alertAudioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
     if(!window.speechSynthesis){ toast('⚠️ This browser does not support text-to-speech','warn'); }
     _etdAnnouncementsEnabled=true;
+    localStorage.setItem('shtl_etd_announce','on');
     document.getElementById('etdAnnounceBtn').textContent='🔇 Disable Announcements';
     toast('🔊 ETD alerts enabled — warning at 30min, breach alarm when overdue','ok');
     playETDWarningBeep(); // confirm sound working
@@ -8267,6 +8269,25 @@ function toggleETDAnnouncements(){
     _etdAnnounceInterval=setInterval(checkETDAlerts, 2*60*1000); // every 2 min
   }
 }
+
+// Auto-restore announcement setting after page reload (auto-update, tab reopen, etc.)
+// speechSynthesis itself needs a user gesture to unlock on first-ever load, but once
+// unlocked earlier in this browser profile it stays unlocked — so this silently
+// re-arms the beep+speech system without the device needing another tap every time.
+function restoreETDAnnouncementState(){
+  try{
+    if(localStorage.getItem('shtl_etd_announce')==='on'){
+      _etdAnnouncementsEnabled=true;
+      var btn=document.getElementById('etdAnnounceBtn');
+      if(btn) btn.textContent='🔇 Disable Announcements';
+      try{ if(!_alertAudioCtx) _alertAudioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+      checkETDAlerts();
+      if(_etdAnnounceInterval) clearInterval(_etdAnnounceInterval);
+      _etdAnnounceInterval=setInterval(checkETDAlerts, 2*60*1000);
+    }
+  }catch(e){}
+}
+window.addEventListener('load', function(){ setTimeout(restoreETDAnnouncementState, 1500); });
 
 // Auto-start silent ETD check (banners only, no sound) even when announcements off
 // This keeps Ground Team bay screen banners live
