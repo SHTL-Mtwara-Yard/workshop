@@ -9348,12 +9348,13 @@ function refreshSupportPage(){
   if(boomTruckEl) boomTruckEl.innerHTML='<option value="">-- Select truck --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
   var boomTrailerEl=document.getElementById('boomActionTrailer');
   if(boomTrailerEl) boomTrailerEl.innerHTML='<option value="">-- No trailer / select --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
-  renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog();
+  try{ renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog(); }catch(e){ console.warn('Boom render failed:',e); }
+  var driverStaff=[...(STAFF['busdriver']||[]),...(STAFF['pickupdriver']||[])];
   const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
 
-  refreshGreasingLog();
-  refreshSupportLogs();
-  refreshTripLog();
+  try{ refreshGreasingLog(); }catch(e){ console.warn('refreshGreasingLog failed:',e); }
+  try{ refreshSupportLogs(); }catch(e){ console.warn('refreshSupportLogs failed:',e); }
+  try{ refreshTripLog(); }catch(e){ console.warn('refreshTripLog failed:',e); }
 
   // Restore active job banners for in-progress jobs (survives page reload)
   ['panelbeater','sandblasting','washing'].forEach(type=>{
