@@ -8281,7 +8281,18 @@ function toggleETDAnnouncements(){
     localStorage.setItem('shtl_etd_announce','on');
     document.getElementById('etdAnnounceBtn').textContent='🔇 Disable Announcements';
     toast('🔊 ETD alerts enabled — warning at 30min, breach alarm when overdue','ok');
-    playETDWarningBeep(); // confirm sound working
+    playETDWarningBeep(); // confirm beep audio working
+    // Unlock speech synthesis inside this direct user tap — some browsers (Edge,
+    // InPrivate/incognito) silently block speech calls made later from background
+    // timers unless speechSynthesis.speak() was also called during a real user gesture.
+    try{
+      if(window.speechSynthesis){
+        var testUtt = new SpeechSynthesisUtterance('Announcements ready. Truck number, bay number and mechanic name will now be announced.');
+        testUtt.rate=0.9; testUtt.volume=1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(testUtt);
+      }
+    }catch(e){}
     checkETDAlerts();
     if(_etdAnnounceInterval) clearInterval(_etdAnnounceInterval);
     _etdAnnounceInterval=setInterval(checkETDAlerts, 2*60*1000); // every 2 min
@@ -13448,7 +13459,18 @@ function speakSequence(messages, idx){
     if(swVoice) utt.voice = swVoice;
   }
   utt.onend = function(){ speakSequence(messages, idx+1); };
+  utt.onerror = function(e){ console.warn('Speech error:', e); };
   window.speechSynthesis.speak(utt);
+}
+
+// Pre-load available voices — some browsers (Chrome/Edge) load the voice list
+// asynchronously, and calling getVoices() too early returns an empty array.
+// This listener ensures voices are ready before the first real announcement fires.
+if(window.speechSynthesis){
+  window.speechSynthesis.getVoices();
+  if(window.speechSynthesis.onvoiceschanged !== undefined){
+    window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.getVoices(); };
+  }
 }
 
 
