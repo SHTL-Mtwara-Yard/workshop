@@ -7551,7 +7551,7 @@ function refreshTimeStamping(){
     return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
   };
 
-  const T_TARGETS = { t01:15, t12:30, t45:30 };
+  const T_TARGETS = { t01:15, t12:30, t45:15 };
 
   const avg01 = avgTime(slaRows, r=> r.t1&&r.t0 ? (r.t1-r.t0)/60000 : null);
   const avg12 = avgTime(slaRows, r=> r.t2&&r.t1 ? (r.t2-r.t1)/60000 : null);
@@ -7583,7 +7583,7 @@ function refreshTimeStamping(){
     {label:'T0→T1 Alloc',          val:s01,      avg:avg01,         note:'Supervisor — Bay allocation speed · Target: ≤15min',              avgStr:fmtAvg(avg01)},
     {label:'T1→T2 ETD Set',        val:s12,       avg:avg12,         note:'Ground Team — ETD commitment speed after bay alloc · Target: ≤30min', avgStr:fmtAvg(avg12)},
     {label:'T2→T4 vs Ground ETD',  val:s_ground,  avg:avg_groundGap, note:'Ground Team accountability — finished before their own committed ETD?', avgStr:fmtGap(avg_groundGap)},
-    {label:'T4→T5 Gate Out',       val:s45,       avg:avg45,         note:'Security + Supervisor — Gate out speed after work done · Target: ≤30min', avgStr:fmtAvg(avg45)},
+    {label:'T4→T5 Gate Out',       val:s45,       avg:avg45,         note:'Security + Supervisor — Gate out speed after work done · Target: ≤15min', avgStr:fmtAvg(avg45)},
     {label:'T5 vs Supervisor ETD', val:s_sup,     avg:avg_supGap,    note:'Supervisor delivery accountability — truck out before supervisor ETD?', avgStr:fmtGap(avg_supGap)}
   ];
 
