@@ -3112,6 +3112,9 @@ tr:hover td { background: var(--surface2); }
     <button class="btn btn-ghost btn-sm" id="etdAnnounceBtn" onclick="toggleETDAnnouncements()" style="gap:6px">
       🔊 Enable ETD Announcements
     </button>
+    <button class="btn btn-ghost btn-sm" onclick="diagnoseSpeech()" style="gap:6px;margin-left:6px">
+      🔍 Test Voice
+    </button>
   </div>
 
   <div class="grid-4 mb-16">
@@ -8264,6 +8267,37 @@ function showFloatingETDAlert(title,subtitle,body,type){
       _alertToastQueue=_alertToastQueue.filter(function(d){ return d!==div; });
     },500);
   },8000);
+}
+
+function diagnoseSpeech(){
+  var report=[];
+  report.push('Browser: '+navigator.userAgent.slice(0,60));
+  report.push('speechSynthesis supported: '+(!!window.speechSynthesis));
+  if(window.speechSynthesis){
+    var voices=window.speechSynthesis.getVoices();
+    report.push('Voices available: '+voices.length);
+    if(voices.length){
+      report.push('First 3 voices: '+voices.slice(0,3).map(function(v){return v.name+' ('+v.lang+')';}).join(', '));
+    } else {
+      report.push('⚠️ NO VOICES FOUND — this is likely why speech is silent. Windows may need a language/voice pack installed.');
+    }
+    report.push('Speaking now: '+window.speechSynthesis.speaking);
+    report.push('Pending: '+window.speechSynthesis.pending);
+  }
+  var msg=report.join('\n');
+  alert('🔍 VOICE DIAGNOSTIC\n\n'+msg+'\n\nNow attempting to speak a test line — listen for 3 seconds...');
+
+  try{
+    window.speechSynthesis.cancel();
+    var utt=new SpeechSynthesisUtterance('Test one two three. Can you hear this voice.');
+    utt.rate=0.9; utt.volume=1; utt.pitch=1;
+    utt.onstart=function(){ console.log('Speech started'); };
+    utt.onend=function(){ alert('✅ Speech finished playing — if you heard it, voice works! If you heard NOTHING, the issue is with Windows text-to-speech voices, not this app.'); };
+    utt.onerror=function(e){ alert('❌ Speech ERROR: '+e.error+'\n\nThis confirms the browser/Windows blocked or failed to produce speech.'); };
+    window.speechSynthesis.speak(utt);
+  }catch(e){
+    alert('❌ Exception while trying to speak: '+e.message);
+  }
 }
 
 function toggleETDAnnouncements(){
