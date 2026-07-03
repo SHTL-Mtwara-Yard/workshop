@@ -9295,6 +9295,12 @@ function showSupportSub(id,btn){
 }
 
 function refreshSupportPage(){
+  // Always refresh visible job logs first — this was missing, causing Panel Beater
+  // (and other) log tables to stay blank/stale after switching sub-tabs even though
+  // the underlying data (S.supportJobs) was correct — CSV download worked because it
+  // reads straight from S.supportJobs, bypassing this render step entirely.
+  refreshSupportLogs();
+
   // Populate greasing team dropdowns
   const gStaff=(STAFF['greasing']||[]);
   ['1','2'].forEach(t=>{
