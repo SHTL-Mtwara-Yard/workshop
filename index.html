@@ -1352,8 +1352,8 @@ tr:hover td { background: var(--surface2); }
       <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Bay Monitor — Live</div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Truck</th><th>Trailer</th><th>Bay</th><th>Job Type</th><th>Driver</th><th>In</th><th>ETD</th><th>Hrs Left</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody id="supBayTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr></tbody>
+          <thead><tr><th>Truck</th><th>Trailer</th><th>Bay</th><th>Job Progress</th><th>Driver</th><th>In</th><th>ETD</th><th>Hrs Left</th><th>Action</th></tr></thead>
+          <tbody id="supBayTable"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -5616,7 +5616,7 @@ function refreshSupBayTable(){
   const now=new Date();
   const active=S.inspections.filter(i=>{const e=S.entries.find(x=>x.id===i.entryId);return e&&!e.exitTime&&!i.parked;});
   const tb=document.getElementById('supBayTable');
-  if(!active.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr>';return;}
+  if(!active.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No trucks in bays</td></tr>';return;}
   const jobTypeColor={Accidental:'red','Running Repair':'yellow','PM Maintenance':'green','Minor Job':'blue','Major Job':'purple'};
   tb.innerHTML=active.map(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
@@ -5627,16 +5627,33 @@ function refreshSupBayTable(){
     const readyTag = e.readyToLeave ? '<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3);margin-left:6px">READY</span>' : '';
     const cfTag = ins.carryForward ? '<span class="tag" style="background:#f5f3ff;color:#7c3aed;border:1px solid #c4b5fd;margin-left:4px">🌙 Carried</span>' : '';
     const jtColor = jobTypeColor[ins.jobType]||'blue';
+
+    // Live job progress per department
+    var progressHtml='';
+    var totalDone=0, totalJobs=0;
+    var deptIcons={mech:'⚙️',elec:'⚡',tyre:'🔵',weld:'🔥'};
+    ['mech','elec','tyre','weld'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      if(!jobs.length) return;
+      var done=jobs.filter(function(j,ji){ var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+ji]||{}; return upd.done||j.done; }).length;
+      totalDone+=done; totalJobs+=jobs.length;
+      var allDone=done===jobs.length;
+      progressHtml+='<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;'
+        +(allDone?'background:#dcfce7;color:#15803d':done>0?'background:#fef3c7;color:#92400e':'background:#f1f5f9;color:#94a3b8')+'">'
+        +deptIcons[d]+' '+done+'/'+jobs.length+'</span>';
+    });
+    var pctDone=totalJobs?Math.round(totalDone/totalJobs*100):0;
+    var progressBar='<div style="margin-top:3px;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pctDone+'%;background:'+(pctDone===100?'#15803d':pctDone>0?'#f59e0b':'#e5e7eb')+'"></div></div>';
+
     return `<tr>
       <td class="fw-700">${ins.truckNo}${readyTag}${cfTag}</td>
       <td class="text2 text-xs">${ins.trailerNo||'—'}</td>
       <td><span class="tag tag-blue">${ins.bayNo}</span></td>
-      <td><span class="tag tag-${jtColor}">${ins.jobType||'—'}</span></td>
+      <td style="min-width:140px">${progressHtml||'<span class="text2 text-xs">No jobs</span>'}<div class="text-xs text2" style="margin-top:2px">${totalDone}/${totalJobs} done</div>${progressBar}</td>
       <td class="text-xs">${ins.driverName||'—'}<br><span class="text2">${ins.driverMobile||''}</span></td>
       <td>${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
       <td>${etdDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
       <td>${hrsLeft}</td>
-      <td><span class="tag tag-${ins.priority==='Critical'?'red':ins.priority==='Urgent'?'yellow':'green'}">${ins.priority}</span></td>
       <td>${isDelay?`<div style="display:flex;flex-direction:column;gap:4px">
         ${!ins.delayReason?`<button class="btn btn-danger btn-sm" onclick="openDelayModal('${ins.id}')">⚠️ Delay Reason</button>`:`<span class="text-xs" style="color:var(--red);max-width:120px">${ins.delayReason.substring(0,30)}</span>`}
         <button class="btn btn-sm" style="background:#7c3aed;color:#fff;font-size:10px;padding:3px 7px;border:none;border-radius:var(--radius);cursor:pointer" onclick="openCarryForwardModal('${ins.id}')">🌙 Carry Forward</button>
