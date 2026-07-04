@@ -1070,28 +1070,29 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- YARD STATUS STRIP -->
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px">
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:10px;text-align:center;padding:10px 4px">
-      <div id="secYardInBay" style="color:var(--blue);font-size:28px;font-weight:900;line-height:1">0</div>
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px">🔧 IN BAY</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-bottom:16px">
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:10px;text-align:center;padding:10px 4px;min-width:0">
+      <div id="secYardInBay" style="color:var(--blue);font-size:clamp(18px,6vw,28px);font-weight:900;line-height:1">0</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px;white-space:nowrap">🔧 IN BAY</div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--accent);border-radius:10px;text-align:center;padding:10px 4px">
-      <div id="secYardParking" style="color:var(--accent);font-size:28px;font-weight:900;line-height:1">0</div>
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px">🅿️ PARKING</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--accent);border-radius:10px;text-align:center;padding:10px 4px;min-width:0">
+      <div id="secYardParking" style="color:var(--accent);font-size:clamp(18px,6vw,28px);font-weight:900;line-height:1">0</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px;white-space:nowrap">🅿️ PARKING</div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--green);border-radius:10px;text-align:center;padding:10px 4px">
-      <div id="secYardReady" style="color:var(--green);font-size:28px;font-weight:900;line-height:1">0</div>
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px">✅ READY</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--green);border-radius:10px;text-align:center;padding:10px 4px;min-width:0">
+      <div id="secYardReady" style="color:var(--green);font-size:clamp(18px,6vw,28px);font-weight:900;line-height:1">0</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px;white-space:nowrap">✅ READY</div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--red);border-radius:10px;text-align:center;padding:10px 4px">
-      <div id="secYardTotal" style="color:var(--red);font-size:28px;font-weight:900;line-height:1">0</div>
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px">IN YARD</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid var(--red);border-radius:10px;text-align:center;padding:10px 4px;min-width:0">
+      <div id="secYardTotal" style="color:var(--red);font-size:clamp(18px,6vw,28px);font-weight:900;line-height:1">0</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px;white-space:nowrap">IN YARD</div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid #7c3aed;border-radius:10px;text-align:center;padding:10px 4px">
-      <div id="secYardExited" style="color:#7c3aed;font-size:28px;font-weight:900;line-height:1">0</div>
-      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px">🚛 EXITED</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid #7c3aed;border-radius:10px;text-align:center;padding:10px 4px;min-width:0">
+      <div id="secYardExited" style="color:#7c3aed;font-size:clamp(18px,6vw,28px);font-weight:900;line-height:1">0</div>
+      <div style="font-size:9px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.3px;white-space:nowrap">🚛 EXITED</div>
     </div>
   </div>
+
 
   <!-- ALERTS STRIP -->
   <div id="secAlertsStrip" style="display:none;margin-bottom:14px"></div>
@@ -7972,7 +7973,13 @@ function refreshFleet(){
 // Speaks aloud every 15 min when a truck's ETD is within 1 hour, naming the mechanic and jobs
 var _etdAnnouncementsEnabled=false;
 var _etdAnnounceInterval=null;
-var _lastAnnounced={}; // prevent repeat alerts within same window
+var _lastAnnounced={};
+function fmtOverdue(mins){
+  if(mins<60) return mins+'min';
+  if(mins<1440) return (mins/60).toFixed(1)+'h';
+  return (mins/1440).toFixed(1)+'d';
+}
+ // prevent repeat alerts within same window
 var _alertAudioCtx=null;
 
 // ── ALERT AUDIO ENGINE ─────────────────────────────────────────────────────
@@ -8167,7 +8174,7 @@ function updateGroundETDBanners(){
       return '<div style="background:#dc2626;color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px;animation:pulse 1s infinite">'
         +'<span style="font-size:20px">🚨</span>'
         +'<div><div style="font-weight:900;font-size:14px">ETD BREACHED — '+b.truck+' · '+b.bay+' · '+b.dept+'</div>'
-        +'<div style="font-size:12px;opacity:.9">'+b.mech+' is '+b.minsLate+'min overdue — immediate attention required</div></div></div>';
+        +'<div style="font-size:12px;opacity:.9">'+b.mech+' is '+fmtOverdue(b.minsLate)+' overdue — immediate attention required</div></div></div>';
     } else {
       var urgColor=b.minsLeft<=10?'#b45309':'#92400e';
       return '<div style="background:#fef3c7;border-left:4px solid #f59e0b;color:'+urgColor+';padding:10px 14px;border-radius:8px;margin-bottom:6px;display:flex;align-items:center;gap:10px">'
@@ -8229,7 +8236,7 @@ function checkETDAlerts(){
           if(_etdAnnouncementsEnabled&&window.speechSynthesis){
             speakAnnouncement('Urgent alert! '+mechName+' in '+ins.bayNo+', your '+dLabel+' ETD for truck '+ins.truckNo+' has been missed by '+Math.abs(minsLeft)+' minutes. Supervisor attention required immediately.');
           }
-          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' is '+Math.abs(minsLeft)+'min overdue — supervisor action required','breach');
+          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' is '+fmtOverdue(Math.abs(minsLeft))+' overdue — supervisor action required','breach');
         }
       }
     });
