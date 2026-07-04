@@ -2435,6 +2435,8 @@ tr:hover td { background: var(--surface2); }
     <div class="stat-box"><div class="stat-label" style="color:var(--yellow)">⚡ Electrician Jobs</div><div class="stat-val" id="ov-elec" style="color:var(--yellow)">0</div></div>
     <div class="stat-box"><div class="stat-label" style="color:var(--green)">🔵 Tyre Jobs</div><div class="stat-val" id="ov-tyre" style="color:var(--green)">0</div></div>
     <div class="stat-box"><div class="stat-label" style="color:var(--purple)">🔥 Welding Jobs</div><div class="stat-val" id="ov-weld" style="color:var(--purple)">0</div></div>
+    <div class="stat-box"><div class="stat-label" style="color:#a78bfa">🔩 Pneumatic Jobs</div><div class="stat-val" id="ov-pneumatic" style="color:#a78bfa">0</div></div>
+    <div class="stat-box"><div class="stat-label" style="color:#fb923c">🔧 Suspension Jobs</div><div class="stat-val" id="ov-suspension" style="color:#fb923c">0</div></div>
   </div>
 
   <div class="grid-2">
@@ -8395,9 +8397,12 @@ function refreshOverview(){
   document.getElementById('ov-delayed').textContent=delayed.length;
   document.getElementById('ov-waiting').textContent=uninsp.length;
 
-  const dc={mech:0,elec:0,tyre:0,weld:0};
+  const dc={mech:0,elec:0,tyre:0,weld:0,pneumatic:0,suspension:0};
   actIns.forEach(i=>['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{dc[d]+=((i.jobs||{})[d]||[]).length;}));
-  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>document.getElementById('ov-'+d).textContent=dc[d]);
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
+    var el=document.getElementById('ov-'+d);
+    if(el) el.textContent=dc[d]; // pneumatic/suspension don't have a stat card on Overview yet — skip safely instead of crashing
+  });
 
   const allBays=[...Array.from({length:21},(_,i)=>'Bay '+(i+1)),'Express Bay','Free Bay'];
   document.getElementById('bayMapGrid').innerHTML=allBays.map(b=>{
