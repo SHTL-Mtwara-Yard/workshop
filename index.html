@@ -3571,18 +3571,24 @@ function refreshCurrentPage(){
   const activePage=document.querySelector('.page.active');
   if(!activePage)return;
   const id=activePage.id.replace('page-','');
-  const map={security:()=>{refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();refreshSecurityPanel();},
+  const map={security:()=>{
+    try{ refreshSecurityLog(); }catch(e){ console.error('refreshSecurityLog failed:',e); }
+    try{ refreshDropdowns(); }catch(e){ console.error('refreshDropdowns failed:',e); }
+    try{ refreshEodList(); }catch(e){ console.error('refreshEodList failed:',e); }
+    try{ updateBadge(); }catch(e){ console.error('updateBadge failed:',e); }
+    try{ refreshSecurityPanel(); }catch(e){ console.error('refreshSecurityPanel failed:',e); }
+  },
     supervisor:refreshSupervisorPage, ground:refreshGroundPage, jobcards:refreshJobCards,
     revisit:refreshRevisit, manager:refreshManager, overview:refreshOverview, fleet:refreshFleet,
     incharge:refreshInchargePage};
-  if(map[id])map[id]();
+  if(map[id]){ try{ map[id](); }catch(e){ console.error('Page refresh failed for '+id+':',e); } }
 
   const activeSub=document.querySelector('.subpage.active');
   if(activeSub){
     const subId=activeSub.id.replace('sub-','');
     const subMap={'mgr-jobcards':refreshMgrJobCards,'mgr-timestamp':refreshTimeStamping,
       'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory,'mgr-postpone':refreshPostponePage};
-    if(subMap[subId])subMap[subId]();
+    if(subMap[subId]){ try{ subMap[subId](); }catch(e){ console.error('Sub-page refresh failed for '+subId+':',e); } }
   }
 
   const activeGroundSub=document.querySelector('.ground-subpage.active');
@@ -3694,8 +3700,14 @@ function showPage(id,el){
   // Clear manager tray when navigating away from manager page
   if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
   const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage,
-    security:function(){refreshSecurityLog();refreshDropdowns();refreshEodList();updateBadge();refreshSecurityPanel();}};
-  if(map[id])map[id]();
+    security:function(){
+    try{ refreshSecurityLog(); }catch(e){ console.error('refreshSecurityLog failed:',e); }
+    try{ refreshDropdowns(); }catch(e){ console.error('refreshDropdowns failed:',e); }
+    try{ refreshEodList(); }catch(e){ console.error('refreshEodList failed:',e); }
+    try{ updateBadge(); }catch(e){ console.error('updateBadge failed:',e); }
+    try{ refreshSecurityPanel(); }catch(e){ console.error('refreshSecurityPanel failed:',e); }
+  }};
+  if(map[id]){ try{ map[id](); }catch(e){ console.error('Page refresh failed for '+id+':',e); } }
   // Auto-switch Ground to Punch Status by default
   if(id==='ground'){
     var gp=document.getElementById('page-ground');
