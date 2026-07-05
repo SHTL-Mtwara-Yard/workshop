@@ -14837,9 +14837,9 @@ function tapAttendance(name,day){
   if(next){
     attData[name].days[String(day)]=next;
     if(next==='A'||next==='S'||next==='L'){
-      var labels={A:'Absent',S:'Sick',L:'Permission/Leave'};
-      var remark=prompt(name+' — '+labels[next]+'. Add a remark (optional):', attData[name].remarks[String(day)]||'');
-      if(remark!==null) attData[name].remarks[String(day)]=remark.trim();
+      save(); renderAttendanceSheet();
+      showRemarkModal(name, day, next);
+      return;
     } else {
       delete attData[name].remarks[String(day)];
     }
@@ -14851,6 +14851,46 @@ function tapAttendance(name,day){
   renderAttendanceSheet();
 }
 
+// Custom on-screen remark input — replaces native prompt(), which is unreliable
+// (can silently fail or auto-dismiss) when this app is opened via "Add to Home
+// Screen" in iOS standalone mode.
+function showRemarkModal(name, day, statusCode){
+  var labels={A:'Absent',S:'Sick',L:'Permission / Leave'};
+  var attData=getAttMonth();
+  var existing=(attData[name]&&attData[name].remarks&&attData[name].remarks[String(day)])||'';
+  var existingModal=document.getElementById('attRemarkModal');
+  if(existingModal) existingModal.remove();
+  var modal=document.createElement('div');
+  modal.id='attRemarkModal';
+  modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:15px;font-weight:800;margin-bottom:4px">'+name+'</div>'
+    +'<div style="font-size:12px;color:#6b7280;margin-bottom:14px">Marked as: <strong>'+(labels[statusCode]||statusCode)+'</strong> on '+day+'</div>'
+    +'<label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">Remark (optional)</label>'
+    +'<textarea id="attRemarkText" rows="2" placeholder="e.g. Fever, Family event..." style="width:100%;padding:10px;border-radius:8px;border:1.5px solid #d1d5db;font-size:14px;resize:vertical;box-sizing:border-box">'+existing+'</textarea>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button onclick="saveRemarkModal(\''+name.replace(/'/g,"\\'")+'\',\''+day+'\')" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:14px;cursor:pointer">✅ Save</button>'
+    +'<button onclick="document.getElementById(\'attRemarkModal\').remove()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer">Skip</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+  setTimeout(function(){ var ta=document.getElementById('attRemarkText'); if(ta) ta.focus(); }, 100);
+}
+
+function saveRemarkModal(name, day){
+  var ta=document.getElementById('attRemarkText');
+  var text=ta?ta.value.trim():'';
+  var attData=getAttMonth();
+  if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
+  if(!attData[name].remarks) attData[name].remarks={};
+  if(text) attData[name].remarks[String(day)]=text;
+  else delete attData[name].remarks[String(day)];
+  save();
+  var modal=document.getElementById('attRemarkModal');
+  if(modal) modal.remove();
+  renderAttendanceSheet();
+  toast('✅ Saved','ok');
+}
+
 function markAllPresentToday(){
   var k=attKey(); if(!k) return;
   var today=new Date(); today.setHours(0,0,0,0);
@@ -14858,24 +14898,28 @@ function markAllPresentToday(){
   var cycleDays=getPayCycleDays(k);
   var inCycle=cycleDays.some(function(d){ return d.getTime()===today.getTime(); });
   if(!inCycle){ toast('⚠️ Today is not in the currently selected pay-cycle period','warn'); return; }
-  if(!confirm('Mark ALL staff as Present for today?\n\nYou can still tap individual names afterward to change anyone who was actually absent, sick, or on leave.')) return;
+  // No native confirm() here — iOS "Add to Home Screen" standalone mode can silently
+  // block or misfire window.confirm()/prompt(), which was preventing this from ever
+  // running. This action is safe without confirmation since it never overwrites
+  // any existing entry (Absent/Sick/Leave/OFF/Present already set stays untouched).
   var attData=getAttMonth();
-  var count=0;
+  var count=0, skipped=0;
   ATT_SECTIONS.forEach(function(sec){
     var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     names.forEach(function(n){
       if(!attData[n]) attData[n]={off:'',days:{},remarks:{}};
       if(!attData[n].days) attData[n].days={};
-      // Don't overwrite if already marked today (avoid clobbering manual entries made earlier)
       if(!attData[n].days[todayKey]){
         attData[n].days[todayKey]='P';
         count++;
+      } else {
+        skipped++;
       }
     });
   });
   save();
   renderAttendanceSheet();
-  toast('✅ Marked '+count+' staff as Present for today — now tap any exceptions','ok');
+  toast('✅ Marked '+count+' staff Present for today ('+skipped+' already had an entry)','ok');
 }
 
 function setAttOffDay(name,dayName){
