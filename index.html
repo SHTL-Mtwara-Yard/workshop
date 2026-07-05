@@ -6467,8 +6467,8 @@ function cleanupStaleAssists(){
     if(!activeIns){
       S.assistingWorkers[bay].forEach(a=>{
         const name=typeof a==='string' ? a : a.name;
-        if(S.workerPunches[name] && S.workerPunches[name].status==='assisting' && S.workerPunches[name].bayNo===bay){
-          S.workerPunches[name]={ status:'available', since:new Date().toISOString() };
+        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===bay){
+          S.workerPunches[safeKey(name)]={ status:'available', since:new Date().toISOString() };
           logWorkerEvent(name,'available',{reason:'bay vacated'});
         }
       });
@@ -6630,8 +6630,8 @@ function checkAutoCompletion(insId){
       const dept=typeof a==='string' ? null : a.dept;
       const deptDone = dept && byDept[dept] && byDept[dept].total>0 && byDept[dept].done===byDept[dept].total;
       if(deptDone){
-        if(S.workerPunches[name] && S.workerPunches[name].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
-          S.workerPunches[name]={ status:'available', since:new Date().toISOString() };
+        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
+          S.workerPunches[safeKey(name)]={ status:'available', since:new Date().toISOString() };
           logWorkerEvent(name,'available',{reason:'dept complete',bayNo:ins.bayNo,dept});
         }
       } else {
@@ -6660,8 +6660,8 @@ function checkAutoCompletion(insId){
     if(S.assistingWorkers && S.assistingWorkers[ins.bayNo]){
       S.assistingWorkers[ins.bayNo].forEach(a=>{
         const name=typeof a==='string' ? a : a.name;
-        if(S.workerPunches[name] && S.workerPunches[name].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
-          S.workerPunches[name]={ status:'available', since:new Date().toISOString() };
+        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
+          S.workerPunches[safeKey(name)]={ status:'available', since:new Date().toISOString() };
           logWorkerEvent(name,'available',{reason:'truck complete',bayNo:ins.bayNo});
         }
       });
@@ -6873,7 +6873,7 @@ function toggleJobGround(insId,dept,idx,cb){
     var key0=dept+'_'+idx;
     var existingOwner=(ins0&&ins0.jobOwners&&ins0.jobOwners[key0])||'';
     var existingPunch=Object.keys(S.workerPunches||{}).find(function(name){
-      var wp=S.workerPunches[name];
+      var wp=S.workerPunches[safeKey(name)];
       return wp && String(wp.insId)===String(insId) && wp.dept===dept;
     });
     var doneBy=existingOwner||existingPunch||'';
@@ -7976,6 +7976,14 @@ function refreshFleet(){
 
 // ─── ETD ANNOUNCEMENT SYSTEM ───
 // Speaks aloud every 15 min when a truck's ETD is within 1 hour, naming the mechanic and jobs
+
+// Firebase Realtime Database forbids these characters in any key: . # $ [ ] /
+// Staff names can legitimately contain a period (e.g. "PLUS K. MILANZI"), which
+// silently breaks the ENTIRE app save (fbRoot.set(S) fails atomically) if used
+// directly as an object key anywhere. This sanitizes any name before it's used
+// as a Firebase-synced object key. Display text should always use the ORIGINAL
+// name, never this sanitized version.
+function safeKey(s){ return String(s||'').replace(/[.#$\[\]\/]/g,'_'); }
 var _etdAnnouncementsEnabled=false;
 var _etdAnnounceInterval=null;
 var _lastAnnounced={};
@@ -9183,7 +9191,7 @@ function downloadFullMonthlyExport(){
   });
   // Also capture from workerPunches for currently active
   Object.keys(S.workerPunches||{}).forEach(function(name){
-    var wp=S.workerPunches[name]; if(!wp||!inMonth(wp.startTime)) return;
+    var wp=S.workerPunches[safeKey(name)]; if(!wp||!inMonth(wp.startTime)) return;
     var ins=S.inspections.find(function(x){return x.id===wp.insId;});
     var e=ins?S.entries.find(function(x){return x.id===ins.entryId;}):null;
     s4r.push([s4r.length+1,name,e?e.truckNo:wp.truckNo||'',ins?ins.bayNo||'':'',wp.dept||'',wp.jobDesc||'',fmt(wp.startTime),'Active (not yet complete)','']);
@@ -12799,8 +12807,8 @@ function autoMarkAttendancePresent(name){
     if(!S.attendance) S.attendance={};
     if(!S.attendance[k]) S.attendance[k]={};
     var attData=S.attendance[k];
-    if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
-    if(!attData[name].days) attData[name].days={};
+    var nk=safeKey(name); if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
+    if(!attData[nk].days) attData[nk].days={};
     var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
     if(!attData[name].days[todayKey]){
       attData[name].days[todayKey]='P';
@@ -12957,7 +12965,7 @@ function punchStartJob(insId,dept,idx){
   // ETD-setter assignment is only done via the explicit Assign dropdown (saveDeptStaff),
   // not by whoever punches in to do the work.
 
-  S.workerPunches[curPunchWorker]={
+  S.workerPunches[safeKey(curPunchWorker)]={
     status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo, dept, jobDesc:(ins.jobs||{})[dept][idx].desc,
     since:new Date().toISOString()
   };
@@ -13042,7 +13050,7 @@ function punchCompleteJob(insId,dept,idx){
   }
   checkAutoCompletion(insId);
 
-  S.workerPunches[curPunchWorker]={ status:'available', since:new Date().toISOString() };
+  S.workerPunches[safeKey(curPunchWorker)]={ status:'available', since:new Date().toISOString() };
   logWorkerEvent(curPunchWorker,'available',{reason:'job complete'});
   save();
   loadPunchJobs();
@@ -13074,12 +13082,12 @@ function punchAvailable(){
   }
   // If currently committed as "Assisting" a bay/department whose work isn't finished yet,
   // they can't casually flip to Available — must finish/leave that assist first.
-  const current=S.workerPunches[curPunchWorker];
+  const current=S.workerPunches[safeKey(curPunchWorker)];
   if(current && current.status==='assisting' && current.bayNo && bayHasOpenJobs(current.bayNo,current.dept)){
     const scope=current.dept?assistDeptLabel(current.dept)+' at '+current.bayNo:current.bayNo;
     return toast('⚠️ You are assisting '+scope+' which still has open jobs — cannot mark Available yet','warn');
   }
-  S.workerPunches[curPunchWorker]={ status:'available', since:new Date().toISOString() };
+  S.workerPunches[safeKey(curPunchWorker)]={ status:'available', since:new Date().toISOString() };
   logWorkerEvent(curPunchWorker,'available',{reason:'self-declared'});
   save();
   refreshWorkerBoard();
@@ -13097,7 +13105,7 @@ function punchAssistOtherBay(){
   // Drop any older record for this same person at this bay (string-only legacy or different dept), then add the current one
   S.assistingWorkers[bay]=S.assistingWorkers[bay].filter(a=>(typeof a==='string'?a:a.name)!==curPunchWorker);
   S.assistingWorkers[bay].push({name:curPunchWorker, dept});
-  S.workerPunches[curPunchWorker]={ status:'assisting', bayNo:bay, dept, since:new Date().toISOString() };
+  S.workerPunches[safeKey(curPunchWorker)]={ status:'assisting', bayNo:bay, dept, since:new Date().toISOString() };
   logWorkerEvent(curPunchWorker,'assisting',{bayNo:bay,dept});
   save();
   refreshWorkerBoard();
@@ -13164,7 +13172,7 @@ function refreshWorkerBoard(){
   // Compute REAL status per worker: open locks always win over a stale self-declaration.
   const resolved=names.map(name=>{
     const locks=getOpenJobLocksFor(name);
-    const selfPunch=S.workerPunches[name];
+    const selfPunch=S.workerPunches[safeKey(name)];
     if(locks.length){
       return {name, status:'working', locks, since: (selfPunch&&selfPunch.since) || new Date().toISOString()};
     }
@@ -13213,7 +13221,7 @@ function refreshWorkerBoard(){
 function openCloseWorkshopModal(){
   const names=Object.keys(S.workerPunches);
   const staleNames=names.filter(n=>{
-    const p=S.workerPunches[n];
+    const p=S.workerPunches[safeKey(n)];
     return (p.status==='available'||p.status==='assisting') && getOpenJobLocksFor(n).length===0;
   });
   const workingCount=names.length-staleNames.length;
@@ -13228,9 +13236,9 @@ function confirmCloseWorkshop(){
   const names=Object.keys(S.workerPunches);
   let cleared=0;
   names.forEach(n=>{
-    const p=S.workerPunches[n];
+    const p=S.workerPunches[safeKey(n)];
     if((p.status==='available'||p.status==='assisting')){
-      delete S.workerPunches[n];
+      delete S.workerPunches[safeKey(n)];
       cleared++;
     }
   });
@@ -14034,7 +14042,7 @@ function mgrPunchComplete(insId, dept, jobIdx){
 
   // Update workerPunches
   if(!S.workerPunches) S.workerPunches={};
-  S.workerPunches[worker] = { status:'available', since:now.toISOString() };
+  S.workerPunches[safeKey(worker)] = { status:'available', since:now.toISOString() };
 
   if(!ins.t4_qcDone) ins.t4_qcDone = now.toISOString();
   checkAutoCompletion(insId);
@@ -14666,7 +14674,7 @@ function autoCleanStalePunches(){
   var now = new Date();
   var changed = false;
   Object.keys(S.workerPunches||{}).forEach(function(name){
-    var wp = S.workerPunches[name];
+    var wp = S.workerPunches[safeKey(name)];
     if(!wp || !wp.startTime) return;
     var ageHrs = (now - new Date(wp.startTime)) / 3600000;
     if(ageHrs >= 16){
@@ -14684,7 +14692,7 @@ function autoCleanStalePunches(){
         clearedBy: 'System — auto-cleared (open >16hrs)',
         date: now.toDateString()
       });
-      delete S.workerPunches[name];
+      delete S.workerPunches[safeKey(name)];
       changed = true;
       console.log('Auto-cleared stale punch for:', name, '(open', Math.round(ageHrs), 'hrs)');
     }
@@ -14709,7 +14717,7 @@ var ATT_SECTIONS=[
   {key:'panelbeater',label:'🔨 Panel Beater'},{key:'radiator',label:'❄️ Radiator'},
   {key:'refurbish',label:'♻️ Refurbish / Wheel Alignment'},{key:'sandblasting',label:'💨 Sand Blasting'},
   {key:'floorsupervisor',label:'👷 Floor Supervisor'},{key:'incharge',label:'📋 Floor Incharge'},
-  {key:'security',label:'🔐 Security Staff'},{key:'busdriver',label:'🚌 Bus Driver'},
+  {key:'busdriver',label:'🚌 Bus Driver'},
   {key:'pickupdriver',label:'🛻 Pickup Driver'}
 ];
 var ATT_DAYS=['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -14783,8 +14791,8 @@ function renderAttendanceSheet(){
     if(!names.length) return;
     html+='<tr><td colspan="'+(cycleDays.length+3)+'" style="background:var(--surface2);padding:5px 8px;font-weight:800;font-size:11px;border:1px solid #e2e8f0">'+sec.label+'</td></tr>';
     names.forEach(function(n){
-      if(!attData[n]) attData[n]={off:'',days:{}};
-      var rec=attData[n];
+      var nk=safeKey(n); if(!attData[nk]) attData[nk]={off:'',days:{},name:n};
+      var rec=attData[nk];
       var pCount=0,aCount=0;
       Object.values(rec.days||{}).forEach(function(v){ if(v==='P')pCount++; if(v==='A')aCount++; });
       html+='<tr>';
@@ -14828,24 +14836,24 @@ function renderAttendanceSheet(){
 
 function tapAttendance(name,day){
   var attData=getAttMonth();
-  if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
-  if(!attData[name].days) attData[name].days={};
-  if(!attData[name].remarks) attData[name].remarks={};
-  var cur=attData[name].days[String(day)]||'';
+  var nk=safeKey(name); if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
+  if(!attData[nk].days) attData[nk].days={};
+  if(!attData[nk].remarks) attData[nk].remarks={};
+  var cur=attData[nk].days[String(day)]||'';
   // Cycle: blank -> P -> A -> S (Sick) -> L (Permission/Leave) -> OFF -> blank
   var next=cur===''?'P':cur==='P'?'A':cur==='A'?'S':cur==='S'?'L':cur==='L'?'OFF':'';
   if(next){
-    attData[name].days[String(day)]=next;
+    attData[nk].days[String(day)]=next;
     if(next==='A'||next==='S'||next==='L'){
       save(); renderAttendanceSheet();
       showRemarkModal(name, day, next);
       return;
     } else {
-      delete attData[name].remarks[String(day)];
+      delete attData[nk].remarks[String(day)];
     }
   } else {
-    delete attData[name].days[String(day)];
-    delete attData[name].remarks[String(day)];
+    delete attData[nk].days[String(day)];
+    delete attData[nk].remarks[String(day)];
   }
   save();
   renderAttendanceSheet();
@@ -14857,7 +14865,7 @@ function tapAttendance(name,day){
 function showRemarkModal(name, day, statusCode){
   var labels={A:'Absent',S:'Sick',L:'Permission / Leave'};
   var attData=getAttMonth();
-  var existing=(attData[name]&&attData[name].remarks&&attData[name].remarks[String(day)])||'';
+  var existing=(attData[safeKey(name)]&&attData[safeKey(name)].remarks&&attData[safeKey(name)].remarks[String(day)])||'';
   var existingModal=document.getElementById('attRemarkModal');
   if(existingModal) existingModal.remove();
   var modal=document.createElement('div');
@@ -14880,10 +14888,10 @@ function saveRemarkModal(name, day){
   var ta=document.getElementById('attRemarkText');
   var text=ta?ta.value.trim():'';
   var attData=getAttMonth();
-  if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
-  if(!attData[name].remarks) attData[name].remarks={};
-  if(text) attData[name].remarks[String(day)]=text;
-  else delete attData[name].remarks[String(day)];
+  var nk=safeKey(name); if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
+  if(!attData[nk].remarks) attData[nk].remarks={};
+  if(text) attData[nk].remarks[String(day)]=text;
+  else delete attData[nk].remarks[String(day)];
   save();
   var modal=document.getElementById('attRemarkModal');
   if(modal) modal.remove();
@@ -14913,8 +14921,8 @@ function markAllPresentToday(){
       totalStaff++;
       if(!attData[n]) attData[n]={off:'',days:{},remarks:{}};
       if(!attData[n].days) attData[n].days={};
-      if(!attData[n].days[todayKey]){
-        attData[n].days[todayKey]='P';
+      if(!attData[nk].days[todayKey]){
+        attData[nk].days[todayKey]='P';
         count++;
       } else {
         skipped++;
@@ -14936,7 +14944,7 @@ function markAllPresentToday(){
 function setAttOffDay(name,dayName){
   var attData=getAttMonth();
   if(!attData[name]) attData[name]={off:'',days:{}};
-  attData[name].off=dayName;
+  attData[nk].off=dayName;
   save();
   renderAttendanceSheet();
   toast('✅ '+name.split(' ')[0]+' off day: '+(dayName||'none'),'ok');
