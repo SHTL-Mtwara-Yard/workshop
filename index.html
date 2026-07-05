@@ -2328,7 +2328,7 @@ tr:hover td { background: var(--surface2); }
       <span style="font-size:12px;font-weight:700;color:var(--text2)">📅 MONTH</span>
       <input type="month" id="attMonthPicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="renderAttendanceSheet()">
       <button class="btn btn-primary btn-sm" style="background:#15803d" onclick="markAllPresentToday()">✅ Mark All Present — Today</button>
-      <button class="btn btn-primary btn-sm" style="background:#1d4ed8" onclick="applyBulkOffDays()">📋 Apply Off Days from Roster</button>
+      <button class="btn btn-primary btn-sm" style="background:#1d4ed8" onclick="applyBulkOffDays()">🔄 Reset & Apply Off Days (Fresh)</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadAttendanceCSV()">⬇️ Download CSV</button>
       <div style="font-size:11px;color:var(--text2);width:100%;margin-top:6px">
         <strong>Fast way:</strong> Tap "Mark All Present — Today" first, then only tap the FEW people who were absent/sick/on leave to change just those.<br>
@@ -14900,28 +14900,60 @@ function saveRemarkModal(name, day){
   toast('✅ Saved','ok');
 }
 
-// Off-day data transcribed from the physical SHTL-Mtwara Workshop Schedule paper roster.
-// Matches by name against whatever is currently in the live staff roster (STAFF),
-// regardless of which section they're filed under here vs there — pure name match.
+// Off-day data — complete authoritative list from Manager's digitized Excel roster.
+// This is REFERENCE ONLY: it sets the "off day" label shown on the sheet, and is
+// never auto-written into daily attendance cells. Manager marks Present/Absent/
+// Sick/Leave/OFF for each actual day separately and independently.
 var BULK_OFF_DAY_DATA = [
-  ['ABDALLAH HAMIS LUPATIKO','Mon'],['ABILLAH ALLY','Tue'],['ANAFI HEMEDI','Thu'],
-  ['BRIGHT MCHOME','Fri'],['ISIHAKA ABDUL','Sat'],['JAMAL AKUSALA','Fri'],
-  ['JOHN NDUNGURU','Tue'],['JUMA MTUMBUKA','Mon'],['LUKMAN SELEMAN SALUM','Tue'],
-  ['MAULID DAUDI ALLY','Wed'],['MUKSINI SALEMAN NAMK','Thu'],['MUSA SALUM PAJA','Fri'],
-  ['MUSA SELEMANI SAID','Sat'],['MUSTAFA HASAN RAJABU','Sun'],['NOUSHAD SAID SULUNGI','Sat'],
-  ['OWENI ROBERT','Fri'],['PAULO DANIEL','Thu'],['RAMADANI SAID MUKAVA','Tue'],
-  ['RASHID JUMA MBUYU','Mon'],['SAIDI DEBE','Wed'],['SHAFI MOHAMED ALLY','Sat'],
-  ['YOHANA MDAKI','Sat'],['YUSUPH HEMEDI','Sun'],
-  ['HAJI AHMED OMARI','Wed'],['HEMEDI HASHIMU','Mon'],['SHAIBU JININGI','Thu'],
-  ['STEVEN LUOGA','Tue'],['THOMAS GORDIAN FRANSISCO','Sun'],
-  ['RAMADAN ARIDI','Sun'],['SALUM SAID RASHID','Tue'],['SHARRIF RASHID','Fri'],
-  ['FAIDHI MDEGA','Sat'],['JACKSON BATONI KIMBE','Sun'],['YAHAYA FIKIRI','Fri'],
-  ['GERVAS COSMAS','Sat'],['HAROUN WILLIAM KAONDO','Fri'],
-  ['RAHIM SAID HASSAN','Tue']
+  ['HEMEDI HASHIMU NJANGA','Fri'],['HAJI AHMED OMARI','Wed'],['STEVEN LUOGA','Tue'],
+  ['THOMAS GORDIAN FRANSISCO','Sun'],['AZIZI HASSAN ISSA','Fri'],
+  ['ATIKI SELEMANI DOKA','Sun'],['MUANYA SUVA','Sat'],
+  ['UBWA SELEMAN SALUM','Fri'],
+  ['NASSOR ALLY ABDALLAH','Fri'],['TWALIBU BAKARI NAMBWINDI','Wed'],
+  ['SELEMAN HAMAD OMARY','Fri'],['SHAIBU ALLY CHAMPUNGA','Sat'],['THOBIA MARTIN AVIAS','Sun'],
+  ['KURUTHUM ISSA DADI','Sun'],['MAULID MASOUD',''],['RAMADAANI A. NACHOMA',''],
+  ['ISACK MBUMA','Fri'],['IQRAM MTONDA','Sat'],
+  ['ABDUL MOHAMED','Sun'],
+  ['IDRISSA BAKARI','Fri'],
+  ['LUKMAN SELEMAN SALUM',''],['YUSUPH HEMEDI','Sun'],['AMOSI MHAGAMA','Tue'],
+  ['BRIGHT MCHOME','Sat'],['NOUSHAD SAID SULUNGI','Fri'],['ABILLAH ALLY','Mon'],
+  ['ANAFI HEMEDI','Thu'],['HAROUN WILLIAM KAONDO','Tue'],['JAMAL AKUSALA','Tue'],
+  ['JUMA MTUMBUKA','Mon'],['MAULID DAUDI ALLY','Thu'],['MUSA SALUM PAJA','Sat'],
+  ['MUSA SELEMANI SAID','Sun'],['MUSTAFA HASAN RAJABU','Sat'],['OWENI ROBERT','Thu'],
+  ['PAULO DANIEL','Thu'],['RAMADHANI SAID MUKAVA','Tue'],['RASHID JUMA MBUYU','Mon'],
+  ['SAIDI DEBE','Wed'],['SHAFI MOHAMED ALLY','Fri'],['YOHANA MDAKI','Sat'],
+  ['IDRISSA MCHOMA','Sat'],['ABUDHAIFA HASSAN','Sun'],
+  ['COSMAS MASANZA','Sun'],
+  ['HUSSEIN ISSA MADENGELO','Fri'],
+  ['ABDALLAH LIYOKA','Sun'],['GEORGE KITEA','Sat'],
+  ['FAIDHI MADEGA','Sat'],['JACKSON BATONI KIMBE','Sun'],['YAHAYA FIKIRI','Fri'],
+  ['HAMIDU ATHUMAN','Wed'],
+  ['RAHIM SAID HASSAN','Tue'],
+  ['ANANIA MICHAEL KASHILILIKA','Fri'],['RAJABU MADIDI','Sat'],['ISIHAKA ABDUL','Fri'],
+  ['ADELINA JULIUS','Sun'],['FREDI JULIUS CHENGULA','Thu'],
+  ['CLAUS AMOS NSYANI','Wed'],['SAIDI MBESSI','Sat'],
+  ['GERVAS COSMAS','Sat'],
+  ['NICHOLAUS MNANKA','Sun'],['MUKSIN SHAIBU ALLY','Sun'],['MFAUME RAIS SELEMAN','Sat'],
+  ['FADHILI HAMISI BANDO','Sun'],['HAMIDU HASSAN','Sun'],['IDDI FONSI DOMINICO','Sat'],
+  ['ISSA HARUNA RASHID','Sat'],['JAFARI HAMISI','Sun'],['SHAIBU ABDALLHA KUHITUPA','Sat'],
+  ['SAIDI HAMISI','Sun'],['SHEA MUSTARA SHEA','Sun'],
+  ['RAMADHAN HARIDI','Thu'],['SALUM SAID RASHID','Mon'],['SHARRIF RASHID','Sun'],
+  ['RAJABU RASHID BOLANE','Sat'],
+  ['HASSANI SAID','Fri']
 ];
+
+function resetAllOffDays(){
+  var k=attKey(); if(!k) return;
+  var attData=getAttMonth();
+  Object.keys(attData).forEach(function(nk){
+    if(attData[nk]) attData[nk].off='';
+  });
+  save();
+}
 
 function applyBulkOffDays(){
   var k=attKey(); if(!k) return;
+  resetAllOffDays(); // clear old/incorrect off days first — start fresh
   var attData=getAttMonth();
   var matched=[], unmatched=[];
 
@@ -14933,11 +14965,11 @@ function applyBulkOffDays(){
   function normalize(s){ return String(s||'').toUpperCase().replace(/[^A-Z ]/g,'').replace(/\s+/g,' ').trim(); }
 
   BULK_OFF_DAY_DATA.forEach(function(pair){
-    var target=normalize(pair[0]);
     var day=pair[1];
+    if(!day) return; // skip entries with no clear off day (e.g. "NO OFF")
+    var target=normalize(pair[0]);
     var found=allRosterNames.find(function(n){ return normalize(n)===target; });
     if(!found){
-      // Try partial match (in case of middle name differences)
       found=allRosterNames.find(function(n){
         var nn=normalize(n);
         return nn.indexOf(target)!==-1 || target.indexOf(nn)!==-1;
@@ -14955,10 +14987,10 @@ function applyBulkOffDays(){
 
   save();
   renderAttendanceSheet();
-  toast('✅ Off days set for '+matched.length+' staff. '+unmatched.length+' names not found in roster.','ok');
+  toast('✅ Reset & set off days for '+matched.length+' staff. '+unmatched.length+' not found in roster.','ok');
   if(unmatched.length){
     console.log('Unmatched names:', unmatched);
-    alert('Set off days for '+matched.length+' staff.\n\nCould NOT find these '+unmatched.length+' names in the current roster (check spelling or add them to Staff Roster first):\n\n'+unmatched.join('\n'));
+    alert('Off days reset and reapplied.\n\nSet for '+matched.length+' staff.\n\nCould NOT find these '+unmatched.length+' names in the current digital roster (check spelling or add them to Staff Roster):\n\n'+unmatched.join('\n'));
   }
 }
 
@@ -15081,8 +15113,12 @@ function runInitialRender(){
   // Auto-clean stale punches: run on load + every hour
   try{ autoCleanStalePunches(); }catch(e){}
   setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
-  try{ autoFillOffDays(); }catch(e){}
-  setInterval(function(){ try{ autoFillOffDays(); }catch(e){} }, 3600000);
+  // DISABLED per Manager instruction: Off Day is now reference-only information,
+  // shown as a visual hint on the sheet, and must NEVER be auto-written into the
+  // actual daily attendance record. Manager updates Present/Absent/Sick/Leave/OFF
+  // for each day manually — off day auto-fill was causing confusion/interference.
+  // try{ autoFillOffDays(); }catch(e){}
+  // setInterval(function(){ try{ autoFillOffDays(); }catch(e){} }, 3600000);
 
   // Morning announcement: check at 8:30 AM daily
   scheduleMorningAnnouncement();
