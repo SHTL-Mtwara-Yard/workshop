@@ -2327,11 +2327,16 @@ tr:hover td { background: var(--surface2); }
     <div class="card" style="padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:12px;font-weight:700;color:var(--text2)">📅 MONTH</span>
       <input type="month" id="attMonthPicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="renderAttendanceSheet()">
+      <button class="btn btn-primary btn-sm" style="background:#15803d" onclick="markAllPresentToday()">✅ Mark All Present — Today</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadAttendanceCSV()">⬇️ Download CSV</button>
-      <div style="font-size:11px;color:var(--text2);margin-left:auto">
-        Tap a day cell to cycle: <span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:6px;font-weight:700">P</span> →
-        <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:6px;font-weight:700">A</span> →
-        <span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:700">OFF</span> → blank
+      <div style="font-size:11px;color:var(--text2);width:100%;margin-top:6px">
+        <strong>Fast way:</strong> Tap "Mark All Present — Today" first, then only tap the FEW people who were absent/sick/on leave to change just those.<br>
+        Tap a day cell to cycle: <span style="background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:6px;font-weight:700">P</span> →
+        <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:6px;font-weight:700">A</span> →
+        <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-weight:700">S</span> Sick →
+        <span style="background:#ede9fe;color:#6d28d9;padding:2px 6px;border-radius:6px;font-weight:700">L</span> Permission/Leave →
+        <span style="background:#dbeafe;color:#1d4ed8;padding:2px 6px;border-radius:6px;font-weight:700">OFF</span> → blank.
+        Marking A/S/L will ask for an optional remark.
       </div>
     </div>
     <div class="card">
@@ -14727,15 +14732,19 @@ function renderAttendanceSheet(){
         var dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow];
         var dateKey=dObj.getFullYear()+'-'+String(dObj.getMonth()+1).padStart(2,'0')+'-'+String(dObj.getDate()).padStart(2,'0');
         var v=(rec.days||{})[dateKey]||'';
+        var remark=(rec.remarks||{})[dateKey]||'';
         var isOffDay=rec.off&&rec.off===dayName;
         var bg='',fg='',txt=v;
         if(v==='P'){bg='#dcfce7';fg='#15803d';}
         else if(v==='A'){bg='#fee2e2';fg='#dc2626';}
+        else if(v==='S'){bg='#fef3c7';fg='#92400e';}
+        else if(v==='L'){bg='#ede9fe';fg='#6d28d9';}
         else if(v==='OFF'){bg='#dbeafe';fg='#1d4ed8';}
         else if(isOffDay){bg='#eff6ff';fg='#93c5fd';txt='off';}
         var isToday=dObj.getTime()===today.getTime();
-        html+='<td onclick="tapAttendance(\''+n.replace(/'/g,"\\'")+'\',\''+dateKey+'\')" style="border:1px solid #e2e8f0;text-align:center;cursor:pointer;padding:4px 2px;font-weight:800;font-size:10px;'
-          +'background:'+(bg||(isToday?'#fffbeb':'transparent'))+';color:'+(fg||'#cbd5e1')+'">'+(txt||'·')+'</td>';
+        var titleAttr=remark?' title="'+remark.replace(/"/g,'')+'"':'';
+        html+='<td onclick="tapAttendance(\''+n.replace(/'/g,"\\'")+'\',\''+dateKey+'\')"'+titleAttr+' style="border:1px solid #e2e8f0;text-align:center;cursor:pointer;padding:4px 2px;font-weight:800;font-size:10px;position:relative;'
+          +'background:'+(bg||(isToday?'#fffbeb':'transparent'))+';color:'+(fg||'#cbd5e1')+'">'+(txt||'·')+(remark?'<span style="position:absolute;top:0;right:1px;font-size:7px">📝</span>':'')+'</td>';
       });
       html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#15803d">'+pCount+'</td>';
       html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#dc2626">'+aCount+'</td>';
@@ -14753,15 +14762,54 @@ function renderAttendanceSheet(){
 
 function tapAttendance(name,day){
   var attData=getAttMonth();
-  if(!attData[name]) attData[name]={off:'',days:{}};
+  if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
   if(!attData[name].days) attData[name].days={};
+  if(!attData[name].remarks) attData[name].remarks={};
   var cur=attData[name].days[String(day)]||'';
-  // Cycle: blank -> P -> A -> OFF -> blank
-  var next=cur===''?'P':cur==='P'?'A':cur==='A'?'OFF':'';
-  if(next) attData[name].days[String(day)]=next;
-  else delete attData[name].days[String(day)];
+  // Cycle: blank -> P -> A -> S (Sick) -> L (Permission/Leave) -> OFF -> blank
+  var next=cur===''?'P':cur==='P'?'A':cur==='A'?'S':cur==='S'?'L':cur==='L'?'OFF':'';
+  if(next){
+    attData[name].days[String(day)]=next;
+    if(next==='A'||next==='S'||next==='L'){
+      var labels={A:'Absent',S:'Sick',L:'Permission/Leave'};
+      var remark=prompt(name+' — '+labels[next]+'. Add a remark (optional):', attData[name].remarks[String(day)]||'');
+      if(remark!==null) attData[name].remarks[String(day)]=remark.trim();
+    } else {
+      delete attData[name].remarks[String(day)];
+    }
+  } else {
+    delete attData[name].days[String(day)];
+    delete attData[name].remarks[String(day)];
+  }
   save();
   renderAttendanceSheet();
+}
+
+function markAllPresentToday(){
+  var k=attKey(); if(!k) return;
+  var today=new Date(); today.setHours(0,0,0,0);
+  var todayKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var cycleDays=getPayCycleDays(k);
+  var inCycle=cycleDays.some(function(d){ return d.getTime()===today.getTime(); });
+  if(!inCycle){ toast('⚠️ Today is not in the currently selected pay-cycle period','warn'); return; }
+  if(!confirm('Mark ALL staff as Present for today?\n\nYou can still tap individual names afterward to change anyone who was actually absent, sick, or on leave.')) return;
+  var attData=getAttMonth();
+  var count=0;
+  ATT_SECTIONS.forEach(function(sec){
+    var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
+    names.forEach(function(n){
+      if(!attData[n]) attData[n]={off:'',days:{},remarks:{}};
+      if(!attData[n].days) attData[n].days={};
+      // Don't overwrite if already marked today (avoid clobbering manual entries made earlier)
+      if(!attData[n].days[todayKey]){
+        attData[n].days[todayKey]='P';
+        count++;
+      }
+    });
+  });
+  save();
+  renderAttendanceSheet();
+  toast('✅ Marked '+count+' staff as Present for today — now tap any exceptions','ok');
 }
 
 function setAttOffDay(name,dayName){
