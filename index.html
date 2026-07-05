@@ -14892,21 +14892,25 @@ function saveRemarkModal(name, day){
 }
 
 function markAllPresentToday(){
-  var k=attKey(); if(!k) return;
-  var today=new Date(); today.setHours(0,0,0,0);
+  try{
+  toast('🔵 Processing...','info');
+  var k=attKey(); if(!k){ toast('⚠️ Could not determine current period','warn'); return; }
+  var today=new Date();
   var todayKey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
   var cycleDays=getPayCycleDays(k);
-  var inCycle=cycleDays.some(function(d){ return d.getTime()===today.getTime(); });
-  if(!inCycle){ toast('⚠️ Today is not in the currently selected pay-cycle period','warn'); return; }
-  // No native confirm() here — iOS "Add to Home Screen" standalone mode can silently
-  // block or misfire window.confirm()/prompt(), which was preventing this from ever
-  // running. This action is safe without confirmation since it never overwrites
-  // any existing entry (Absent/Sick/Leave/OFF/Present already set stays untouched).
+  // Compare by date-string, not getTime(), to avoid any timezone/DST edge case
+  var inCycle=cycleDays.some(function(d){
+    var dKey=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return dKey===todayKey;
+  });
+  if(!inCycle){ toast('⚠️ Today ('+todayKey+') is not in the selected period — pick the right month first','warn'); return; }
+
   var attData=getAttMonth();
-  var count=0, skipped=0;
+  var count=0, skipped=0, totalStaff=0;
   ATT_SECTIONS.forEach(function(sec){
     var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     names.forEach(function(n){
+      totalStaff++;
       if(!attData[n]) attData[n]={off:'',days:{},remarks:{}};
       if(!attData[n].days) attData[n].days={};
       if(!attData[n].days[todayKey]){
@@ -14917,9 +14921,16 @@ function markAllPresentToday(){
       }
     });
   });
+
+  if(totalStaff===0){ toast('⚠️ No staff found in roster — check Staff Roster tab','warn'); return; }
+
   save();
   renderAttendanceSheet();
-  toast('✅ Marked '+count+' staff Present for today ('+skipped+' already had an entry)','ok');
+  toast('✅ Marked '+count+' Present, '+skipped+' already had entries (of '+totalStaff+' total staff)','ok');
+  }catch(e){
+    console.error('markAllPresentToday error:',e);
+    toast('❌ Error: '+e.message,'warn');
+  }
 }
 
 function setAttOffDay(name,dayName){
