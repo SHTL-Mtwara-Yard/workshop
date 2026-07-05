@@ -12810,8 +12810,8 @@ function autoMarkAttendancePresent(name){
     var nk=safeKey(name); if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
     if(!attData[nk].days) attData[nk].days={};
     var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-    if(!attData[name].days[todayKey]){
-      attData[name].days[todayKey]='P';
+    if(!attData[nk].days[todayKey]){
+      attData[nk].days[todayKey]='P';
       save();
     }
   }catch(e){ console.warn('autoMarkAttendancePresent failed:',e); }
@@ -14919,8 +14919,9 @@ function markAllPresentToday(){
     var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     names.forEach(function(n){
       totalStaff++;
-      if(!attData[n]) attData[n]={off:'',days:{},remarks:{}};
-      if(!attData[n].days) attData[n].days={};
+      var nk=safeKey(n);
+      if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:n};
+      if(!attData[nk].days) attData[nk].days={};
       if(!attData[nk].days[todayKey]){
         attData[nk].days[todayKey]='P';
         count++;
@@ -14943,7 +14944,8 @@ function markAllPresentToday(){
 
 function setAttOffDay(name,dayName){
   var attData=getAttMonth();
-  if(!attData[name]) attData[name]={off:'',days:{}};
+  var nk=safeKey(name);
+  if(!attData[nk]) attData[nk]={off:'',days:{},name:name};
   attData[nk].off=dayName;
   save();
   renderAttendanceSheet();
@@ -14960,7 +14962,7 @@ function downloadAttendanceCSV(){
   ATT_SECTIONS.forEach(function(sec){
     var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     names.forEach(function(n){
-      var rec=attData[n]||{off:'',days:{}};
+      var rec=attData[safeKey(n)]||{off:'',days:{}};
       var p=0,a=0;
       var row='"'+sec.label.replace(/[^\w ]/g,'').trim()+'","'+n+'","'+(rec.off||'')+'"';
       cycleDays.forEach(function(dObj){
