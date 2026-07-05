@@ -12773,6 +12773,7 @@ function selectPunchName(name){
   document.getElementById('punchStep1Card').style.display = 'none';
   document.getElementById('punchSelectedNameDisplay').textContent = name;
   renderPunchBayGrid();
+  autoMarkAttendancePresent(name);
   // Auto-select fixed bay
   var fixedBay = getWorkerFixedBay(name);
   if(fixedBay){
@@ -12783,6 +12784,29 @@ function selectPunchName(name){
     renderPunchBayGrid();
     toast('📍 Auto-selected your bay: '+fixedBay,'info');
   }
+}
+
+// Called the moment a staff member selects their own name in Punch Status —
+// this IS their proof of attendance, so mark them Present automatically.
+// Never overwrites an existing entry (so Manager corrections like Sick/Leave/OFF
+// entered earlier for this same day always take priority over the auto-mark).
+function autoMarkAttendancePresent(name){
+  try{
+    var now=new Date();
+    // Determine which pay-cycle key today falls in (26th-25th cycle)
+    var endMonth = now.getDate()>=26 ? new Date(now.getFullYear(), now.getMonth()+1, 1) : now;
+    var k = endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
+    if(!S.attendance) S.attendance={};
+    if(!S.attendance[k]) S.attendance[k]={};
+    var attData=S.attendance[k];
+    if(!attData[name]) attData[name]={off:'',days:{},remarks:{}};
+    if(!attData[name].days) attData[name].days={};
+    var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    if(!attData[name].days[todayKey]){
+      attData[name].days[todayKey]='P';
+      save();
+    }
+  }catch(e){ console.warn('autoMarkAttendancePresent failed:',e); }
 }
 
 function resetPunchWorker(){
@@ -14595,6 +14619,48 @@ function markRequisitionReady(){
   toast('✅ Parts marked ready — Ground Team notified 🔊','ok');
 }
 
+// Auto-fills 'OFF' into attendance data for any day that has already passed,
+// falls on a staff member's designated weekly off day, and has no entry yet.
+// Runs once per day (tracked via localStorage) so Manager never has to manually
+// tap OFF for recurring weekly off days — they're recorded automatically.
+var _lastOffAutoFillDate='';
+function autoFillOffDays(){
+  try{
+    var today=new Date(); today.setHours(0,0,0,0);
+    var todayStr=today.toDateString();
+    if(_lastOffAutoFillDate===todayStr) return; // already ran today
+    if(localStorage.getItem('shtl_off_autofill_date')===todayStr) return;
+    _lastOffAutoFillDate=todayStr;
+    localStorage.setItem('shtl_off_autofill_date', todayStr);
+
+    var endMonth = today.getDate()>=26 ? new Date(today.getFullYear(), today.getMonth()+1, 1) : today;
+    var k = endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
+    if(!S.attendance) S.attendance={};
+    if(!S.attendance[k]) S.attendance[k]={};
+    var attData=S.attendance[k];
+    var cycleDays=getPayCycleDays(k);
+    var changed=false;
+
+    Object.keys(attData).forEach(function(name){
+      var rec=attData[name];
+      if(!rec||!rec.off) return; // no designated off day set for this person
+      if(!rec.days) rec.days={};
+      cycleDays.forEach(function(dObj){
+        if(dObj>=today) return; // only fill PAST days, never today or future
+        var dow=dObj.getDay();
+        var dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow];
+        if(rec.off!==dayName) return;
+        var dateKey=dObj.getFullYear()+'-'+String(dObj.getMonth()+1).padStart(2,'0')+'-'+String(dObj.getDate()).padStart(2,'0');
+        if(!rec.days[dateKey]){
+          rec.days[dateKey]='OFF';
+          changed=true;
+        }
+      });
+    });
+    if(changed){ save(); try{ renderAttendanceSheet(); }catch(e){} }
+  }catch(e){ console.warn('autoFillOffDays failed:',e); }
+}
+
 function autoCleanStalePunches(){
   // Auto-clear any mechanic punch open for more than 16 hours (overnight/forgotten)
   var now = new Date();
@@ -14887,6 +14953,8 @@ function runInitialRender(){
   // Auto-clean stale punches: run on load + every hour
   try{ autoCleanStalePunches(); }catch(e){}
   setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
+  try{ autoFillOffDays(); }catch(e){}
+  setInterval(function(){ try{ autoFillOffDays(); }catch(e){} }, 3600000);
 
   // Morning announcement: check at 8:30 AM daily
   scheduleMorningAnnouncement();
