@@ -14644,10 +14644,13 @@ var ATT_SECTIONS=[
 var ATT_DAYS=['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 function attKey(){
+  // Pay-cycle key uses the END month's YYYY-MM (e.g. period 26 Jun - 25 Jul is keyed "2026-07")
   var mp=document.getElementById('attMonthPicker');
   if(mp&&!mp.value){
     var now=new Date();
-    mp.value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    // If today is on/after the 26th, the current cycle ends NEXT month; otherwise it ends this month
+    var endMonth = now.getDate()>=26 ? new Date(now.getFullYear(), now.getMonth()+1, 1) : now;
+    mp.value=endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
   }
   return mp?mp.value:'';
 }
@@ -14659,41 +14662,55 @@ function getAttMonth(){
   return S.attendance[k];
 }
 
+// Returns array of {date: Date, label: 'D Mon'} for the 26th (prev month) -> 25th (this month) cycle
+function getPayCycleDays(k){
+  var parts=k.split('-');
+  var endYear=parseInt(parts[0]), endMonIdx=parseInt(parts[1])-1; // 0-based month of the 25th
+  var startDate=new Date(endYear, endMonIdx-1, 26); // 26th of previous month
+  var endDate=new Date(endYear, endMonIdx, 25);      // 25th of this month
+  var days=[];
+  var cur=new Date(startDate);
+  while(cur<=endDate){
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate()+1);
+  }
+  return days;
+}
+
 function renderAttendanceSheet(){
   try{
   var k=attKey(); if(!k) return;
+  var cycleDays=getPayCycleDays(k);
   var parts=k.split('-');
-  var year=parseInt(parts[0]); var mon=parseInt(parts[1])-1;
-  var daysInMonth=new Date(year,mon+1,0).getDate();
-  var monthName=new Date(year,mon,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+  var endYear=parseInt(parts[0]), endMonIdx=parseInt(parts[1])-1;
+  var periodLabel='26 '+cycleDays[0].toLocaleString('en-GB',{month:'short'})+' – 25 '+new Date(endYear,endMonIdx,25).toLocaleString('en-GB',{month:'short',year:'numeric'});
   var lbl=document.getElementById('attMonthLabel');
-  if(lbl) lbl.textContent='— '+monthName;
+  if(lbl) lbl.textContent='— '+periodLabel;
   var attData=getAttMonth();
-  var today=new Date();
-  var isCurMonth=(today.getFullYear()===year&&today.getMonth()===mon);
-  var todayD=today.getDate();
+  var today=new Date(); today.setHours(0,0,0,0);
 
   var html='<table style="border-collapse:collapse;font-size:11px;min-width:100%">';
   // Header
   html+='<thead><tr style="background:#f1f5f9">';
   html+='<th style="position:sticky;left:0;background:#f1f5f9;padding:6px 8px;text-align:left;min-width:150px;border:1px solid #e2e8f0;z-index:2">NAME</th>';
   html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;min-width:52px">OFF DAY</th>';
-  for(var d=1;d<=daysInMonth;d++){
-    var dow=new Date(year,mon,d).getDay();
+  cycleDays.forEach(function(dObj){
+    var dow=dObj.getDay();
     var isSun=dow===0;
-    var isToday=isCurMonth&&d===todayD;
-    html+='<th style="padding:4px 3px;border:1px solid #e2e8f0;min-width:26px;text-align:center;'
+    var isToday=dObj.getTime()===today.getTime();
+    html+='<th style="padding:4px 3px;border:1px solid #e2e8f0;min-width:30px;text-align:center;'
       +(isToday?'background:#fef3c7;':isSun?'background:#fee2e2;':'')+'">'
-      +d+'<br><span style="font-weight:400;font-size:9px;color:#94a3b8">'+['S','M','T','W','T','F','S'][dow]+'</span></th>';
-  }
+      +dObj.getDate()+'<br><span style="font-weight:400;font-size:8px;color:#94a3b8">'+dObj.toLocaleString('en-GB',{month:'short'})+'</span>'
+      +'<br><span style="font-weight:400;font-size:9px;color:#94a3b8">'+['S','M','T','W','T','F','S'][dow]+'</span></th>';
+  });
   html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;background:#dcfce7">P</th>';
   html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;background:#fee2e2">A</th>';
   html+='</tr></thead><tbody>';
 
   ATT_SECTIONS.forEach(function(sec){
-    var names=(STAFF[sec.key]||[]);
+    var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     if(!names.length) return;
-    html+='<tr><td colspan="'+(daysInMonth+4)+'" style="background:var(--surface2);padding:5px 8px;font-weight:800;font-size:11px;border:1px solid #e2e8f0">'+sec.label+'</td></tr>';
+    html+='<tr><td colspan="'+(cycleDays.length+3)+'" style="background:var(--surface2);padding:5px 8px;font-weight:800;font-size:11px;border:1px solid #e2e8f0">'+sec.label+'</td></tr>';
     names.forEach(function(n){
       if(!attData[n]) attData[n]={off:'',days:{}};
       var rec=attData[n];
@@ -14705,20 +14722,21 @@ function renderAttendanceSheet(){
       html+='<td style="border:1px solid #e2e8f0;padding:1px"><select onchange="setAttOffDay(\''+n.replace(/'/g,"\\'")+'\',this.value)" style="width:100%;border:none;background:transparent;font-size:10px;font-weight:700;color:#1d4ed8;text-align:center">'
         +ATT_DAYS.map(function(dd){ return '<option value="'+dd+'"'+(rec.off===dd?' selected':'')+'>'+(dd||'—')+'</option>'; }).join('')
         +'</select></td>';
-      for(var d=1;d<=daysInMonth;d++){
-        var dow=new Date(year,mon,d).getDay();
+      cycleDays.forEach(function(dObj){
+        var dow=dObj.getDay();
         var dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow];
-        var v=(rec.days||{})[String(d)]||'';
+        var dateKey=dObj.getFullYear()+'-'+String(dObj.getMonth()+1).padStart(2,'0')+'-'+String(dObj.getDate()).padStart(2,'0');
+        var v=(rec.days||{})[dateKey]||'';
         var isOffDay=rec.off&&rec.off===dayName;
         var bg='',fg='',txt=v;
         if(v==='P'){bg='#dcfce7';fg='#15803d';}
         else if(v==='A'){bg='#fee2e2';fg='#dc2626';}
         else if(v==='OFF'){bg='#dbeafe';fg='#1d4ed8';}
         else if(isOffDay){bg='#eff6ff';fg='#93c5fd';txt='off';}
-        var isToday=isCurMonth&&d===todayD;
-        html+='<td onclick="tapAttendance(\''+n.replace(/'/g,"\\'")+'\','+d+')" style="border:1px solid #e2e8f0;text-align:center;cursor:pointer;padding:4px 2px;font-weight:800;font-size:10px;'
+        var isToday=dObj.getTime()===today.getTime();
+        html+='<td onclick="tapAttendance(\''+n.replace(/'/g,"\\'")+'\',\''+dateKey+'\')" style="border:1px solid #e2e8f0;text-align:center;cursor:pointer;padding:4px 2px;font-weight:800;font-size:10px;'
           +'background:'+(bg||(isToday?'#fffbeb':'transparent'))+';color:'+(fg||'#cbd5e1')+'">'+(txt||'·')+'</td>';
-      }
+      });
       html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#15803d">'+pCount+'</td>';
       html+='<td style="border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#dc2626">'+aCount+'</td>';
       html+='</tr>';
@@ -14757,31 +14775,30 @@ function setAttOffDay(name,dayName){
 
 function downloadAttendanceCSV(){
   var k=attKey(); if(!k) return;
-  var parts=k.split('-');
-  var year=parseInt(parts[0]); var mon=parseInt(parts[1])-1;
-  var daysInMonth=new Date(year,mon+1,0).getDate();
+  var cycleDays=getPayCycleDays(k);
   var attData=getAttMonth();
   var csv='Section,Name,Off Day';
-  for(var d=1;d<=daysInMonth;d++) csv+=','+d;
+  cycleDays.forEach(function(dObj){ csv+=',"'+dObj.getDate()+' '+dObj.toLocaleString('en-GB',{month:'short'})+'"'; });
   csv+=',Present,Absent\n';
   ATT_SECTIONS.forEach(function(sec){
-    var names=(STAFF[sec.key]||[]);
+    var names=(STAFF[sec.key]||[]).filter(function(n){ return n && typeof n==='string' && n.trim(); });
     names.forEach(function(n){
       var rec=attData[n]||{off:'',days:{}};
       var p=0,a=0;
       var row='"'+sec.label.replace(/[^\w ]/g,'').trim()+'","'+n+'","'+(rec.off||'')+'"';
-      for(var d=1;d<=daysInMonth;d++){
-        var v=(rec.days||{})[String(d)]||'';
+      cycleDays.forEach(function(dObj){
+        var dateKey=dObj.getFullYear()+'-'+String(dObj.getMonth()+1).padStart(2,'0')+'-'+String(dObj.getDate()).padStart(2,'0');
+        var v=(rec.days||{})[dateKey]||'';
         if(v==='P')p++; if(v==='A')a++;
         row+=',"'+v+'"';
-      }
+      });
       row+=','+p+','+a+'\n';
       csv+=row;
     });
   });
   var blob=new Blob([csv],{type:'text/csv'});
   var el=document.createElement('a'); el.href=URL.createObjectURL(blob);
-  el.download='SHTL_Attendance_'+k+'.csv'; el.click();
+  el.download='SHTL_Attendance_'+k+'_26to25.csv'; el.click();
   toast('✅ Attendance sheet downloaded','ok');
 }
 
