@@ -2328,6 +2328,7 @@ tr:hover td { background: var(--surface2); }
       <span style="font-size:12px;font-weight:700;color:var(--text2)">📅 MONTH</span>
       <input type="month" id="attMonthPicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="renderAttendanceSheet()">
       <button class="btn btn-primary btn-sm" style="background:#15803d" onclick="markAllPresentToday()">✅ Mark All Present — Today</button>
+      <button class="btn btn-primary btn-sm" style="background:#1d4ed8" onclick="applyBulkOffDays()">📋 Apply Off Days from Roster</button>
       <button class="btn btn-ghost btn-sm" onclick="downloadAttendanceCSV()">⬇️ Download CSV</button>
       <div style="font-size:11px;color:var(--text2);width:100%;margin-top:6px">
         <strong>Fast way:</strong> Tap "Mark All Present — Today" first, then only tap the FEW people who were absent/sick/on leave to change just those.<br>
@@ -14897,6 +14898,68 @@ function saveRemarkModal(name, day){
   if(modal) modal.remove();
   renderAttendanceSheet();
   toast('✅ Saved','ok');
+}
+
+// Off-day data transcribed from the physical SHTL-Mtwara Workshop Schedule paper roster.
+// Matches by name against whatever is currently in the live staff roster (STAFF),
+// regardless of which section they're filed under here vs there — pure name match.
+var BULK_OFF_DAY_DATA = [
+  ['ABDALLAH HAMIS LUPATIKO','Mon'],['ABILLAH ALLY','Tue'],['ANAFI HEMEDI','Thu'],
+  ['BRIGHT MCHOME','Fri'],['ISIHAKA ABDUL','Sat'],['JAMAL AKUSALA','Fri'],
+  ['JOHN NDUNGURU','Tue'],['JUMA MTUMBUKA','Mon'],['LUKMAN SELEMAN SALUM','Tue'],
+  ['MAULID DAUDI ALLY','Wed'],['MUKSINI SALEMAN NAMK','Thu'],['MUSA SALUM PAJA','Fri'],
+  ['MUSA SELEMANI SAID','Sat'],['MUSTAFA HASAN RAJABU','Sun'],['NOUSHAD SAID SULUNGI','Sat'],
+  ['OWENI ROBERT','Fri'],['PAULO DANIEL','Thu'],['RAMADANI SAID MUKAVA','Tue'],
+  ['RASHID JUMA MBUYU','Mon'],['SAIDI DEBE','Wed'],['SHAFI MOHAMED ALLY','Sat'],
+  ['YOHANA MDAKI','Sat'],['YUSUPH HEMEDI','Sun'],
+  ['HAJI AHMED OMARI','Wed'],['HEMEDI HASHIMU','Mon'],['SHAIBU JININGI','Thu'],
+  ['STEVEN LUOGA','Tue'],['THOMAS GORDIAN FRANSISCO','Sun'],
+  ['RAMADAN ARIDI','Sun'],['SALUM SAID RASHID','Tue'],['SHARRIF RASHID','Fri'],
+  ['FAIDHI MDEGA','Sat'],['JACKSON BATONI KIMBE','Sun'],['YAHAYA FIKIRI','Fri'],
+  ['GERVAS COSMAS','Sat'],['HAROUN WILLIAM KAONDO','Fri'],
+  ['RAHIM SAID HASSAN','Tue']
+];
+
+function applyBulkOffDays(){
+  var k=attKey(); if(!k) return;
+  var attData=getAttMonth();
+  var matched=[], unmatched=[];
+
+  // Build a lookup of every name currently in the roster, normalized for matching
+  var allRosterNames=[];
+  ATT_SECTIONS.forEach(function(sec){
+    (STAFF[sec.key]||[]).forEach(function(n){ if(n&&n.trim()) allRosterNames.push(n); });
+  });
+  function normalize(s){ return String(s||'').toUpperCase().replace(/[^A-Z ]/g,'').replace(/\s+/g,' ').trim(); }
+
+  BULK_OFF_DAY_DATA.forEach(function(pair){
+    var target=normalize(pair[0]);
+    var day=pair[1];
+    var found=allRosterNames.find(function(n){ return normalize(n)===target; });
+    if(!found){
+      // Try partial match (in case of middle name differences)
+      found=allRosterNames.find(function(n){
+        var nn=normalize(n);
+        return nn.indexOf(target)!==-1 || target.indexOf(nn)!==-1;
+      });
+    }
+    if(found){
+      var nk=safeKey(found);
+      if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:found};
+      attData[nk].off=day;
+      matched.push(found+' → '+day);
+    } else {
+      unmatched.push(pair[0]);
+    }
+  });
+
+  save();
+  renderAttendanceSheet();
+  toast('✅ Off days set for '+matched.length+' staff. '+unmatched.length+' names not found in roster.','ok');
+  if(unmatched.length){
+    console.log('Unmatched names:', unmatched);
+    alert('Set off days for '+matched.length+' staff.\n\nCould NOT find these '+unmatched.length+' names in the current roster (check spelling or add them to Staff Roster first):\n\n'+unmatched.join('\n'));
+  }
 }
 
 function markAllPresentToday(){
