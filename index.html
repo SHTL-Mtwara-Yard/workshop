@@ -2336,8 +2336,9 @@ tr:hover td { background: var(--surface2); }
         <span style="background:#fee2e2;color:#dc2626;padding:2px 6px;border-radius:6px;font-weight:700">A</span> →
         <span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:6px;font-weight:700">S</span> Sick →
         <span style="background:#ede9fe;color:#6d28d9;padding:2px 6px;border-radius:6px;font-weight:700">L</span> Permission/Leave →
+        <span style="background:#fce7f3;color:#be185d;padding:2px 6px;border-radius:6px;font-weight:700">AL</span> Annual Leave →
         <span style="background:#dbeafe;color:#1d4ed8;padding:2px 6px;border-radius:6px;font-weight:700">OFF</span> → blank.
-        Marking A/S/L will ask for an optional remark.
+        Marking A/S/L/AL will ask for an optional remark.
       </div>
     </div>
     <div class="card">
@@ -14772,7 +14773,7 @@ function renderAttendanceSheet(){
   var html='<table style="border-collapse:collapse;font-size:11px;min-width:100%">';
   // Header
   html+='<thead><tr style="background:#f1f5f9">';
-  html+='<th style="position:sticky;left:0;background:#f1f5f9;padding:6px 8px;text-align:left;min-width:150px;border:1px solid #e2e8f0;z-index:2">NAME</th>';
+  html+='<th style="position:sticky;left:0;background:#f1f5f9;padding:6px 8px;text-align:left;min-width:150px;border:1px solid #e2e8f0;z-index:5;box-shadow:2px 0 4px rgba(0,0,0,.08)">NAME</th>';
   html+='<th style="padding:4px 6px;border:1px solid #e2e8f0;min-width:52px">OFF DAY</th>';
   cycleDays.forEach(function(dObj){
     var dow=dObj.getDay();
@@ -14797,7 +14798,7 @@ function renderAttendanceSheet(){
       var pCount=0,aCount=0;
       Object.values(rec.days||{}).forEach(function(v){ if(v==='P')pCount++; if(v==='A')aCount++; });
       html+='<tr>';
-      html+='<td style="position:sticky;left:0;background:var(--surface);padding:4px 8px;font-weight:700;border:1px solid #e2e8f0;white-space:nowrap;z-index:1">'+n+'</td>';
+      html+='<td style="position:sticky;left:0;background:var(--surface,#fff);padding:4px 8px;font-weight:700;border:1px solid #e2e8f0;white-space:nowrap;z-index:4;box-shadow:2px 0 4px rgba(0,0,0,.08)">'+n+'</td>';
       // Off day selector
       html+='<td style="border:1px solid #e2e8f0;padding:1px"><select onchange="setAttOffDay(\''+n.replace(/'/g,"\\'")+'\',this.value)" style="width:100%;border:none;background:transparent;font-size:10px;font-weight:700;color:#1d4ed8;text-align:center">'
         +ATT_DAYS.map(function(dd){ return '<option value="'+dd+'"'+(rec.off===dd?' selected':'')+'>'+(dd||'—')+'</option>'; }).join('')
@@ -14814,6 +14815,7 @@ function renderAttendanceSheet(){
         else if(v==='A'){bg='#fee2e2';fg='#dc2626';}
         else if(v==='S'){bg='#fef3c7';fg='#92400e';}
         else if(v==='L'){bg='#ede9fe';fg='#6d28d9';}
+        else if(v==='AL'){bg='#fce7f3';fg='#be185d';}
         else if(v==='OFF'){bg='#dbeafe';fg='#1d4ed8';}
         else if(isOffDay){bg='#eff6ff';fg='#93c5fd';txt='off';}
         var isToday=dObj.getTime()===today.getTime();
@@ -14841,11 +14843,11 @@ function tapAttendance(name,day){
   if(!attData[nk].days) attData[nk].days={};
   if(!attData[nk].remarks) attData[nk].remarks={};
   var cur=attData[nk].days[String(day)]||'';
-  // Cycle: blank -> P -> A -> S (Sick) -> L (Permission/Leave) -> OFF -> blank
-  var next=cur===''?'P':cur==='P'?'A':cur==='A'?'S':cur==='S'?'L':cur==='L'?'OFF':'';
+  // Cycle: blank -> P -> A -> S (Sick) -> L (Permission/Leave) -> AL (Annual Leave) -> OFF -> blank
+  var next=cur===''?'P':cur==='P'?'A':cur==='A'?'S':cur==='S'?'L':cur==='L'?'AL':cur==='AL'?'OFF':'';
   if(next){
     attData[nk].days[String(day)]=next;
-    if(next==='A'||next==='S'||next==='L'){
+    if(next==='A'||next==='S'||next==='L'||next==='AL'){
       save(); renderAttendanceSheet();
       showRemarkModal(name, day, next);
       return;
@@ -14864,7 +14866,7 @@ function tapAttendance(name,day){
 // (can silently fail or auto-dismiss) when this app is opened via "Add to Home
 // Screen" in iOS standalone mode.
 function showRemarkModal(name, day, statusCode){
-  var labels={A:'Absent',S:'Sick',L:'Permission / Leave'};
+  var labels={A:'Absent',S:'Sick',L:'Permission / Leave',AL:'Annual Leave'};
   var attData=getAttMonth();
   var existing=(attData[safeKey(name)]&&attData[safeKey(name)].remarks&&attData[safeKey(name)].remarks[String(day)])||'';
   var existingModal=document.getElementById('attRemarkModal');
