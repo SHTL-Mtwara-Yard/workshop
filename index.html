@@ -14660,6 +14660,7 @@ function getAttMonth(){
 }
 
 function renderAttendanceSheet(){
+  try{
   var k=attKey(); if(!k) return;
   var parts=k.split('-');
   var year=parseInt(parts[0]); var mon=parseInt(parts[1])-1;
@@ -14725,6 +14726,11 @@ function renderAttendanceSheet(){
   });
   html+='</tbody></table>';
   document.getElementById('attendanceSheetWrap').innerHTML=html;
+  }catch(e){
+    console.error('renderAttendanceSheet failed:',e);
+    var wrap=document.getElementById('attendanceSheetWrap');
+    if(wrap) wrap.innerHTML='<div style="padding:20px;color:#dc2626;font-weight:700">⚠️ Attendance sheet failed to load: '+e.message+'<br><span style="font-size:11px;color:#991b1b;font-weight:400">Please screenshot this and share it.</span></div>';
+  }
 }
 
 function tapAttendance(name,day){
