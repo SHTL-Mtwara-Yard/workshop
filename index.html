@@ -11539,6 +11539,41 @@ function collectStaffJobs(name, rangeStart, rangeEnd){
   return rows.sort((a,b)=>b.date-a.date);
 }
 
+// Computes the REST OF TEAM average time for the same job type + department,
+// so Manager can tell whether a job type is universally slow for everyone,
+// or specifically slow for just this one person.
+function collectTeamAvgForJobType(dept, jobDescKey, rangeStart, rangeEnd, excludeName){
+  var totalHrs=0, count=0;
+  S.inspections.forEach(function(ins){
+    var jobs=(ins.jobs||{})[dept]||[];
+    jobs.forEach(function(j,i){
+      var descKey=(j.desc||j.text||'').trim().toLowerCase();
+      if(descKey!==jobDescKey) return;
+      var key=ins.id+'_'+dept+'_'+i;
+      var upd=(S.jobUpdates||{})[key]||{};
+      var isDone=upd.done||j.done;
+      if(!isDone) return;
+      var doneBy=upd.doneBy||(ins.deptStaff||{})[dept];
+      if(excludeName && doneBy===excludeName) return;
+      var completedDate=upd.date?new Date(upd.date):(ins.t4_qcDone?new Date(ins.t4_qcDone):null);
+      if(!completedDate||completedDate<rangeStart||completedDate>=rangeEnd) return;
+      var etdKey=ins.id+'_'+dept;
+      var etdRaw=S.deptETDs[etdKey];
+      var etdDate=null;
+      if(etdRaw){
+        if(typeof etdRaw==='object'&&etdRaw.time&&etdRaw.date) etdDate=new Date(etdRaw.date+' '+etdRaw.time);
+        else if(typeof etdRaw==='string'&&etdRaw.length>5) etdDate=new Date(etdRaw);
+      }
+      var completedFull=upd.date&&upd.time?new Date(upd.date+' '+upd.time):completedDate;
+      if(etdDate&&completedFull){
+        var hrs=(completedFull-etdDate)/3600000;
+        if(hrs>=0&&hrs<200){ totalHrs+=hrs; count++; }
+      }
+    });
+  });
+  return count ? {avg:totalHrs/count, count:count} : null;
+}
+
 function generateIndividualStaffReport(){
   var name=document.getElementById('isrStaffSelect').value;
   if(!name) return toast('⚠️ Select a staff member first','warn');
@@ -11567,15 +11602,23 @@ function generateIndividualStaffReport(){
   var jobTypes={};
   jobs.forEach(function(r){
     var key=(r.jobDesc||'').trim().toLowerCase();
-    if(!jobTypes[key]) jobTypes[key]={label:r.jobDesc,count:0,totalHrs:0,timedCount:0};
+    if(!jobTypes[key]) jobTypes[key]={label:r.jobDesc,dept:r.dept,count:0,totalHrs:0,timedCount:0};
     jobTypes[key].count++;
     if(r.durHrs!==null && r.durHrs>=0 && r.durHrs<200){
       jobTypes[key].totalHrs+=r.durHrs;
       jobTypes[key].timedCount++;
     }
   });
-  var jobTypeRows=Object.values(jobTypes).map(function(t){
-    return {label:t.label,count:t.count,avgHrs:t.timedCount?t.totalHrs/t.timedCount:null};
+  var jobTypeRows=Object.keys(jobTypes).map(function(key){
+    var t=jobTypes[key];
+    var teamStats=collectTeamAvgForJobType(t.dept, key, rangeStart, rangeEnd, name);
+    return {
+      label:t.label,
+      count:t.count,
+      avgHrs:t.timedCount?t.totalHrs/t.timedCount:null,
+      teamAvg:teamStats?teamStats.avg:null,
+      teamCount:teamStats?teamStats.count:0
+    };
   }).sort(function(a,b){
     if(a.avgHrs===null) return 1; if(b.avgHrs===null) return -1;
     return b.avgHrs-a.avgHrs; // slowest job types first — the ones worth discussing
@@ -11604,11 +11647,20 @@ function generateIndividualStaffReport(){
   }
 
   html+='<h4 style="margin:16px 0 8px">📊 Job Type Breakdown — slowest types first</h4>'
-    +'<div class="tbl-wrap"><table><thead><tr><th>Job Type</th><th>Times Done</th><th>Avg Time (ETD→Done)</th></tr></thead><tbody>';
+    +'<div class="text-xs text2" style="margin-bottom:8px">"Rest of Team" compares against everyone else who did the same job type in the same department this period — shows if a job is universally slow, or specific to this person.</div>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Job Type</th><th>Times Done</th><th>Their Avg (ETD→Done)</th><th>Rest of Team Avg</th><th>Comparison</th></tr></thead><tbody>';
   jobTypeRows.forEach(function(t){
     var avgStr=t.avgHrs!==null?t.avgHrs.toFixed(1)+'h':'—';
+    var teamAvgStr=t.teamAvg!==null?t.teamAvg.toFixed(1)+'h ('+t.teamCount+' jobs)':'No other data';
+    var comparison='—';
+    if(t.avgHrs!==null && t.teamAvg!==null){
+      var diffPct=Math.round(((t.avgHrs-t.teamAvg)/t.teamAvg)*100);
+      if(diffPct>15){ comparison='<span style="color:#dc2626;font-weight:700">⚠️ '+diffPct+'% slower than team</span>'; }
+      else if(diffPct<-15){ comparison='<span style="color:#15803d;font-weight:700">✅ '+Math.abs(diffPct)+'% faster than team</span>'; }
+      else { comparison='<span style="color:#374151">≈ Same as team</span>'; }
+    }
     var colorFlag=t.avgHrs!==null&&t.avgHrs>2?'color:#dc2626;font-weight:700':'';
-    html+='<tr><td>'+t.label+'</td><td style="text-align:center">'+t.count+'</td><td style="'+colorFlag+'">'+avgStr+'</td></tr>';
+    html+='<tr><td>'+t.label+'</td><td style="text-align:center">'+t.count+'</td><td style="'+colorFlag+'">'+avgStr+'</td><td>'+teamAvgStr+'</td><td>'+comparison+'</td></tr>';
   });
   html+='</tbody></table></div>';
 
