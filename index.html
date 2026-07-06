@@ -11536,6 +11536,31 @@ function collectStaffJobs(name, rangeStart, rangeEnd){
       });
     });
   });
+
+  // Merge in Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
+  // Greasing) — these live in a completely separate structure from the 6 core
+  // departments, with their own actual Start/End timestamps rather than a
+  // department ETD, so "on time" isn't applicable — timing shown is real duration.
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing'};
+  (S.supportJobs||[]).forEach(function(sj){
+    if(sj.name!==name) return;
+    if(sj.status!=='done' && sj.status!=='completed') return; // only count finished jobs
+    var endDate=sj.endTime?new Date(sj.endTime):null;
+    if(!endDate||endDate<rangeStart||endDate>=rangeEnd) return;
+    var startDate=sj.startTime?new Date(sj.startTime):null;
+    var durHrs=(startDate&&endDate)?(endDate-startDate)/3600000:null;
+    rows.push({
+      date:endDate,
+      truckNo:sj.truckNo||'—',
+      bayNo:'—',
+      dept:supportTypeLabels[sj.type]||sj.type,
+      jobDesc:sj.job||'(no description)',
+      completedTime:endDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+      durHrs:durHrs,
+      onTime:null // not applicable — no department ETD to compare against
+    });
+  });
+
   return rows.sort((a,b)=>b.date-a.date);
 }
 
