@@ -2308,9 +2308,10 @@ tr:hover td { background: var(--surface2); }
       </div>
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Find a Truck to Edit</div>
-      <div class="text-xs text2 mb-12">Search by truck number to fix mistakes in gate entry, supervisor inspection, or ground team job details. This does not delete records — only corrects them.</div>
+      <div class="text-xs text2 mb-12">Type any part of the truck number — matches ignore spaces/case, so "T456EAV", "t456 eav" all find the same truck. This does not delete records — only corrects them.</div>
       <div class="form-row">
         <div>
+          <input type="text" id="editTruckTextSearch" placeholder="Type truck number e.g. T456 EAV" oninput="filterEditTruckSearch()" style="width:100%;padding:9px 12px;border-radius:var(--radius);border:2px solid var(--accent);background:var(--surface3);color:var(--text1);font-size:14px;font-weight:700;box-sizing:border-box;margin-bottom:8px">
           <select id="editTruckSearch" onchange="loadEditRecord()">
             <option value="">-- Select Truck --</option>
           </select>
@@ -12355,6 +12356,31 @@ function lockEditRecords(){
   document.getElementById('editRecordsPanel').style.display='none';
   if(_editRecordsLockTimer){clearTimeout(_editRecordsLockTimer);_editRecordsLockTimer=null;}
   toast('🔒 Edit Records locked','info');
+}
+
+function normalizeTruckNo(s){ return String(s||'').toUpperCase().replace(/\s+/g,''); }
+
+function filterEditTruckSearch(){
+  var query=normalizeTruckNo(document.getElementById('editTruckTextSearch').value);
+  var sel=document.getElementById('editTruckSearch');
+  if(!query){
+    // Restore full list when search box is cleared
+    refreshEditRecords();
+    return;
+  }
+  var trucks=[...new Set(S.entries.map(e=>e.truckNo))].sort((a,b)=>{
+    const ea=S.entries.find(x=>x.truckNo===a), eb=S.entries.find(x=>x.truckNo===b);
+    return new Date(eb.entryTime)-new Date(ea.entryTime);
+  });
+  var matches=trucks.filter(function(t){ return normalizeTruckNo(t).indexOf(query)!==-1; });
+  sel.innerHTML='<option value="">-- Select Truck --</option>'+matches.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(matches.length===1){
+    // Auto-select if exactly one match
+    sel.value=matches[0];
+    loadEditRecord();
+  } else if(matches.length===0){
+    document.getElementById('editRecordPanels').innerHTML='<div class="alert alert-info">No truck found matching "'+document.getElementById('editTruckTextSearch').value+'". Check spelling — this searches ALL trucks ever entered, active or exited.</div>';
+  }
 }
 
 function refreshEditRecords(){
