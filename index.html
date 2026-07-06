@@ -12374,14 +12374,15 @@ function loadEditRecord(){
   const panelDiv=document.getElementById('editRecordPanels');
   if(!truck){ panelDiv.innerHTML=''; return; }
 
-  // Show ALL in-yard entries matching this truck number — surfaces accidental duplicates
-  // from double-tapping "Punch Entry" so they can be cleaned up directly.
-  const matchingEntries=S.entries.filter(e=>e.truckNo===truck && !e.exitTime).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
+  // Show ALL entries matching this truck number, active or already exited —
+  // Manager needs to fix mistakes even after a truck has left the yard.
+  const matchingEntries=S.entries.filter(e=>e.truckNo===truck).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
+  const activeCount=matchingEntries.filter(e=>!e.exitTime).length;
 
   let html='';
 
-  if(matchingEntries.length>1){
-    html+=`<div class="alert alert-warn">⚠️ ${matchingEntries.length} active gate entries found for ${truck} — likely a double-tap duplicate. Keep one, delete the rest below.</div>`;
+  if(activeCount>1){
+    html+=`<div class="alert alert-warn">⚠️ ${activeCount} active gate entries found for ${truck} — likely a double-tap duplicate. Keep one, delete the rest below.</div>`;
   }
 
   if(!matchingEntries.length){
@@ -12391,12 +12392,12 @@ function loadEditRecord(){
 
   matchingEntries.forEach((entry,idx)=>{
     const ins=S.inspections.find(i=>i.entryId===entry.id);
-    const isDuplicate=matchingEntries.length>1;
+    const isDuplicate=!entry.exitTime && activeCount>1;
 
     // ── Gate Entry edit panel ──
     html+=`<div class="card" ${isDuplicate?'style="border:1px solid var(--yellow)"':''}>
       <div class="edit-section-head">
-        <span>🔒 Gate Entry — ${entry.truckNo} ${isDuplicate?`<span class="tag tag-yellow">Copy ${idx+1} of ${matchingEntries.length}</span>`:''}</span>
+        <span>🔒 Gate Entry — ${entry.truckNo} ${entry.exitTime?'<span class="tag tag-green">Exited '+new Date(entry.exitTime).toLocaleDateString('en-GB')+'</span>':''} ${isDuplicate?`<span class="tag tag-yellow">Active Copy</span>`:''}</span>
         ${isDuplicate?`<button class="btn btn-danger btn-sm" onclick="deleteDuplicateEntry('${entry.id}')">🗑️ Delete This Copy</button>`:''}
       </div>
       <div class="form-row cols-3">
