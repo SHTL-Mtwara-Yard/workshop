@@ -1997,9 +1997,9 @@ tr:hover td { background: var(--surface2); }
         <table>
           <thead><tr>
             <th>Mechanic</th><th>Dept(s)</th><th>Workshop Jobs Done</th><th>Breakdown Call-outs</th><th>Total Completed</th>
-            <th>Avg Time / Job</th><th>Originally Assigned</th><th>Extra Found (Ground)</th><th>Extra %</th>
+            <th>Avg Time / Job</th><th>Active Hours (Month)</th><th>Originally Assigned</th><th>Extra Found (Ground)</th><th>Extra %</th>
           </tr></thead>
-          <tbody id="mechPerfTable"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr></tbody>
+          <tbody id="mechPerfTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr></tbody>
         </table>
       </div>
       <div class="text-xs text2 mt-12">Avg Time / Job = time from when the mechanic's department ETD was set (T2) to when each of their jobs was marked done. Extra Found % = jobs they completed that were added by Ground Team during repair, as a share of their total — a high % may mean inspection is missing things, not that the mechanic is underperforming.</div>
@@ -11523,6 +11523,21 @@ function refreshMechPerf(){
 
   const names=Object.keys(perf).sort((a,b)=>(perf[b].workshopDone+perf[b].breakdownCount)-(perf[a].workshopDone+perf[a].breakdownCount));
 
+  // Sum total active (Working/Assisting) hours for each mechanic across every day in the month,
+  // reusing the same computeWorkerHours() logic as the Hours Worked report — so both views
+  // always agree with each other.
+  const activeHoursByName={};
+  {
+    const cursor=new Date(mStart);
+    while(cursor<mEnd && cursor<=new Date()){
+      const dStr=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}-${String(cursor.getDate()).padStart(2,'0')}`;
+      computeWorkerHours(dStr).forEach(r=>{
+        activeHoursByName[r.name]=(activeHoursByName[r.name]||0)+r.hours;
+      });
+      cursor.setDate(cursor.getDate()+1);
+    }
+  }
+
   // Fleet-wide stats
   let totalCompleted=0, totalExtra=0, totalTimeHrs=0, totalTimedJobs=0;
   names.forEach(n=>{
@@ -11556,6 +11571,8 @@ function refreshMechPerf(){
             +'>'+bt.truckNo+' ('+dateStr+')'+(bt.recurring?' ⚠️':'')+'</span>';
         }).join('')
       : '—';
+    const activeHrs=activeHoursByName[n]||0;
+    const activeHrsStr=activeHrs>0 ? Math.floor(activeHrs)+'h '+Math.round((activeHrs%1)*60)+'m' : '—';
     return `<tr>
       <td class="fw-700">${n}</td>
       <td>${deptTags}</td>
@@ -11563,6 +11580,7 @@ function refreshMechPerf(){
       <td>${p.breakdownCount||'—'}<br>${breakdownTrucksHtml}</td>
       <td class="fw-700">${p.workshopDone+p.breakdownCount}</td>
       <td>${avgTime}</td>
+      <td>${activeHrsStr}</td>
       <td>${p.originalAssigned}</td>
       <td>${p.extraFound}</td>
       <td style="color:${extraColor};font-weight:700">${totalJobsForPct?extraPct+'%':'—'}</td>
@@ -12216,14 +12234,25 @@ function exportMechPerfCSV(){
     ensure(b.mechanic).breakdownCount++;
   });
 
+  const activeHoursByNameCSV={};
+  {
+    const cursor=new Date(mStart);
+    while(cursor<mEnd && cursor<=new Date()){
+      const dStr=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}-${String(cursor.getDate()).padStart(2,'0')}`;
+      computeWorkerHours(dStr).forEach(r=>{ activeHoursByNameCSV[r.name]=(activeHoursByNameCSV[r.name]||0)+r.hours; });
+      cursor.setDate(cursor.getDate()+1);
+    }
+  }
+
   const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
-  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Time/Job Hrs','Originally Assigned','Extra Found (Ground)','Extra %'];
+  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Time/Job Hrs','Active Hours (Month)','Originally Assigned','Extra Found (Ground)','Extra %'];
   const rows=Object.keys(perf).map(n=>{
     const p=perf[n];
     const totalForPct=p.originalAssigned+p.extraFound;
     const extraPct=totalForPct?Math.round(p.extraFound/totalForPct*100):0;
     const avgTime=p.timedJobs?(p.totalTimeHrs/p.timedJobs).toFixed(2):'';
-    return [n, [...p.depts].map(d=>dLabel[d]).join('/'), p.workshopDone, p.breakdownCount, p.workshopDone+p.breakdownCount, avgTime, p.originalAssigned, p.extraFound, totalForPct?extraPct+'%':''];
+    const activeHrs=(activeHoursByNameCSV[n]||0).toFixed(2);
+    return [n, [...p.depts].map(d=>dLabel[d]).join('/'), p.workshopDone, p.breakdownCount, p.workshopDone+p.breakdownCount, avgTime, activeHrs, p.originalAssigned, p.extraFound, totalForPct?extraPct+'%':''];
   });
   exportCSV('SHTL_MechanicPerformance_'+dateStamp()+'.csv', headers, rows);
 }
