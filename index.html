@@ -11494,13 +11494,31 @@ function refreshMechPerf(){
     });
   });
 
-  // Breakdown call-outs handled, within month
+  // Breakdown call-outs handled, within month — now tracks WHICH trucks, not just a count
   S.breakdowns.forEach(b=>{
     if(!b.mechanic || b.mechanic==='Local Technician') return; // skip unattributed/contracted field help
     const reportedAt=new Date(b.reportedAt);
     if(reportedAt<mStart || reportedAt>=mEnd) return;
     const p=ensure(b.mechanic);
     p.breakdownCount++;
+    if(!p.breakdownTrucks) p.breakdownTrucks=[];
+    p.breakdownTrucks.push({truckNo:b.truckNo||'—', date:reportedAt});
+  });
+
+  // Flag recurring faults: same truck worked on in workshop by this mechanic THIS MONTH,
+  // then later broke down in the field — surfaces possible quality/workmanship issues.
+  Object.keys(perf).forEach(function(n){
+    const p=perf[n];
+    if(!p.breakdownTrucks || !p.breakdownTrucks.length) return;
+    p.breakdownTrucks.forEach(function(bt){
+      const wasWorkedOnByThisMech = S.inspections.some(function(ins){
+        if(ins.truckNo!==bt.truckNo) return false;
+        return ['mech','elec','tyre','weld','pneumatic','suspension'].some(function(d){
+          return ((ins.deptStaff||{})[d])===n;
+        });
+      });
+      bt.recurring = wasWorkedOnByThisMech;
+    });
   });
 
   const names=Object.keys(perf).sort((a,b)=>(perf[b].workshopDone+perf[b].breakdownCount)-(perf[a].workshopDone+perf[a].breakdownCount));
@@ -11529,11 +11547,20 @@ function refreshMechPerf(){
     const avgTime = p.timedJobs ? (p.totalTimeHrs/p.timedJobs).toFixed(1)+'h' : '—';
     const deptTags=[...p.depts].map(d=>`<span class="tag tag-${dC(d)}">${dLabel[d]}</span>`).join(' ')||'—';
     const extraColor = extraPct>=40?'var(--red)':extraPct>=20?'var(--yellow)':'var(--green)';
+    const breakdownTrucksHtml = (p.breakdownTrucks&&p.breakdownTrucks.length)
+      ? p.breakdownTrucks.map(function(bt){
+          var dateStr=bt.date.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+          return '<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;'
+            +(bt.recurring?'background:#fee2e2;color:#dc2626':'background:#f1f5f9;color:#475569')+'"'
+            +(bt.recurring?' title="⚠️ This mechanic worked on '+bt.truckNo+' in the workshop this month — it broke down again in the field"':'')
+            +'>'+bt.truckNo+' ('+dateStr+')'+(bt.recurring?' ⚠️':'')+'</span>';
+        }).join('')
+      : '—';
     return `<tr>
       <td class="fw-700">${n}</td>
       <td>${deptTags}</td>
       <td>${p.workshopDone}</td>
-      <td>${p.breakdownCount||'—'}</td>
+      <td>${p.breakdownCount||'—'}<br>${breakdownTrucksHtml}</td>
       <td class="fw-700">${p.workshopDone+p.breakdownCount}</td>
       <td>${avgTime}</td>
       <td>${p.originalAssigned}</td>
