@@ -1732,6 +1732,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSub('mgr-notify',this)">📨 Notify Supervisor <span class="badge-pill" id="mgrUnreadBadge" style="display:none;margin-left:4px"></span></div>
     <div class="subtab" onclick="showSub('mgr-breakdown',this)">🚨 Daily Breakdown</div>
     <div class="subtab" onclick="showSub('mgr-perf',this)">👤 Mechanic Performance</div>
+    <div class="subtab" onclick="showSub('mgr-staffreport',this)">📋 Individual Staff Report</div>
     <div class="subtab" onclick="showSub('mgr-hours',this)">⏱️ Hours Worked</div>
     <div class="subtab" onclick="showSub('mgr-etd',this)">🎯 ETD Accuracy</div>
     <div class="subtab" onclick="showSub('mgr-incharge',this)">📋 Incharge Requests</div>
@@ -2006,7 +2007,40 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
-  <!-- SUB: HOURS WORKED -->
+  <!-- SUB: INDIVIDUAL STAFF REPORT -->
+  <div class="subpage" id="sub-mgr-staffreport">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#7c3aed"></span>Individual Staff Report — Daily & Month-End</div>
+      <div class="text-xs text2 mb-12">Full history for one person: every job done per day, timing vs their department ETD, and which job types tend to take them longer — useful for coaching conversations.</div>
+      <div class="form-row cols-2">
+        <div>
+          <label>Staff Member</label>
+          <select id="isrStaffSelect" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+            <option value="">-- Select staff --</option>
+          </select>
+        </div>
+        <div>
+          <label>Report Type</label>
+          <select id="isrReportType" onchange="toggleISRDateFields()" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+            <option value="day">📅 Single Day</option>
+            <option value="month">📆 Full Month (Month-End Summary)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div id="isrDayFieldWrap">
+          <label>Date</label>
+          <input type="date" id="isrDate" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+        </div>
+        <div id="isrMonthFieldWrap" style="display:none">
+          <label>Month</label>
+          <input type="month" id="isrMonth" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" style="background:#7c3aed;margin-top:8px" onclick="generateIndividualStaffReport()">📊 Generate Report</button>
+    </div>
+    <div id="isrReportOutput"></div>
+  </div>
   <div class="subpage" id="sub-mgr-hours">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Hours Worked Per Day</div>
@@ -3596,7 +3630,7 @@ function refreshCurrentPage(){
   if(activeSub){
     const subId=activeSub.id.replace('sub-','');
     const subMap={'mgr-jobcards':refreshMgrJobCards,'mgr-timestamp':refreshTimeStamping,
-      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory,'mgr-postpone':refreshPostponePage};
+      'mgr-uptime':refreshUptime,'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,'mgr-staffreport':refreshISRPage,'mgr-hours':refreshHoursReport,'mgr-etd':refreshETDReport,'mgr-incharge':refreshMgrIncharge,'mgr-false':refreshFalseHistory,'mgr-postpone':refreshPostponePage};
     if(subMap[subId]){ try{ subMap[subId](); }catch(e){ console.error('Sub-page refresh failed for '+subId+':',e); } }
   }
 
@@ -3740,6 +3774,7 @@ function showSub(id,el){
   if(id==='mgr-notify')refreshMgrNotify();
   if(id==='mgr-breakdown')refreshBreakdown();
   if(id==='mgr-perf')refreshMechPerf();
+  if(id==='mgr-staffreport')refreshISRPage();
   if(id==='mgr-hours')refreshHoursReport();
   if(id==='mgr-etd')refreshETDReport();
   if(id==='mgr-incharge')refreshMgrIncharge();
@@ -11428,6 +11463,172 @@ function saveSparePartPending(){
   closeModal('sparePartModal');
   refreshMgrJobCards();
   toast('🔩 Part pending saved for '+ins.truckNo+' — will show on next Incharge request','ok');
+}
+
+// ═══ INDIVIDUAL STAFF REPORT ═══
+function refreshISRPage(){
+  var sel=document.getElementById('isrStaffSelect');
+  if(!sel) return;
+  var allNames=[];
+  ATT_SECTIONS.forEach(function(sec){
+    (STAFF[sec.key]||[]).forEach(function(n){ if(n&&n.trim()&&!allNames.includes(n)) allNames.push(n); });
+  });
+  allNames.sort();
+  var current=sel.value;
+  sel.innerHTML='<option value="">-- Select staff --</option>'+allNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  if(current) sel.value=current;
+  var dateEl=document.getElementById('isrDate');
+  if(dateEl&&!dateEl.value){
+    var n=new Date();
+    dateEl.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  }
+  var monthEl=document.getElementById('isrMonth');
+  if(monthEl&&!monthEl.value){
+    var n2=new Date();
+    monthEl.value=n2.getFullYear()+'-'+String(n2.getMonth()+1).padStart(2,'0');
+  }
+}
+
+function toggleISRDateFields(){
+  var type=document.getElementById('isrReportType').value;
+  document.getElementById('isrDayFieldWrap').style.display=type==='day'?'block':'none';
+  document.getElementById('isrMonthFieldWrap').style.display=type==='month'?'block':'none';
+}
+
+// Collects every job this person completed within the given date range, with
+// truck/bay/dept/description/timing detail, using the same T2(ETD-set)->completion
+// timing method already used elsewhere in the app so numbers stay consistent.
+function collectStaffJobs(name, rangeStart, rangeEnd){
+  var rows=[];
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        var key=ins.id+'_'+d+'_'+i;
+        var upd=(S.jobUpdates||{})[key]||{};
+        var isDone=upd.done||j.done;
+        if(!isDone) return;
+        var doneBy=upd.doneBy||(ins.deptStaff||{})[d];
+        if(doneBy!==name) return;
+        var completedDate=upd.date?new Date(upd.date):(ins.t4_qcDone?new Date(ins.t4_qcDone):null);
+        if(!completedDate||completedDate<rangeStart||completedDate>=rangeEnd) return;
+        var etdKey=ins.id+'_'+d;
+        var etdRaw=S.deptETDs[etdKey];
+        var etdDate=null;
+        if(etdRaw){
+          if(typeof etdRaw==='object'&&etdRaw.time&&etdRaw.date) etdDate=new Date(etdRaw.date+' '+etdRaw.time);
+          else if(typeof etdRaw==='string'&&etdRaw.length>5) etdDate=new Date(etdRaw);
+        }
+        var completedFull=upd.date&&upd.time?new Date(upd.date+' '+upd.time):completedDate;
+        var durHrs=(etdDate&&completedFull)?(completedFull-etdDate)/3600000:null;
+        var onTime=(durHrs!==null)?durHrs<=0:null; // completed at/before their own dept ETD
+        rows.push({
+          date:completedDate,
+          truckNo:ins.truckNo,
+          bayNo:ins.bayNo,
+          dept:d,
+          jobDesc:j.desc||j.text||'(no description)',
+          completedTime:upd.time||'',
+          durHrs:durHrs,
+          onTime:onTime
+        });
+      });
+    });
+  });
+  return rows.sort((a,b)=>b.date-a.date);
+}
+
+function generateIndividualStaffReport(){
+  var name=document.getElementById('isrStaffSelect').value;
+  if(!name) return toast('⚠️ Select a staff member first','warn');
+  var type=document.getElementById('isrReportType').value;
+  var rangeStart, rangeEnd, periodLabel;
+  if(type==='day'){
+    var dVal=document.getElementById('isrDate').value;
+    if(!dVal) return toast('⚠️ Select a date','warn');
+    rangeStart=new Date(dVal+'T00:00:00');
+    rangeEnd=new Date(rangeStart); rangeEnd.setDate(rangeEnd.getDate()+1);
+    periodLabel=rangeStart.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  } else {
+    var mVal=document.getElementById('isrMonth').value;
+    if(!mVal) return toast('⚠️ Select a month','warn');
+    var parts=mVal.split('-');
+    rangeStart=new Date(parseInt(parts[0]),parseInt(parts[1])-1,1);
+    rangeEnd=new Date(parseInt(parts[0]),parseInt(parts[1]),1);
+    periodLabel=rangeStart.toLocaleString('en-GB',{month:'long',year:'numeric'});
+  }
+
+  var jobs=collectStaffJobs(name, rangeStart, rangeEnd);
+
+  // Job type breakdown — groups by normalized description, shows which job TYPES
+  // take this person longer than others on average (the core ask: "which kind
+  // of job the person is taking usually more time")
+  var jobTypes={};
+  jobs.forEach(function(r){
+    var key=(r.jobDesc||'').trim().toLowerCase();
+    if(!jobTypes[key]) jobTypes[key]={label:r.jobDesc,count:0,totalHrs:0,timedCount:0};
+    jobTypes[key].count++;
+    if(r.durHrs!==null && r.durHrs>=0 && r.durHrs<200){
+      jobTypes[key].totalHrs+=r.durHrs;
+      jobTypes[key].timedCount++;
+    }
+  });
+  var jobTypeRows=Object.values(jobTypes).map(function(t){
+    return {label:t.label,count:t.count,avgHrs:t.timedCount?t.totalHrs/t.timedCount:null};
+  }).sort(function(a,b){
+    if(a.avgHrs===null) return 1; if(b.avgHrs===null) return -1;
+    return b.avgHrs-a.avgHrs; // slowest job types first — the ones worth discussing
+  });
+
+  var onTimeCount=jobs.filter(function(r){ return r.onTime===true; }).length;
+  var lateCount=jobs.filter(function(r){ return r.onTime===false; }).length;
+  var totalTimed=onTimeCount+lateCount;
+
+  var html='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    +'<div class="card-title" style="margin:0"><span class="dot" style="background:#7c3aed"></span>'+name+' — '+periodLabel+'</div>'
+    +'<button class="btn btn-ghost btn-sm" onclick="printIndividualStaffReport(\''+name.replace(/'/g,"\\'")+'\',\''+periodLabel.replace(/'/g,"\\'")+'\')">🖨️ Print for Handover</button>'
+    +'</div>';
+
+  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0">'
+    +'<div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:900;color:#7c3aed">'+jobs.length+'</div><div style="font-size:11px;color:var(--text2)">Jobs Completed</div></div>'
+    +'<div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:900;color:#15803d">'+onTimeCount+'</div><div style="font-size:11px;color:var(--text2)">On Time (vs own ETD)</div></div>'
+    +'<div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:26px;font-weight:900;color:#dc2626">'+lateCount+'</div><div style="font-size:11px;color:var(--text2)">Late (vs own ETD)</div></div>'
+    +'</div>';
+
+  if(!jobs.length){
+    html+='<div class="alert alert-info">No completed jobs found for '+name+' in this period.</div></div>';
+    document.getElementById('isrReportOutput').innerHTML=html;
+    return;
+  }
+
+  html+='<h4 style="margin:16px 0 8px">📊 Job Type Breakdown — slowest types first</h4>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Job Type</th><th>Times Done</th><th>Avg Time (ETD→Done)</th></tr></thead><tbody>';
+  jobTypeRows.forEach(function(t){
+    var avgStr=t.avgHrs!==null?t.avgHrs.toFixed(1)+'h':'—';
+    var colorFlag=t.avgHrs!==null&&t.avgHrs>2?'color:#dc2626;font-weight:700':'';
+    html+='<tr><td>'+t.label+'</td><td style="text-align:center">'+t.count+'</td><td style="'+colorFlag+'">'+avgStr+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+
+  html+='<h4 style="margin:16px 0 8px">📅 Daily Job Log</h4>'
+    +'<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Bay</th><th>Dept</th><th>Job</th><th>Completed</th><th>vs ETD</th></tr></thead><tbody>';
+  jobs.forEach(function(r){
+    var statusTag=r.onTime===true?'<span class="tag tag-green">✅ On Time</span>':r.onTime===false?'<span class="tag tag-red">⚠️ Late</span>':'—';
+    html+='<tr><td>'+r.date.toLocaleDateString('en-GB')+'</td><td class="fw-700">'+r.truckNo+'</td><td>'+r.bayNo+'</td><td>'+r.dept+'</td><td>'+r.jobDesc+'</td><td>'+r.completedTime+'</td><td>'+statusTag+'</td></tr>';
+  });
+  html+='</tbody></table></div></div>';
+
+  document.getElementById('isrReportOutput').innerHTML=html;
+}
+
+function printIndividualStaffReport(name, periodLabel){
+  var jobs=window._lastISRJobs;
+  var html='<div class="print-header"><h1>SHTL MTWARA WORKSHOP</h1><h2>Individual Staff Report</h2>'
+    +'<p><strong>'+name+'</strong> — '+periodLabel+'</p></div>'
+    +document.getElementById('isrReportOutput').innerHTML;
+  showPrintModal('Staff Report — '+name, html);
 }
 
 function refreshMechPerf(){
