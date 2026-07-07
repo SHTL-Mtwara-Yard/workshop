@@ -12355,13 +12355,14 @@ function exportJobCardsCSV(){
   var headers=['JC#','Date','Truck','Bay','Job Type','Department','Mechanic','Fault','Source','T0 In','T1 ETD Set','T2 Start','T4 QC','Status'];
   var rows=[];
   var idx=0;
-  // Group faults by truck for summary sheet
   var truckMap={};
+  var entriesWithJobRowsCSV=new Set();
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       ((ins.jobs||{})[d]||[]).forEach(function(j,i){
         idx++;
+        if(e) entriesWithJobRowsCSV.add(e.id);
         var key=ins.id+'_'+d+'_'+i;
         var upd=S.jobUpdates[key]||{};
         var isDone=upd.done||j.done;
@@ -12395,6 +12396,47 @@ function exportJobCardsCSV(){
         truckMap[ins.truckNo].faults.push(j.desc);
       });
     });
+  });
+
+  // Merge Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
+  // Greasing) — previously totally absent from this export.
+  var supportTypeLabelsCSV={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing'};
+  (S.supportJobs||[]).forEach(function(sj){
+    idx++;
+    var matchedEntry=S.entries.find(function(x){ return x.truckNo===sj.truckNo; });
+    if(matchedEntry) entriesWithJobRowsCSV.add(matchedEntry.id);
+    var t0sj=sj.startTime?new Date(sj.startTime).toLocaleString('en-GB'):'';
+    var t4sj=sj.endTime?new Date(sj.endTime).toLocaleString('en-GB'):'';
+    rows.push([
+      'JC-'+String(idx).padStart(3,'0'),
+      matchedEntry?new Date(matchedEntry.entryTime).toLocaleDateString('en-GB'):(sj.date||''),
+      sj.truckNo, '—', 'Support', supportTypeLabelsCSV[sj.type]||sj.type, sj.name||'', sj.job||'(no description)',
+      'Support Services', t0sj, '', '', t4sj,
+      sj.status==='done'?'COMPLETE':'PENDING'
+    ]);
+    if(!truckMap[sj.truckNo]){
+      truckMap[sj.truckNo]={truckNo:sj.truckNo, bay:'—', date:matchedEntry?new Date(matchedEntry.entryTime).toLocaleDateString('en-GB'):(sj.date||''), faults:[], jobType:'Support', status:matchedEntry&&matchedEntry.exitTime?'LEFT YARD':'IN YARD'};
+    }
+    truckMap[sj.truckNo].faults.push('[Support] '+(sj.job||''));
+  });
+
+  // Surface any truck still in the yard with ZERO job rows recorded anywhere —
+  // same gap fixed in the on-screen All Job Cards list: an inspection/bay may
+  // exist but with no job descriptions entered yet for any department.
+  S.entries.forEach(function(e){
+    if(e.exitTime) return;
+    if(entriesWithJobRowsCSV.has(e.id)) return;
+    idx++;
+    rows.push([
+      'JC-'+String(idx).padStart(3,'0'),
+      new Date(e.entryTime).toLocaleDateString('en-GB'),
+      e.truckNo, '—', '', '—', '', '⚠️ NO JOBS RECORDED YET — check Supervisor inspection',
+      '—', new Date(e.entryTime).toLocaleString('en-GB'), '', '', '',
+      'PENDING'
+    ]);
+    if(!truckMap[e.truckNo]){
+      truckMap[e.truckNo]={truckNo:e.truckNo, bay:'—', date:new Date(e.entryTime).toLocaleDateString('en-GB'), faults:['⚠️ NO JOBS RECORDED YET'], jobType:'', status:'IN YARD — awaiting job entry'};
+    }
   });
 
   // Build summary rows — one row per truck, faults joined
