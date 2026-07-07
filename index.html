@@ -7532,6 +7532,37 @@ function refreshMgrJobCards(){
     });
   });
 
+  // Surface trucks that entered the yard but have NOT yet had a Supervisor
+  // inspection recorded — these were previously invisible in this list entirely,
+  // with no sign anything was missing, since the loop above only reads S.inspections.
+  // Merge in Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
+  // Greasing) — these live in a separate structure and were previously completely
+  // absent from the master Job Cards list.
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing'};
+  (S.supportJobs||[]).forEach(sj=>{
+    const matchedEntry=S.entries.find(x=>x.truckNo===sj.truckNo);
+    rows.push({
+      ins:{truckNo:sj.truckNo, bayNo:'—', id:'sj_'+sj.id},
+      e:matchedEntry||null,
+      d:supportTypeLabels[sj.type]||sj.type,
+      j:{desc:sj.job||'(no description)', priority:sj.priority||'Normal', doneBy:sj.name},
+      isDone:sj.status==='done',
+      key:'sj_'+sj.id,
+      isSupportJob:true
+    });
+  });
+
+  const inspectedEntryIds=new Set(S.inspections.map(ins=>ins.entryId));
+  S.entries.forEach(e=>{
+    if(inspectedEntryIds.has(e.id)) return;
+    rows.push({
+      ins:{truckNo:e.truckNo, bayNo:'—', id:'noins_'+e.id},
+      e, d:'—',
+      j:{desc:'⚠️ AWAITING SUPERVISOR INSPECTION', priority:'—'},
+      isDone:false, key:'noins_'+e.id, noInspection:true
+    });
+  });
+
   // filter
   rows=rows.filter(r=>{
     if(search){
