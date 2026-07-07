@@ -7520,6 +7520,7 @@ function refreshMgrJobCards(){
   const teamF=document.getElementById('mgrTeamFilter').value;
 
   let rows=[];
+  const entriesWithJobRows=new Set(); // tracks entry.id for any truck that got at least 1 real job row
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
@@ -7528,13 +7529,11 @@ function refreshMgrJobCards(){
         const upd=S.jobUpdates[key]||{};
         const isDone=upd.done||j.done;
         rows.push({ins,e,d,j,isDone,key});
+        if(e) entriesWithJobRows.add(e.id);
       });
     });
   });
 
-  // Surface trucks that entered the yard but have NOT yet had a Supervisor
-  // inspection recorded — these were previously invisible in this list entirely,
-  // with no sign anything was missing, since the loop above only reads S.inspections.
   // Merge in Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
   // Greasing) — these live in a separate structure and were previously completely
   // absent from the master Job Cards list.
@@ -7550,15 +7549,21 @@ function refreshMgrJobCards(){
       key:'sj_'+sj.id,
       isSupportJob:true
     });
+    if(matchedEntry) entriesWithJobRows.add(matchedEntry.id);
   });
 
-  const inspectedEntryIds=new Set(S.inspections.map(ins=>ins.entryId));
+  // Surface ANY truck still in the yard that has ZERO job rows anywhere — whether
+  // that's because Supervisor hasn't inspected it at all yet, OR an inspection/bay
+  // exists but no job descriptions have been entered for any department yet, OR
+  // its only jobs are logged types this loop doesn't cover. This was the exact gap:
+  // trucks with an inspection record but an empty job list were still invisible.
   S.entries.forEach(e=>{
-    if(inspectedEntryIds.has(e.id)) return;
+    if(e.exitTime) return; // already gone — no need to flag as awaiting inspection
+    if(entriesWithJobRows.has(e.id)) return;
     rows.push({
       ins:{truckNo:e.truckNo, bayNo:'—', id:'noins_'+e.id},
       e, d:'—',
-      j:{desc:'⚠️ AWAITING SUPERVISOR INSPECTION', priority:'—'},
+      j:{desc:'⚠️ NO JOBS RECORDED YET — check Supervisor inspection', priority:'—'},
       isDone:false, key:'noins_'+e.id, noInspection:true
     });
   });
