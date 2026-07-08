@@ -12640,10 +12640,16 @@ function exportJobCardsCSV(){
           t0, t1, t2, t4,
           isDone?'COMPLETE':'PENDING'
         ]);
-        // accumulate for summary
-        if(!truckMap[ins.truckNo]){
-          var exitTime=e?e.exitTime:null;
-          // ETD: use earliest dept ETD set, fallback to t1_allocated
+        // accumulate for summary — the ACTIVE (in-yard) visit must always win over
+        // any older exited visit of the same truck. Previously first-found won,
+        // which hid long-stay accidental trucks behind their old LEFT YARD records.
+        var exitTime=e?e.exitTime:null;
+        var entryTimeMs=e?new Date(e.entryTime).getTime():0;
+        var existing=truckMap[ins.truckNo];
+        var shouldReplace=!existing
+          || (existing._exited && !exitTime)                                   // active beats exited
+          || (existing._exited===!!exitTime && entryTimeMs>existing._entryMs); // same state: newer wins
+        if(shouldReplace){
           var etdVal='';
           ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(dd){
             var dk=S.deptETDs[ins.id+'_'+dd];
@@ -12651,7 +12657,8 @@ function exportJobCardsCSV(){
           });
           if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
           var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
-          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:[], jobType:ins.jobType||'', status:statusStr};
+          var prevFaults=existing?existing.faults:[];
+          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
         }
         truckMap[ins.truckNo].faults.push(j.desc);
       });
@@ -12663,7 +12670,8 @@ function exportJobCardsCSV(){
   var supportTypeLabelsCSV={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing'};
   (S.supportJobs||[]).forEach(function(sj){
     idx++;
-    var matchedEntry=S.entries.find(function(x){ return x.truckNo===sj.truckNo; });
+    var matchedEntry=S.entries.find(function(x){ return x.truckNo===sj.truckNo && !x.exitTime; })
+      || S.entries.find(function(x){ return x.truckNo===sj.truckNo; });
     if(matchedEntry) entriesWithJobRowsCSV.add(matchedEntry.id);
     var t0sj=sj.startTime?new Date(sj.startTime).toLocaleString('en-GB'):'';
     var t4sj=sj.endTime?new Date(sj.endTime).toLocaleString('en-GB'):'';
