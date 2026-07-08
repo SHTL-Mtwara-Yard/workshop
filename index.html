@@ -1249,10 +1249,12 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- SUB-TAB NAV -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--surface3);border-radius:var(--radius2);padding:4px;margin-bottom:14px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;background:var(--surface3);border-radius:var(--radius2);padding:4px;margin-bottom:14px">
     <button class="sup-subtab active" id="supTab-inspect" onclick="showSupTab('inspect',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:var(--surface);border:1px solid var(--border)">
       <i class="ti ti-clipboard-check" aria-hidden="true" style="font-size:18px"></i>Inspect
     </button>
+    <button class="sup-subtab" id="supTab-checkin" onclick="showSupTab('checkin',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:transparent;color:var(--text2)">
+      <i class="ti ti-camera" aria-hidden="true" style="font-size:18px"></i>Check-In</button>
     <button class="sup-subtab" id="supTab-baymonitor" onclick="showSupTab('baymonitor',this)" style="padding:9px 4px;border-radius:var(--radius);border:none;cursor:pointer;font-size:12px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .15s;background:transparent;color:var(--text2)">
       <i class="ti ti-layout-grid" aria-hidden="true" style="font-size:18px"></i>Bay Monitor
     </button>
@@ -1263,6 +1265,51 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <!-- SUB: INSPECT -->
+  <!-- SUB-PAGE: MORNING CHECK-IN -->
+  <div class="sup-subpage" id="supsub-checkin">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#16a34a"></span>Morning Check-In — Face Verified Attendance</div>
+      <div class="text-xs text2 mb-12">Open 08:00–09:00 only. Staff selects their name, camera shows their live face on screen, and attendance marks Present automatically. Supervisor watches the screen — any face/name mismatch is visible immediately. After 09:00 the window locks; late arrivals must be logged manually below with a reason.</div>
+      <div id="checkinWindowStatus"></div>
+      <div id="checkinMainArea" style="display:none">
+        <div class="form-row cols-2">
+          <div>
+            <label>👤 Select Your Name</label>
+            <select id="checkinStaffSelect" style="width:100%;padding:10px;border-radius:var(--radius);border:2px solid #16a34a;background:var(--surface3);color:var(--text1);font-size:15px;font-weight:700">
+              <option value="">-- Select your name --</option>
+            </select>
+            <button class="btn btn-primary btn-block" style="background:#16a34a;margin-top:10px;font-size:16px;padding:14px" onclick="doFaceCheckIn()">✅ CHECK IN — NIPO / I AM PRESENT</button>
+          </div>
+          <div>
+            <label>📷 Live Camera — face must be visible</label>
+            <video id="checkinVideo" autoplay playsinline muted style="width:100%;max-height:260px;border-radius:12px;background:#111;border:3px solid #16a34a;object-fit:cover"></video>
+          </div>
+        </div>
+        <div id="checkinConfirmBanner"></div>
+      </div>
+      <div id="checkinLateArea" style="display:none">
+        <div class="alert alert-warn">🔒 Check-in window is closed (after 09:00). Late arrivals must be logged by Supervisor below — clearly marked as LATE with reason.</div>
+        <div class="form-row cols-2">
+          <div>
+            <label>👤 Late Staff Name</label>
+            <select id="checkinLateStaffSelect" style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1)">
+              <option value="">-- Select staff --</option>
+            </select>
+          </div>
+          <div>
+            <label>📝 Reason for Late Arrival</label>
+            <input type="text" id="checkinLateReason" placeholder="e.g. Hospital visit, transport problem..." style="width:100%;padding:9px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);box-sizing:border-box">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" style="background:#d97706;margin-top:10px" onclick="logLateArrival()">⚠️ Log Late Arrival (Supervisor)</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#16a34a"></span>Checked In Today <span id="checkinTodayCount" style="margin-left:8px;font-size:13px;color:var(--text2)"></span></div>
+      <div id="checkinTodayList" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
+  </div>
+
   <div class="sup-subpage active" id="supsub-inspect">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Truck Inspection Entry</div>
@@ -9456,6 +9503,165 @@ function exportPostponeCSV(){
 // SUPPORT SERVICES
 // ═══════════════════════════════════════════════
 
+// ═══ MORNING CHECK-IN — FACE VERIFIED ATTENDANCE ═══
+var _checkinStream=null;
+
+function isCheckinWindowOpen(){
+  var now=new Date();
+  var mins=now.getHours()*60+now.getMinutes();
+  return mins>=480 && mins<540; // 08:00–09:00
+}
+
+function refreshCheckInPanel(){
+  try{
+    var open=isCheckinWindowOpen();
+    var statusEl=document.getElementById('checkinWindowStatus');
+    var mainEl=document.getElementById('checkinMainArea');
+    var lateEl=document.getElementById('checkinLateArea');
+    if(open){
+      statusEl.innerHTML='<div class="alert" style="background:#dcfce7;border:1px solid #16a34a;color:#14532d;font-weight:700">🟢 CHECK-IN OPEN — closes at 09:00</div>';
+      mainEl.style.display='block';
+      lateEl.style.display='none';
+      startCheckinCamera();
+    } else {
+      var now=new Date();
+      var beforeWindow=(now.getHours()*60+now.getMinutes())<480;
+      statusEl.innerHTML='<div class="alert alert-warn" style="font-weight:700">🔒 CHECK-IN '+(beforeWindow?'NOT YET OPEN — opens at 08:00':'CLOSED — was open 08:00–09:00')+'</div>';
+      mainEl.style.display='none';
+      lateEl.style.display=beforeWindow?'none':'block';
+      stopCheckinCamera();
+    }
+    // Populate both dropdowns from full roster
+    var allNames=[];
+    ATT_SECTIONS.forEach(function(sec){
+      (STAFF[sec.key]||[]).forEach(function(n){ if(n&&n.trim()&&!allNames.includes(n)) allNames.push(n); });
+    });
+    allNames.sort();
+    ['checkinStaffSelect','checkinLateStaffSelect'].forEach(function(id){
+      var sel=document.getElementById(id);
+      if(sel){
+        var cur=sel.value;
+        sel.innerHTML='<option value="">-- Select --</option>'+allNames.map(function(n){return '<option value="'+n+'">'+n+'</option>';}).join('');
+        if(cur) sel.value=cur;
+      }
+    });
+    renderCheckinTodayList();
+  }catch(e){ console.error('refreshCheckInPanel failed:',e); }
+}
+
+function startCheckinCamera(){
+  var video=document.getElementById('checkinVideo');
+  if(!video || _checkinStream) return;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast('⚠️ Camera not supported on this browser','warn');
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false})
+    .then(function(stream){ _checkinStream=stream; video.srcObject=stream; })
+    .catch(function(err){ toast('⚠️ Camera access denied or unavailable: '+err.name,'warn'); });
+}
+
+function stopCheckinCamera(){
+  if(_checkinStream){
+    _checkinStream.getTracks().forEach(function(t){ t.stop(); });
+    _checkinStream=null;
+    var video=document.getElementById('checkinVideo');
+    if(video) video.srcObject=null;
+  }
+}
+
+function doFaceCheckIn(){
+  if(!isCheckinWindowOpen()){ refreshCheckInPanel(); return toast('🔒 Check-in window is closed','warn'); }
+  var name=document.getElementById('checkinStaffSelect').value;
+  if(!name) return toast('⚠️ Select your name first','warn');
+  if(!_checkinStream) return toast('⚠️ Camera is not active — check-in requires your face visible on screen','warn');
+
+  var now=new Date();
+  var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var endMonth = now.getDate()>=26 ? new Date(now.getFullYear(), now.getMonth()+1, 1) : now;
+  var k = endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
+  if(!S.attendance) S.attendance={};
+  if(!S.attendance[k]) S.attendance[k]={};
+  var attData=S.attendance[k];
+  var nk=safeKey(name);
+  if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
+  if(!attData[nk].days) attData[nk].days={};
+
+  if(attData[nk].days[todayKey]){
+    document.getElementById('checkinConfirmBanner').innerHTML='<div class="alert alert-warn" style="margin-top:10px">⚠️ '+name+' is already marked ('+attData[nk].days[todayKey]+') for today.</div>';
+    return;
+  }
+
+  attData[nk].days[todayKey]='P';
+  if(!attData[nk].remarks) attData[nk].remarks={};
+  attData[nk].remarks[todayKey]='Face check-in '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  save();
+
+  document.getElementById('checkinConfirmBanner').innerHTML='<div class="alert" style="background:#dcfce7;border:2px solid #16a34a;color:#14532d;font-weight:800;font-size:16px;margin-top:10px;text-align:center">✅ '+name+' — PRESENT at '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · KARIBU KAZINI!</div>';
+  document.getElementById('checkinStaffSelect').value='';
+  renderCheckinTodayList();
+  toast('✅ '+name+' checked in','ok');
+  setTimeout(function(){ var b=document.getElementById('checkinConfirmBanner'); if(b) b.innerHTML=''; }, 5000);
+}
+
+function logLateArrival(){
+  var name=document.getElementById('checkinLateStaffSelect').value;
+  if(!name) return toast('⚠️ Select staff name','warn');
+  var reason=(document.getElementById('checkinLateReason').value||'').trim();
+  if(!reason) return toast('⚠️ Reason is required for late arrivals','warn');
+
+  var now=new Date();
+  var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var endMonth = now.getDate()>=26 ? new Date(now.getFullYear(), now.getMonth()+1, 1) : now;
+  var k = endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
+  if(!S.attendance) S.attendance={};
+  if(!S.attendance[k]) S.attendance[k]={};
+  var attData=S.attendance[k];
+  var nk=safeKey(name);
+  if(!attData[nk]) attData[nk]={off:'',days:{},remarks:{},name:name};
+  if(!attData[nk].days) attData[nk].days={};
+  if(!attData[nk].remarks) attData[nk].remarks={};
+
+  if(attData[nk].days[todayKey]){
+    return toast('⚠️ '+name+' already has an entry today ('+attData[nk].days[todayKey]+')','warn');
+  }
+
+  attData[nk].days[todayKey]='P';
+  attData[nk].remarks[todayKey]='⚠️ LATE ARRIVAL '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' — '+reason+' (logged by Supervisor)';
+  save();
+  document.getElementById('checkinLateStaffSelect').value='';
+  document.getElementById('checkinLateReason').value='';
+  renderCheckinTodayList();
+  toast('⚠️ '+name+' logged as LATE arrival','ok');
+}
+
+function renderCheckinTodayList(){
+  var listEl=document.getElementById('checkinTodayList');
+  var countEl=document.getElementById('checkinTodayCount');
+  if(!listEl) return;
+  var now=new Date();
+  var todayKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var endMonth = now.getDate()>=26 ? new Date(now.getFullYear(), now.getMonth()+1, 1) : now;
+  var k = endMonth.getFullYear()+'-'+String(endMonth.getMonth()+1).padStart(2,'0');
+  var attData=(S.attendance&&S.attendance[k])||{};
+  var items=[];
+  Object.keys(attData).forEach(function(nk){
+    var rec=attData[nk];
+    if(rec&&rec.days&&rec.days[todayKey]){
+      var remark=(rec.remarks||{})[todayKey]||'';
+      var isLate=remark.indexOf('LATE')!==-1;
+      items.push({name:rec.name||nk, status:rec.days[todayKey], late:isLate});
+    }
+  });
+  countEl.textContent='('+items.length+')';
+  if(!items.length){ listEl.innerHTML='<span class="text2 text-xs">No one checked in yet today.</span>'; return; }
+  listEl.innerHTML=items.map(function(it){
+    return '<span style="padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;'
+      +(it.late?'background:#fef3c7;color:#92400e':'background:#dcfce7;color:#14532d')+'">'
+      +(it.late?'⚠️ ':'✅ ')+it.name+'</span>';
+  }).join('');
+}
+
 function showSupTab(tab, btn){
   document.querySelectorAll('.sup-subpage').forEach(el=>el.classList.remove('active'));
   document.getElementById('supsub-'+tab).classList.add('active');
@@ -9471,6 +9677,7 @@ function showSupTab(tab, btn){
   }
   if(tab==='baymonitor'){ refreshSupBayTable(); refreshSupParking(); }
   if(tab==='alerts'){ refreshSupNotify(); }
+  if(tab==='checkin'){ refreshCheckInPanel(); }
 }
 
 function showSupportSub(id,btn){
