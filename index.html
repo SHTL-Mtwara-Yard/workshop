@@ -4221,6 +4221,43 @@ function checkAptLastVisit(){
   }
 }
 
+// Handlers for the duplicate-appointment resolution modal:
+// Re-raise = update the EXISTING pending request with the newly entered visit time.
+function dupAptReraise(aptId){
+  var apt=(S.appointments||[]).find(function(a){ return a.id===aptId; });
+  if(!apt){ toast('⚠️ Existing request not found','warn'); document.getElementById('dupAptModal').remove(); return; }
+  var visit=document.getElementById('iat_visit').value;
+  if(visit) apt.plannedVisit=visit;
+  var dn=document.getElementById('iat_driverName').value.trim();
+  var dm=document.getElementById('iat_driverMobile').value.trim();
+  if(dn) apt.driverName=dn;
+  if(dm) apt.driverMobile=dm;
+  var comp=document.getElementById('iat_complaints').value.trim();
+  if(comp) apt.complaints=comp;
+  apt.reraisedAt=new Date().toISOString();
+  save();
+  document.getElementById('dupAptModal').remove();
+  ['iat_truckNo','iat_driverName','iat_driverMobile','iat_complaints','iat_visit'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  refreshInchargePage();
+  toast('🔄 Existing request for '+apt.truckNo+' updated (re-raised) with new details','ok');
+}
+
+// Close = mark the existing request closed, then immediately submit the new one.
+function dupAptClose(aptId){
+  var apt=(S.appointments||[]).find(function(a){ return a.id===aptId; });
+  if(apt){
+    apt.status='closed';
+    apt.closedAt=new Date().toISOString();
+    apt.closedReason='Closed by Incharge — replaced with new request';
+    save();
+  }
+  document.getElementById('dupAptModal').remove();
+  toast('❌ Old request closed — submitting your new one...','info');
+  setTimeout(function(){ submitAppointment(); }, 300); // duplicate is now closed, resubmit proceeds
+}
+
 function submitAppointment(){
   const who=document.getElementById('inchargeName').value;
   if(!who) return toast('⚠️ Select your name first','warn');
@@ -4245,7 +4282,23 @@ function submitAppointment(){
   if(duplicate){
     const visitStr=new Date(duplicate.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
     const submitter=duplicate.submittedBy===who?'you':(duplicate.submittedBy||'another Incharge');
-    return toast(`⚠️ ${tn} already has a pending request (planned: ${visitStr}, submitted by ${submitter}). Close or Re-raise that one first.`,'warn');
+    // Show actionable modal instead of dead-end warning — Incharge can resolve
+    // the existing request right here instead of hunting through the queue.
+    var existingModal=document.getElementById('dupAptModal');
+    if(existingModal) existingModal.remove();
+    var modal=document.createElement('div');
+    modal.id='dupAptModal';
+    modal.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+      +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">⚠️ '+tn+' already has a pending request</div>'
+      +'<div style="font-size:13px;color:#374151;margin-bottom:16px">Planned: <strong>'+visitStr+'</strong> · Submitted by <strong>'+submitter+'</strong><br><br>What do you want to do with the existing request?</div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">'
+      +'<button onclick="dupAptReraise('+duplicate.id+')" style="background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:700;font-size:14px;cursor:pointer">🔄 Re-raise Existing Request (update visit time to my new one)</button>'
+      +'<button onclick="dupAptClose('+duplicate.id+')" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:700;font-size:14px;cursor:pointer">❌ Close Existing & Submit My New Request</button>'
+      +'<button onclick="document.getElementById(\'dupAptModal\').remove()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:10px;font-weight:600;font-size:13px;cursor:pointer">Cancel — leave everything as is</button>'
+      +'</div></div>';
+    document.body.appendChild(modal);
+    return;
   }
 
   // Generate serial reference number MTW-YYYYMMDD-XXX
