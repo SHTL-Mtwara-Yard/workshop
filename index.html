@@ -12891,21 +12891,13 @@ function dateStamp(){
 
 // ═══ EXPORT: ALL JOB CARDS ═══
 function exportJobCardsCSV(){
-  // Create workbook with multiple sheets
-  const wb = XLSX.utils.book_new();
-  
-  // ═══ SHEET 1: JOB CARDS DETAIL ═══
   var headers=['JC#','Date','Truck','Bay','Job Type','Department','Mechanic','Fault','Source','T0 In','T1 ETD Set','T2 Start','T4 QC','Status'];
   var rows=[];
   var idx=0;
   var truckMap={};
   var entriesWithJobRowsCSV=new Set();
-  
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
-    var displayTruck = (e && e.truckNo) || ins.truckNo || '—';
-    var displayBay = ins.bayNo || '—';
-    
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
       ((ins.jobs||{})[d]||[]).forEach(function(j,i){
         idx++;
@@ -12922,89 +12914,35 @@ function exportJobCardsCSV(){
         rows.push([
           'JC-'+String(idx).padStart(3,'0'),
           e?new Date(e.entryTime).toLocaleDateString('en-GB'):'',
-          displayTruck, displayBay, ins.jobType||'', dLabel, mechanic, j.desc,
+          ins.truckNo, ins.bayNo, ins.jobType||'', dLabel, mechanic, j.desc,
           j.addedBy==='Ground Team'?'Ground':'Inspection',
           t0, t1, t2, t4,
           isDone?'COMPLETE':'PENDING'
         ]);
+        // accumulate for summary — the ACTIVE (in-yard) visit must always win over
+        // any older exited visit of the same truck. Previously first-found won,
+        // which hid long-stay accidental trucks behind their old LEFT YARD records.
+        var exitTime=e?e.exitTime:null;
+        var entryTimeMs=e?new Date(e.entryTime).getTime():0;
+        var existing=truckMap[ins.truckNo];
+        var shouldReplace=!existing
+          || (existing._exited && !exitTime)                                   // active beats exited
+          || (existing._exited===!!exitTime && entryTimeMs>existing._entryMs); // same state: newer wins
+        if(shouldReplace){
+          var etdVal='';
+          ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(dd){
+            var dk=S.deptETDs[ins.id+'_'+dd];
+            if(dk && (!etdVal || new Date(dk)>new Date(etdVal))) etdVal=dk;
+          });
+          if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
+          var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
+          var prevFaults=existing?existing.faults:[];
+          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
+        }
+        truckMap[ins.truckNo].faults.push(j.desc);
       });
     });
   });
-  
-  const ws1 = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  XLSX.utils.book_append_sheet(wb, ws1, "Job Cards Detail");
-  
-  // ═══ SHEET 2: TODAY'S EXIT REPORT ═══
-  const today = new Date().toDateString();
-  const todayExits = S.entries.filter(e => e.exitTime && new Date(e.exitTime).toDateString() === today);
-  const exitHeaders = ['Truck','Bay','Status','Jobs Done','Jobs Remaining','Exit Time','Remarks'];
-  const exitRows = todayExits.map(e => {
-    const ins = S.inspections.find(i => i.entryId === e.id);
-    const status = ins && Object.values(ins.jobs || {}).every(j => j.every(jb => jb.done)) ? 'COMPLETED' : 'PENDING';
-    const bayNo = ins ? (ins.bayNo || '—') : '—';
-    const jobsDone = ins ? Object.values(ins.jobs || {}).reduce((sum, j) => sum + j.filter(jb => jb.done).length, 0) : 0;
-    const jobsTotal = ins ? Object.values(ins.jobs || {}).reduce((sum, j) => sum + j.length, 0) : 0;
-    const jobsRemaining = jobsTotal - jobsDone;
-    return [
-      e.truckNo,
-      bayNo,
-      status,
-      jobsDone,
-      jobsRemaining,
-      new Date(e.exitTime).toLocaleString('en-GB'),
-      ins?.supervisorRemark || '—'
-    ];
-  });
-  
-  const ws2 = XLSX.utils.aoa_to_sheet([exitHeaders, ...exitRows]);
-  XLSX.utils.book_append_sheet(wb, ws2, "Today's Exit Report");
-  
-  // ═══ SHEET 3: BY TRUCK SUMMARY ═══
-  const summaryHeaders = ['Truck','Bay','Date','Job Type','Status','Faults'];
-  const summaryRows = Object.values(truckMap).map(t => [
-    t.truckNo,
-    t.bay,
-    t.date,
-    t.jobType,
-    t.status,
-    t.faults.join('; ')
-  ]);
-  
-  const ws3 = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
-  XLSX.utils.book_append_sheet(wb, ws3, "By Truck Summary");
-  
-  // ═══ SHEET 4: TIME STAMPING ═══
-  const tsHeaders=['Truck','Bay','T0 (In)','T1 (Alloc)','T2 (ETD Set)','T4 (QC Done)','T5 (Out)','Total Hrs','SLA'];
-  const tsRows=[];
-  S.inspections.forEach(ins=>{
-    const e=S.entries.find(x=>x.id==ins.entryId);
-    if(!e)return;
-    const t0=new Date(e.entryTime);
-    const t1=ins.t1_allocated?new Date(ins.t1_allocated):null;
-    const t4=ins.t4_qcDone?new Date(ins.t4_qcDone):null;
-    const t5=e.exitTime?new Date(e.exitTime):null;
-    const t5t0=t5?((t5-t0)/3600000).toFixed(2):'';
-    const slaTarget=6;
-    const slaMet=t5?(((t5-t0)/3600000)<=slaTarget?'MET':'MISSED'):'';
-    const displayBay = ins.bayNo || '—';
-    tsRows.push([
-      ins.truckNo, displayBay,
-      t0.toLocaleString('en-GB'),
-      t1?t1.toLocaleString('en-GB'):'',
-      ins.t2_etdSet?new Date(ins.t2_etdSet).toLocaleString('en-GB'):'',
-      t4?t4.toLocaleString('en-GB'):'',
-      t5?t5.toLocaleString('en-GB'):'',
-      t5t0, slaMet
-    ]);
-  });
-  
-  const ws4 = XLSX.utils.aoa_to_sheet([tsHeaders, ...tsRows]);
-  XLSX.utils.book_append_sheet(wb, ws4, "Time Stamping");
-  
-  // Download as single XLSX file
-  XLSX.writeFile(wb, 'SHTL_JobCards_'+dateStamp()+'.xlsx');
-  toast('📥 Exported to SHTL_JobCards_'+dateStamp()+'.xlsx','ok');
-}
 
   // Merge Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
   // Greasing) — previously totally absent from this export.
