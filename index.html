@@ -5215,32 +5215,42 @@ function sendSecurityAlert(){
 
 function refreshSecurityLog(){
   const today=new Date().toDateString();
-  const rows=S.entries.filter(e=>
-    new Date(e.entryTime).toDateString()===today ||
-    (e.exitTime && new Date(e.exitTime).toDateString()===today)
-  ).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
+  const rows=S.entries.filter(e=>{
+    if(!e.exitTime) return true; // ANY truck still in the yard always shows, regardless
+                                   // of its entry-date value — protects against dates that
+                                   // got recorded oddly (bad clock, manual entry, etc.)
+                                   // silently hiding an active truck like T250 EHF.
+    const entryValid=e.entryTime && new Date(e.entryTime).toDateString()===today;
+    const exitToday=e.exitTime && new Date(e.exitTime).toDateString()===today;
+    return entryValid || exitToday;
+  }).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
   const tb=document.getElementById('securityLog');
   if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr>';return;}
   tb.innerHTML=rows.map((e,i)=>{
-    const inT=new Date(e.entryTime);
-    const outT=e.exitTime?new Date(e.exitTime):null;
-    const dur=outT?Math.round((outT-inT)/60000)+'m':'—';
-    const dTags=e.depts.map(d=>`<span class="tag tag-${dC(d)}">${dL(d)}</span>`).join(' ');
-    let statusTag = outT ? '<span class="tag tag-green">IN YARD</span>'.replace('IN YARD','EXITED') : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
-    const invTag = (e.missingItems&&e.missingItems.length) ? `<span class="tag tag-red" title="${e.missingItems.map(m=>m.item+': '+m.qtyPresent).join(', ')}">⚠️ ${e.missingItems.length} short</span>` : '<span class="tag tag-green">OK</span>';
-    const apt=(S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && a.refNo; });
-    const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
-    return `<tr>
-      <td>${i+1}</td>
-      <td class="fw-700">${e.truckNo}${refTag}</td>
-      <td><span class="tag tag-blue">${e.origin}</span></td>
-      <td>${dTags||'—'}</td>
-      <td>${e.fuel}L</td>
-      <td>${invTag}</td>
-      <td>${inT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
-      <td>${outT?outT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):statusTag}</td>
-      <td>${dur}</td>
-    </tr>`;
+    try{
+      const inT=new Date(e.entryTime);
+      const outT=e.exitTime?new Date(e.exitTime):null;
+      const dur=outT?Math.round((outT-inT)/60000)+'m':'—';
+      const dTags=(e.depts||[]).map(d=>`<span class="tag tag-${dC(d)}">${dL(d)}</span>`).join(' ');
+      let statusTag = outT ? '<span class="tag tag-green">EXITED</span>' : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
+      const invTag = (e.missingItems&&e.missingItems.length) ? `<span class="tag tag-red" title="${e.missingItems.map(m=>m.item+': '+m.qtyPresent).join(', ')}">⚠️ ${e.missingItems.length} short</span>` : '<span class="tag tag-green">OK</span>';
+      const apt=(S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && a.refNo; });
+      const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
+      return `<tr>
+        <td>${i+1}</td>
+        <td class="fw-700">${e.truckNo||'—'}${refTag}</td>
+        <td><span class="tag tag-blue">${e.origin||'—'}</span></td>
+        <td>${dTags||'—'}</td>
+        <td>${e.fuel||0}L</td>
+        <td>${invTag}</td>
+        <td>${isNaN(inT)?'—':inT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${outT?outT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):statusTag}</td>
+        <td>${dur}</td>
+      </tr>`;
+    }catch(err){
+      console.error('Security log row failed for entry', e, err);
+      return `<tr><td colspan="9" style="color:#dc2626;font-size:11px;padding:6px">⚠️ Entry for ${e.truckNo||'unknown truck'} failed to display — check Manager → Edit Records</td></tr>`;
+    }
   }).join('');
 }
 
