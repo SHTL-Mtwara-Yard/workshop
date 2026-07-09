@@ -5041,6 +5041,8 @@ function refreshSecurityPanel(){
     parkingCount.textContent = parked.length;
     parkingList.innerHTML = parked.map(ins => {
       const e = S.entries.find(x => x.id === ins.entryId);
+      // Always use entry's truck number, not inspection's
+      const displayTruck = (e && e.truckNo) || ins.truckNo || '—';
       const remark = ins.supervisorRemark;
       const cleared = e && e.parkStatus === 'cleared';
       const hasAlert = (S.securityAlerts||[]).some(a => a.insId == ins.id && !a.acknowledgedAt);
@@ -5049,7 +5051,7 @@ function refreshSecurityPanel(){
       return `<div style="border:1px solid var(--border);border-radius:var(--radius2);padding:12px 14px;margin-bottom:8px;${bg}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px">
           <div>
-            <span style="font-size:16px;font-weight:700">${ins.truckNo}</span>
+            <span style="font-size:16px;font-weight:700">${displayTruck}</span>
             <span class="tag tag-orange" style="margin-left:6px;font-size:10px">🅿️ Parking</span>
             ${cleared?'<span class="tag tag-green" style="margin-left:4px;font-size:10px">✅ Ready</span>':''}
           </div>
@@ -5077,6 +5079,8 @@ function refreshSecurityPanel(){
     baySection.style.display = 'block';
     bayList.innerHTML = allActive.map(ins => {
       const e = S.entries.find(x => x.id === ins.entryId);
+      // Always use entry's truck number, not inspection's (prevents stale/wrong truckNo in inspections)
+      const displayTruck = (e && e.truckNo) || ins.truckNo || '—';
       const etdDate = ins.etd ? new Date(ins.etd) : null;
       const mLeft = etdDate ? Math.round((etdDate - now)/60000) : null;
       const timeTag = mLeft===null ? '<span class="tag tag-yellow" style="font-size:10px">⏳ Awaiting inspection</span>' :
@@ -5085,7 +5089,7 @@ function refreshSecurityPanel(){
         `<span class="tag tag-green" style="font-size:10px">${Math.floor(mLeft/60)}h ${mLeft%60}m</span>`;
       const depts = ins.jobs ? Object.entries(ins.jobs||{}).filter(([d,j])=>j.length).map(([d])=>dL(d)).join('+') : (e&&e.depts?e.depts.map(d=>dL(d)).join('+'):'—');
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <span style="font-weight:700;min-width:90px">${ins.truckNo}</span>
+        <span style="font-weight:700;min-width:90px">${displayTruck}</span>
         ${ins.bayNo!=='—'?`<span class="tag tag-blue" style="font-size:10px">${ins.bayNo}</span>`:''}
         <span style="font-size:12px;color:var(--text2)">${depts}</span>
         ${etdDate?`<span style="font-size:12px;font-family:monospace;font-weight:600">${formatETD24h(ins.etd)}</span>`:''}
