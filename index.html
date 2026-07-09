@@ -6318,6 +6318,25 @@ function renderBayGrid(){
   var teamBBays=['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
   var currentBay=_selectedGridBay||'';
 
+  // Build priority order: rank every occupied bay by its truck's overall ETD
+  // (the LONGEST department ETD, matching the confirmed rule that truck ETD =
+  // the last department to finish), soonest ETD = highest priority = #1.
+  var activeIns=S.inspections.filter(function(i){
+    var e=S.entries.find(function(x){ return x.id==i.entryId && !x.exitTime; });
+    return e && !i.parked;
+  });
+  activeIns.forEach(function(ins){
+    var etdVal=null;
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(dd){
+      var dk=S.deptETDs[ins.id+'_'+dd];
+      if(dk && (!etdVal || new Date(dk)>new Date(etdVal))) etdVal=dk;
+    });
+    ins._overallEtd=etdVal?new Date(etdVal):null;
+  });
+  var ranked=activeIns.filter(function(i){ return i._overallEtd; }).sort(function(a,b){ return a._overallEtd-b._overallEtd; });
+  var priorityByBay={};
+  ranked.forEach(function(ins,idx){ priorityByBay[ins.bayNo]=idx+1; });
+
   function renderGrid(elId, bayList){
     var el=document.getElementById(elId);
     if(!el) return;
@@ -6330,8 +6349,10 @@ function renderBayGrid(){
       var isSelected=currentBay===b;
       var cls='bay-grid-box '+(isSelected?'bgb-selected':isOcc?'bgb-occupied':'bgb-free');
       var label=b.replace('Bay ','B');
+      var priority=isOcc?priorityByBay[b]:null;
+      var priorityBadge=priority?'<div style="position:absolute;top:2px;right:2px;background:'+(priority===1?'#dc2626':priority<=3?'#f59e0b':'#64748b')+';color:#fff;font-size:9px;font-weight:900;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1">'+priority+'</div>':'';
       var truck=ins?'<div class="bgb-truck">'+ins.truckNo+'</div>':'<div style="font-size:9px;color:var(--text3)">Free</div>';
-      return '<div class="'+cls+'" onclick="selectBayFromGrid(\''+b+'\')"><div class="bgb-no">'+label+'</div>'+truck+'</div>';
+      return '<div class="'+cls+'" style="position:relative" onclick="selectBayFromGrid(\''+b+'\')">'+priorityBadge+'<div class="bgb-no">'+label+'</div>'+truck+'</div>';
     }).join('');
   }
   renderGrid('bayGridA', teamABays);
@@ -12653,7 +12674,7 @@ function exportJobCardsCSV(){
           var etdVal='';
           ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(dd){
             var dk=S.deptETDs[ins.id+'_'+dd];
-            if(dk && (!etdVal || new Date(dk)<new Date(etdVal))) etdVal=dk;
+            if(dk && (!etdVal || new Date(dk)>new Date(etdVal))) etdVal=dk;
           });
           if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
           var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
