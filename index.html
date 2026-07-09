@@ -5193,8 +5193,10 @@ function openDriverVerify(insId, alertId){
       document.getElementById('dv_driverMobile').value = alert.collectingMobile || '';
     }
   }
+  const e = S.entries.find(x => x.id === ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number
   document.getElementById('dv_arrivalInfo').innerHTML =
-    `<strong>${ins.truckNo}</strong> · Arrival driver: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
+    `<strong>${displayTruck}</strong> · Arrival driver: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
     <br><span class="text-xs text2">Security: check driver license matches the arrival name</span>`;
   checkDriverMatch();
   document.getElementById('driverVerifyModal').classList.add('open');
@@ -6576,11 +6578,12 @@ function loadBayJobs(){
   const now=new Date();
 
   const e=S.entries.find(x=>x.id==ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number, not inspection's
   const alreadyReady = e && e.readyToLeave;
 
   const hasPhotos = ins.photos && Object.keys(ins.photos).length>0;
   const assisters=(S.assistingWorkers && S.assistingWorkers[bay]) || [];
-  let jHtml=`<div class="mb-12 flex items-center gap-8 flex-wrap"><span class="fw-700" style="font-size:15px">${ins.truckNo}</span><span class="tag tag-blue">${bay}</span><span class="tag tag-${ins.priority==='Critical'?'red':ins.priority==='Urgent'?'yellow':'green'}">${ins.priority}</span>${alreadyReady?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">✓ FLAGGED READY</span>':''}${hasPhotos?`<button class="btn btn-ghost btn-sm" onclick="openPhotoViewer('${ins.id}')">📷 View Photos</button>`:''}</div>`;
+  let jHtml=`<div class="mb-12 flex items-center gap-8 flex-wrap"><span class="fw-700" style="font-size:15px">${displayTruck}</span><span class="tag tag-blue">${bay}</span><span class="tag tag-${ins.priority==='Critical'?'red':ins.priority==='Urgent'?'yellow':'green'}">${ins.priority}</span>${alreadyReady?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">✓ FLAGGED READY</span>':''}${hasPhotos?`<button class="btn btn-ghost btn-sm" onclick="openPhotoViewer('${ins.id}')">📷 View Photos</button>`:''}</div>`;
   if(assisters.length){
     const label=a=>typeof a==='string' ? a : `${a.name} (${assistDeptLabel(a.dept)})`;
     jHtml+=`<div class="text-xs text2 mb-12">🤝 Assisting this bay: ${assisters.map(label).join(', ')}</div>`;
@@ -6633,7 +6636,7 @@ function loadBayJobs(){
   let eHtml=`<div style="background:var(--surface2);border:2px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
     <div>
       <div style="font-size:11px;color:var(--text2);letter-spacing:1px;font-weight:600">SETTING ETD FOR</div>
-      <div style="font-size:20px;font-weight:900;color:var(--accent);letter-spacing:1px">${ins.truckNo}</div>
+      <div style="font-size:20px;font-weight:900;color:var(--accent);letter-spacing:1px">${displayTruck}</div>
       <div style="font-size:12px;color:var(--text2);font-weight:700">${bay} · ${ins.jobType||'Repair'}</div>
     </div>
   </div>`;
@@ -7016,8 +7019,10 @@ function renderManagerReadyTray(){
 function showCompletionAlert(insId){
   const ins=S.inspections.find(i=>i.id==insId);
   if(!ins)return;
+  const e = S.entries.find(x => x.id === ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number
   _completionAlertCurrentId=insId;
-  document.getElementById('caTruckNo').textContent=ins.truckNo;
+  document.getElementById('caTruckNo').textContent=displayTruck;
   document.getElementById('caBayNo').textContent=ins.bayNo+' — now free';
   document.getElementById('caReason').value='';
   document.getElementById('caNote').value='';
@@ -8755,10 +8760,11 @@ function refreshOverview(){
     const ins=actIns.find(i=>i.bayNo===b);
     if(!ins)return `<div class="bay-cell empty" title="Tap to go to Ground Team" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Free</div></div>`;
     const e=S.entries.find(x=>x.id==ins.entryId);
+    const displayTruckName = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number
     const mainD=Object.entries(ins.jobs||{}).find(([d,j])=>j.length)&&[0]||'mech';
     const isDel=new Date(ins.etd)<now;
     const isReady = e && e.readyToLeave;
-    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${ins.truckNo}</div></div>`;
+    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${displayTruckName}</div></div>`;
   }).join('');
 
   // No-work-required trucks
