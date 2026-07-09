@@ -6586,13 +6586,19 @@ function backToBayGrid(){
 }
 
 function selectBayFromGrid(bay){
-  _selectedGridBay = bay;
+  // Normalize bay format (ensure it starts with 'Bay ')
+  const normalizedBay = bay.startsWith('Bay ') ? bay : ('Bay ' + bay.replace('Bay ', ''));
+  _selectedGridBay = normalizedBay;
   var sel=document.getElementById('groundBaySelect');
   if(sel){
     var found=false;
-    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===bay){found=true;break;} }
-    if(!found){ var opt=document.createElement('option'); opt.value=bay; opt.text=bay; sel.appendChild(opt); }
-    sel.value=bay;
+    for(var i=0;i<sel.options.length;i++){ 
+      const optVal = sel.options[i].value || sel.options[i].text;
+      const normalizedOpt = optVal.startsWith('Bay ') ? optVal : ('Bay ' + optVal.replace('Bay ', ''));
+      if(normalizedOpt === normalizedBay){found=true;break;} 
+    }
+    if(!found){ var opt=document.createElement('option'); opt.value=normalizedBay; opt.text=normalizedBay; sel.appendChild(opt); }
+    sel.value=normalizedBay;
   }
   loadBayJobs();
   renderBayGrid();
@@ -6602,25 +6608,32 @@ function selectBayFromGrid(bay){
   if(detailTab && bayWorkContent){
     bayWorkContent.style.display='none';
     detailTab.style.display='block';
-    document.getElementById('groundDetailBayLabel').textContent = bay;
+    document.getElementById('groundDetailBayLabel').textContent = normalizedBay;
   }
 }
 
 function loadBayJobs(){
   var sel=document.getElementById('groundBaySelect');
-  const bay=(_selectedGridBay)||(sel?sel.value:'');
+  var bayVal = (_selectedGridBay)||(sel?sel.value:'');
+  // Normalize bay format
+  const bay = bayVal.startsWith('Bay ') ? bayVal : ('Bay ' + bayVal.replace('Bay ', ''));
   const notice=document.getElementById('groundAutoCompleteNotice');
   if(!bay){notice.style.display='none';return;}
   // Find inspection for this bay — include parked trucks (ground team may still need to see jobs)
   const ins=S.inspections.find(i=>{
     var e=S.entries.find(x=>x.id===i.entryId&&!x.exitTime);
-    return e && (i.bayNo===bay || i.bayNo===bay.replace('Bay ','B') || ('Bay '+i.bayNo.replace('Bay ',''))===bay);
+    const normalizedBayNo = i.bayNo && i.bayNo.startsWith('Bay ') ? i.bayNo : ('Bay ' + (i.bayNo||'').replace('Bay ', ''));
+    return e && (normalizedBayNo === bay);
   });
   const jDiv=document.getElementById('groundJobList');
   const eDiv=document.getElementById('groundETDBlocks');
   if(!ins){
     // Check if there's an active entry in this bay even without inspection
-    var entryInBay = S.entries.find(function(e){ return !e.exitTime && (e.bay===bay||e.bayNo===bay); });
+    var entryInBay = S.entries.find(function(e){ 
+      const normalizedEBay = e.bay && e.bay.startsWith('Bay ') ? e.bay : ('Bay ' + (e.bay||'').replace('Bay ', ''));
+      const normalizedEBayNo = e.bayNo && e.bayNo.startsWith('Bay ') ? e.bayNo : ('Bay ' + (e.bayNo||'').replace('Bay ', ''));
+      return !e.exitTime && (normalizedEBay===bay || normalizedEBayNo===bay); 
+    });
     if(entryInBay){
       jDiv.innerHTML='<div class="alert" style="background:rgba(230,168,23,.1);border:1px solid #e6a817;color:#e6a817;margin-bottom:8px">⚠️ No supervisor inspection saved for <strong>'+entryInBay.truckNo+'</strong> — Ground Team can still add jobs below.</div>'
         +'<div id="noInsJobAdd"></div>';
