@@ -13011,6 +13011,49 @@ function exportJobCardsCSV(){
     var ws2=XLSX.utils.aoa_to_sheet([summaryHeaders].concat(summaryRows));
     ws2['!cols']=[{wch:4},{wch:12},{wch:12},{wch:6},{wch:16},{wch:30},{wch:80}];
     XLSX.utils.book_append_sheet(wb, ws2, 'By Truck Summary');
+    
+    // Sheet 3 — Today's Exit Report
+    var today=new Date().toDateString();
+    var todayExits=S.entries.filter(function(e){ return e.exitTime && new Date(e.exitTime).toDateString()===today; });
+    var exitHeaders=['Truck','Bay','Status','Jobs Done','Jobs Remaining','Exit Time','Remarks'];
+    var exitRows=todayExits.map(function(e){
+      var ins=S.inspections.find(function(i){ return i.entryId===e.id; });
+      var allJobsDone=ins && Object.keys(ins.jobs||{}).every(function(d){ return (ins.jobs[d]||[]).every(function(j){ return j.done; }); });
+      var status=allJobsDone?'COMPLETED':'PENDING';
+      var bayNo=ins&&ins.bayNo?ins.bayNo:'—';
+      var jobsDone=ins?Object.keys(ins.jobs||{}).reduce(function(sum,d){ return sum+(ins.jobs[d]||[]).filter(function(j){ return j.done; }).length; },0):0;
+      var jobsTotal=ins?Object.keys(ins.jobs||{}).reduce(function(sum,d){ return sum+(ins.jobs[d]||[]).length; },0):0;
+      var jobsRemaining=jobsTotal-jobsDone;
+      return [e.truckNo,bayNo,status,jobsDone,jobsRemaining,new Date(e.exitTime).toLocaleString('en-GB'),ins?ins.supervisorRemark||'—':'—'];
+    });
+    var ws3=XLSX.utils.aoa_to_sheet([exitHeaders].concat(exitRows.length?exitRows:[['No exits today','','','','','','']]));
+    ws3['!cols']=[{wch:12},{wch:8},{wch:12},{wch:12},{wch:15},{wch:20},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Today Exit Report');
+    
+    // Sheet 4 — Time Stamping
+    var tsHeaders=['Truck','Bay','T0 (In)','T1 (Alloc)','T2 (ETD)','T4 (QC)','T5 (Out)','Total Hrs','SLA Status'];
+    var tsRows=[];
+    S.entries.forEach(function(e){
+      var ins=S.inspections.find(function(i){ return i.entryId===e.id; });
+      if(!ins) return;
+      var t0=new Date(e.entryTime);
+      var t1=ins.t1_allocated?new Date(ins.t1_allocated):null;
+      var t2Str='';
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+        var etd=S.deptETDs[ins.id+'_'+d];
+        if(etd && (!t2Str || new Date(etd)>new Date(t2Str))) t2Str=etd;
+      });
+      var t2=t2Str?new Date(t2Str):null;
+      var t4=ins.t4_qcDone?new Date(ins.t4_qcDone):null;
+      var t5=e.exitTime?new Date(e.exitTime):null;
+      var totalHrs=t5?((t5-t0)/3600000).toFixed(2):'';
+      var slaStatus=t5?(((t5-t0)/3600000)<=6?'MET':'MISSED'):'IN PROGRESS';
+      var bayNo=ins.bayNo||'—';
+      tsRows.push([e.truckNo,bayNo,t0.toLocaleString('en-GB'),t1?t1.toLocaleString('en-GB'):'',t2?t2.toLocaleString('en-GB'):'',t4?t4.toLocaleString('en-GB'):'',t5?t5.toLocaleString('en-GB'):'',totalHrs,slaStatus]);
+    });
+    var ws4=XLSX.utils.aoa_to_sheet([tsHeaders].concat(tsRows.length?tsRows:[['No data','','','','','','','','']]));
+    ws4['!cols']=[{wch:12},{wch:8},{wch:20},{wch:20},{wch:20},{wch:20},{wch:20},{wch:10},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws4, 'Time Stamping');
     var fname='SHTL_JobCards_'+dateStamp()+'.xlsx';
     XLSX.writeFile(wb, fname);
     toast('📥 '+fname+' downloaded','ok');
