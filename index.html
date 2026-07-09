@@ -770,23 +770,23 @@ tr:hover td { background: var(--surface2); }
 
   <!-- STATS STRIP -->
   <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px" id="inchargeStats">
-    <div class="incharge-stat-card" style="border-left:3px solid #1d4ed8">
+    <div class="incharge-stat-card" style="border-left:3px solid #1d4ed8;cursor:pointer" id="isc-filter-today" onclick="filterInchargeQueue('today')">
       <div class="isc-val" id="iscTodayReported">0</div>
       <div class="isc-label">Today</div>
     </div>
-    <div class="incharge-stat-card" style="border-left:3px solid #f59e0b">
+    <div class="incharge-stat-card" style="border-left:3px solid #f59e0b;cursor:pointer" id="isc-filter-pending" onclick="filterInchargeQueue('pending')">
       <div class="isc-val" id="iscPending">0</div>
       <div class="isc-label">Pending</div>
     </div>
-    <div class="incharge-stat-card" style="border-left:3px solid #16a34a">
+    <div class="incharge-stat-card" style="border-left:3px solid #16a34a;cursor:pointer" id="isc-filter-reported" onclick="filterInchargeQueue('reported')">
       <div class="isc-val" id="iscReported">0</div>
       <div class="isc-label">Reported (3d)</div>
     </div>
-    <div class="incharge-stat-card" style="border-left:3px solid #dc2626">
+    <div class="incharge-stat-card" style="border-left:3px solid #dc2626;cursor:pointer" id="isc-filter-overdue" onclick="filterInchargeQueue('overdue')">
       <div class="isc-val" id="iscOverdue">0</div>
       <div class="isc-label">Overdue</div>
     </div>
-    <div class="incharge-stat-card" style="border-left:3px solid #6366f1">
+    <div class="incharge-stat-card" style="border-left:3px solid #6366f1;cursor:pointer" id="isc-filter-all" onclick="filterInchargeQueue('all')">
       <div class="isc-val" id="iscTotal">0</div>
       <div class="isc-label">Total (3d)</div>
     </div>
@@ -4600,6 +4600,24 @@ function buildAptMailto(apt){
   return `mailto:ymary4001@gmail.com,mongipatrick360@gmail.com?subject=${subject}&body=${body}`;
 }
 
+// ─── INCHARGE QUEUE FILTER ───
+var _inchargeQueueFilter = 'all'; // 'all', 'pending', 'reported', 'overdue', 'today'
+
+function filterInchargeQueue(filterType){
+  _inchargeQueueFilter = filterType;
+  
+  // Update visual indicator on stat cards
+  ['today','pending','reported','overdue','all'].forEach(f=>{
+    const card = document.getElementById('isc-filter-'+f);
+    if(card){
+      card.style.background = f === filterType ? 'rgba(232,96,10,.1)' : '';
+      card.style.borderLeftWidth = f === filterType ? '4px' : '3px';
+    }
+  });
+  
+  renderInchargeQueue();
+}
+
 function renderInchargeQueue(){
   if(!S.appointments) return;
   const now=new Date();
@@ -4654,23 +4672,80 @@ function renderInchargeQueue(){
 
   var html='';
 
-  // TODAY section
-  if(todayAction.length){
-    html+='<div style="font-size:11px;font-weight:700;color:var(--red);margin:8px 0 4px;padding:4px 8px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL — TODAY ('+todayAction.length+')</div>';
-    html+=todayAction.map(function(a){return renderAptCard(a);}).join('');
-  }
-  if(todayYard.length){
-    html+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin:8px 0 4px;padding:4px 8px;background:#fffbeb;border-radius:6px">🟡 IN YARD — TODAY ('+todayYard.length+')</div>';
-    html+=todayYard.map(function(a){return renderAptCard(a);}).join('');
-  }
-  if(todayDone.length){
-    html+='<details style="margin-top:6px"><summary style="font-size:11px;font-weight:700;color:var(--green);padding:4px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+todayDone.length+') — tap to show</summary>';
-    html+=todayDone.map(function(a){return renderAptCard(a);}).join('');
-    html+='</details>';
-  }
-  if(!todayAction.length && !todayYard.length && !todayDone.length){
-    html+='<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:13px">No entries today yet</div>';
-  }
+  // APPLY QUEUE FILTER
+  if(_inchargeQueueFilter === 'pending'){
+    // Show ONLY pending trucks (not yet arrived)
+    const pendingToday = todayAction;
+    const pendingPrev = prevAction;
+    if(pendingToday.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--red);margin:12px 0 8px;padding:6px 10px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL — NOT YET REPORTED ('+pendingToday.length+')</div>';
+      html+=pendingToday.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(pendingPrev.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--red);margin:12px 0 8px;padding:6px 10px;background:#fef2f2;border-radius:6px">🔴 PENDING — PREVIOUS DAYS ('+pendingPrev.length+')</div>';
+      html+=pendingPrev.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(!pendingToday.length && !pendingPrev.length){
+      html+='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">No pending trucks — all scheduled trucks have reported!</div>';
+    }
+  } else if(_inchargeQueueFilter === 'reported'){
+    // Show ONLY reported trucks (in yard)
+    if(todayYard.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--yellow);margin:12px 0 8px;padding:6px 10px;background:#fffbeb;border-radius:6px">🟡 IN YARD — TODAY ('+todayYard.length+')</div>';
+      html+=todayYard.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(prevYard.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--yellow);margin:12px 0 8px;padding:6px 10px;background:#fffbeb;border-radius:6px">🟡 IN YARD — PREVIOUS DAYS ('+prevYard.length+')</div>';
+      html+=prevYard.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(!todayYard.length && !prevYard.length){
+      html+='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">No trucks in yard</div>';
+    }
+  } else if(_inchargeQueueFilter === 'overdue'){
+    // Show ONLY overdue
+    const overdueList = overdue;
+    if(overdueList.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--red);margin:12px 0 8px;padding:6px 10px;background:#fef3c7;border-radius:6px">⚠️ OVERDUE — NOT ARRIVED ('+overdueList.length+')</div>';
+      html+=overdueList.map(function(a){return renderAptCard(a);}).join('');
+    } else {
+      html+='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">No overdue trucks</div>';
+    }
+  } else if(_inchargeQueueFilter === 'today'){
+    // Show ONLY today's trucks
+    if(todayAction.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--red);margin:12px 0 8px;padding:6px 10px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL — TODAY ('+todayAction.length+')</div>';
+      html+=todayAction.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(todayYard.length){
+      html+='<div style="font-size:12px;font-weight:700;color:var(--yellow);margin:12px 0 8px;padding:6px 10px;background:#fffbeb;border-radius:6px">🟡 IN YARD — TODAY ('+todayYard.length+')</div>';
+      html+=todayYard.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(todayDone.length){
+      html+='<details style="margin-top:10px"><summary style="font-size:12px;font-weight:700;color:var(--green);padding:6px 10px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+todayDone.length+') — tap to show</summary>';
+      html+=todayDone.map(function(a){return renderAptCard(a);}).join('');
+      html+='</details>';
+    }
+    if(!todayAction.length && !todayYard.length && !todayDone.length){
+      html+='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:14px">No entries today yet</div>';
+    }
+  } else {
+    // Show ALL (default)
+    if(todayAction.length){
+      html+='<div style="font-size:11px;font-weight:700;color:var(--red);margin:8px 0 4px;padding:4px 8px;background:#fef2f2;border-radius:6px">🔴 AWAITING ARRIVAL — TODAY ('+todayAction.length+')</div>';
+      html+=todayAction.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(todayYard.length){
+      html+='<div style="font-size:11px;font-weight:700;color:var(--yellow);margin:8px 0 4px;padding:4px 8px;background:#fffbeb;border-radius:6px">🟡 IN YARD — TODAY ('+todayYard.length+')</div>';
+      html+=todayYard.map(function(a){return renderAptCard(a);}).join('');
+    }
+    if(todayDone.length){
+      html+='<details style="margin-top:6px"><summary style="font-size:11px;font-weight:700;color:var(--green);padding:4px 8px;background:#f0fdf4;border-radius:6px;cursor:pointer">✅ COMPLETED TODAY ('+todayDone.length+') — tap to show</summary>';
+      html+=todayDone.map(function(a){return renderAptCard(a);}).join('');
+      html+='</details>';
+    }
+    if(!todayAction.length && !todayYard.length && !todayDone.length){
+      html+='<div style="text-align:center;color:var(--text2);padding:16px 0;font-size:13px">No entries today yet</div>';
+    }
 
   // PREVIOUS DAYS — current month only in main view, older collapsed
   var thisMonthPrev=prevAll.filter(function(a){
@@ -4691,6 +4766,7 @@ function renderInchargeQueue(){
     html+=olderPrev.map(function(a){return renderAptCard(a);}).join('');
     html+='</details>';
   }
+  } // end of else (show all)
 
   if(!html) html='<div style="text-align:center;color:var(--text2);padding:24px 0;font-size:13px">No active requests</div>';
   ql.innerHTML=html;
