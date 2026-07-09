@@ -5447,7 +5447,10 @@ function refreshDropdowns(){
   const curEod=eodSel.value;
   const today=new Date().toDateString();
   const alreadyBalanced=new Set((S.eodBalance||[]).filter(b=>b.date===today).map(b=>b.truckNo));
-  const eodOpts='<option value="">-- Select --</option>'+inYard.filter(e=>!alreadyBalanced.has(e.truckNo)).map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+  
+  // Filter: only show trucks NOT already added to balance today
+  const availableTrucks=inYard.filter(e=>!alreadyBalanced.has(e.truckNo));
+  const eodOpts='<option value="">-- Select --</option>'+availableTrucks.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
   eodSel.innerHTML=eodOpts;
   if(curEod && inYard.some(e=>String(e.id)===curEod && !alreadyBalanced.has(e.truckNo))) eodSel.value=curEod;
 
