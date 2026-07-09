@@ -2352,6 +2352,7 @@ tr:hover td { background: var(--surface2); }
         <button class="btn btn-ghost btn-sm" id="dc-tab-datetruck" onclick="showDcTab('datetruck',this)">📅🚛 By Date & Truck</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-date" onclick="showDcTab('date',this)">📅 By Date Range</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-type" onclick="showDcTab('type',this)">📋 By Type</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-bayclean" onclick="showDcTab('bayclean',this)" style="color:var(--orange);border-color:var(--orange)">🧹 Bay Cleanup</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-audit" onclick="showDcTab('audit',this)">📜 Audit Trail</button>
         
@@ -2411,6 +2412,18 @@ tr:hover td { background: var(--surface2); }
         <div class="card-title"><span class="dot" style="background:var(--purple)"></span>Clear Entire Record Type</div>
         <div class="text-xs text2 mb-12">⚠️ This moves ALL records of the selected type to Recycle Bin. Restorable within 7 days.</div>
         <div id="dcTypeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px"></div>
+      </div>
+
+      <!-- BAY CLEANUP -->
+      <div id="dc-section-bayclean" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--orange)"></span>🧹 Bay Cleanup — Clear Stale Bay Assignments</div>
+        <div class="text-xs text2 mb-12">If a bay shows as occupied but is actually free, this tool clears stale bayNo assignments from completed/parked inspections. This allows those bays to be reallocated.</div>
+        <div style="background:rgba(232,96,10,.1);border:1px solid var(--accent);border-radius:var(--radius2);padding:12px;margin-bottom:12px">
+          <div class="text-xs text2" style="margin-bottom:6px"><strong>Current stale assignments:</strong></div>
+          <div id="dcBayStaleList" style="font-size:12px;line-height:1.6"></div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="fixStaleBayAssignments()" style="background:var(--orange)">🧹 Clear All Stale Bay Assignments</button>
+        <div id="dcBayCleanupResult" style="margin-top:12px;font-size:12px"></div>
       </div>
 
       <!-- RECYCLE BIN -->
@@ -6905,6 +6918,7 @@ function checkAutoCompletion(insId){
     // Freshly completed — auto-flag for Supervisor, free the bay
     ins.completedAt=new Date().toISOString();
     ins.parked=true;
+    ins.bayNo=null; // FREE THE BAY so it can be reallocated
     ins.supervisorRemark=null; // awaiting Supervisor's remark
     if(e){ e.parkStatus='awaiting_remark'; }
     // Auto-return ground team to bay grid after 2 seconds
@@ -11384,7 +11398,7 @@ function lockDataControl(){
 }
 
 function showDcTab(tab,btn){
-  ['truck','datetruck','date','type','recycle','audit','pin'].forEach(t=>{
+  ['truck','datetruck','date','type','bayclean','recycle','audit','pin'].forEach(t=>{
     const s=document.getElementById('dc-section-'+t);
     if(s) s.style.display=t===tab?'block':'none';
     const b=document.getElementById('dc-tab-'+t);
@@ -11392,6 +11406,7 @@ function showDcTab(tab,btn){
   });
   if(tab==='recycle') refreshRecycleBin();
   if(tab==='audit') refreshAuditTrail();
+  if(tab==='bayclean') refreshStaleBaysList();
   if(tab==='type'){
     const grid=document.getElementById('dcTypeGrid');
     if(grid && !grid.children.length){
@@ -11403,6 +11418,54 @@ function showDcTab(tab,btn){
         </div>`).join('');
     }
   }
+}
+
+// ── BAY CLEANUP ──
+function refreshStaleBaysList(){
+  const inYard = S.entries.filter(e => !e.exitTime);
+  const staleBays = S.inspections.filter(ins => {
+    // Find parked/completed inspections that still have bayNo assigned
+    if(!ins.bayNo || !ins.parked) return false;
+    const entry = S.entries.find(e => e.id === ins.entryId);
+    if(entry && !entry.exitTime) return false; // Still in yard, not stale
+    return true;
+  });
+  
+  const listEl = document.getElementById('dcBayStaleList');
+  if(staleBays.length === 0){
+    listEl.innerHTML = '<div class="text-xs" style="color:var(--green)">✅ No stale bay assignments found.</div>';
+  } else {
+    listEl.innerHTML = staleBays.map(ins => 
+      `<div>🚛 <strong>${ins.truckNo}</strong> · Bay <strong>${ins.bayNo}</strong> · Parked: ${ins.parked ? '✓' : '✗'}</div>`
+    ).join('');
+  }
+}
+
+function fixStaleBayAssignments(){
+  const inYard = S.entries.filter(e => !e.exitTime);
+  const staleBays = S.inspections.filter(ins => {
+    if(!ins.bayNo || !ins.parked) return false;
+    const entry = S.entries.find(e => e.id === ins.entryId);
+    if(entry && !entry.exitTime) return false;
+    return true;
+  });
+  
+  if(staleBays.length === 0){
+    toast('✅ No stale bay assignments to clear','ok');
+    return;
+  }
+  
+  let cleared = 0;
+  staleBays.forEach(ins => {
+    ins.bayNo = null;
+    cleared++;
+  });
+  
+  save();
+  refreshStaleBaysList();
+  const resultEl = document.getElementById('dcBayCleanupResult');
+  resultEl.innerHTML = `<div style="background:rgba(22,163,74,.1);border:1px solid var(--green);border-radius:var(--radius2);padding:10px;color:var(--green)"><strong>✅ Cleared ${cleared} stale bay assignment(s)</strong><br><span class="text-xs">Affected bays are now free for reallocation.</span></div>`;
+  toast(`✅ Cleared ${cleared} stale bay assignment(s)`, 'ok');
 }
 
 // ── MOVE TO RECYCLE BIN ──
