@@ -47,6 +47,66 @@ function checkForUpdate(){
 window.addEventListener('load', function(){
   setInterval(checkForUpdate, 300000); // every 5 min
 });
+
+// ═══ FORM AUTO-SAVE ═══
+// Auto-save form inputs to localStorage with debounce
+var _formSaveDebounce = null;
+function initFormAutoSave(){
+  const formInputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], textarea, select');
+  const saveKey = 'shtl_formData_' + window.location.pathname;
+  
+  // Load saved form data on page load
+  try {
+    const saved = localStorage.getItem(saveKey);
+    if(saved){
+      const data = JSON.parse(saved);
+      Object.entries(data).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if(el){
+          if(el.type === 'checkbox' || el.type === 'radio'){
+            el.checked = value;
+          } else {
+            el.value = value;
+          }
+        }
+      });
+    }
+  } catch(e){}
+  
+  // Auto-save on input change
+  formInputs.forEach(input => {
+    input.addEventListener('input', function(){
+      clearTimeout(_formSaveDebounce);
+      _formSaveDebounce = setTimeout(function(){
+        try {
+          const formData = {};
+          formInputs.forEach(inp => {
+            if(inp.id){
+              formData[inp.id] = inp.type === 'checkbox' || inp.type === 'radio' ? inp.checked : inp.value;
+            }
+          });
+          localStorage.setItem(saveKey, JSON.stringify(formData));
+        } catch(e){}
+      }, 1000); // save after 1 second of no input
+    });
+    input.addEventListener('change', function(){
+      clearTimeout(_formSaveDebounce);
+      _formSaveDebounce = setTimeout(function(){
+        try {
+          const formData = {};
+          formInputs.forEach(inp => {
+            if(inp.id){
+              formData[inp.id] = inp.type === 'checkbox' || inp.type === 'radio' ? inp.checked : inp.value;
+            }
+          });
+          localStorage.setItem(saveKey, JSON.stringify(formData));
+        } catch(e){}
+      }, 500);
+    });
+  });
+}
+window.addEventListener('load', initFormAutoSave);
+
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
