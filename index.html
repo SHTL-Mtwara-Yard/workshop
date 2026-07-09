@@ -1119,6 +1119,14 @@ tr:hover td { background: var(--surface2); }
         <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Truck Entry Registration</div>
 
         <div class="form-row cols-2">
+          <div style="grid-column:1/-1">
+            <label>🔗 Link to Incharge Appointment (optional — auto-fills truck, driver, complaints, depts)</label>
+            <select id="secAptLink" onchange="applySecAptLink()">
+              <option value="">-- Select a pending appointment, or leave blank for walk-in --</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row cols-2">
           <div>
             <label>📸 Truck Photo</label>
             <div class="cam-box" id="camBox" onclick="document.getElementById('camInput').click()">
@@ -3667,6 +3675,7 @@ function refreshCurrentPage(){
     try{ refreshEodList(); }catch(e){ console.error('refreshEodList failed:',e); }
     try{ updateBadge(); }catch(e){ console.error('updateBadge failed:',e); }
     try{ refreshSecurityPanel(); }catch(e){ console.error('refreshSecurityPanel failed:',e); }
+    try{ refreshSecAptLinkDropdown(); }catch(e){ console.error('refreshSecAptLinkDropdown failed:',e); }
   },
     supervisor:refreshSupervisorPage, ground:refreshGroundPage, jobcards:refreshJobCards,
     revisit:refreshRevisit, manager:refreshManager, overview:refreshOverview, fleet:refreshFleet,
@@ -3796,6 +3805,7 @@ function showPage(id,el){
     try{ refreshEodList(); }catch(e){ console.error('refreshEodList failed:',e); }
     try{ updateBadge(); }catch(e){ console.error('updateBadge failed:',e); }
     try{ refreshSecurityPanel(); }catch(e){ console.error('refreshSecurityPanel failed:',e); }
+    try{ refreshSecAptLinkDropdown(); }catch(e){ console.error('refreshSecAptLinkDropdown failed:',e); }
   }};
   if(map[id]){ try{ map[id](); }catch(e){ console.error('Page refresh failed for '+id+':',e); } }
   // Auto-switch Ground to Punch Status by default
@@ -4887,6 +4897,9 @@ function resetSecForm(){
   document.getElementById('fuelSlider').value=0;
   document.getElementById('fuelSliderVal').textContent='0';
   document.getElementById('secOdo').value='';
+  _secLinkedAppointmentId=null;
+  var aptSel=document.getElementById('secAptLink');
+  if(aptSel) aptSel.value='';
   ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     document.getElementById('d_'+d).checked=false;
     document.getElementById('dc-'+d).className='dept-check';
@@ -14125,6 +14138,52 @@ function fmtTruck(val){
 function onTruckInput(el){
   const formatted=fmtTruck(el.value);
   if(el.value!==formatted) el.value=formatted;
+}
+
+var _secLinkedAppointmentId=null;
+
+function refreshSecAptLinkDropdown(){
+  var sel=document.getElementById('secAptLink');
+  if(!sel) return;
+  var pending=(S.appointments||[]).filter(function(a){ return a.status==='pending'; })
+    .sort(function(a,b){ return new Date(a.plannedVisit)-new Date(b.plannedVisit); });
+  var cur=sel.value;
+  sel.innerHTML='<option value="">-- Select a pending appointment, or leave blank for walk-in --</option>'
+    +pending.map(function(a){
+      var visitStr=new Date(a.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+      return '<option value="'+a.id+'">'+a.truckNo+' — '+visitStr+' — '+(a.driverName||'no driver name')+'</option>';
+    }).join('');
+  if(cur) sel.value=cur;
+}
+
+function applySecAptLink(){
+  var aptId=document.getElementById('secAptLink').value;
+  if(!aptId){ _secLinkedAppointmentId=null; return; }
+  var apt=(S.appointments||[]).find(function(a){ return String(a.id)===String(aptId); });
+  if(!apt) return;
+  _secLinkedAppointmentId=apt.id;
+
+  // Auto-fill truck number
+  var tnEl=document.getElementById('truckNo');
+  if(tnEl){ tnEl.value=fmtTruck(apt.truckNo); }
+
+  // Auto-check department checkboxes by scanning the complaint text for keywords
+  var text=(apt.complaints||'').toLowerCase();
+  var deptKeywords={
+    mech:['engine','gear','clutch','brake','spring','bolt','oil','differential','diff','propeller','chassis','suspension arm','king pin','shock'],
+    elec:['light','lamp','battery','wiring','electric','indicator','horn'],
+    tyre:['tyre','tire','wheel','puncher','puncture','rim'],
+    weld:['weld','crack','bumper','door lock','body','chassis crack','mudguard'],
+    pneumatic:['air','pneumatic','compressor','brake chamber','air dryer','air tank'],
+    suspension:['suspension','leaf spring','shock absorber','stabilizer','u-bolt','u bolt']
+  };
+  Object.keys(deptKeywords).forEach(function(d){
+    var matched=deptKeywords[d].some(function(kw){ return text.indexOf(kw)!==-1; });
+    var cb=document.getElementById('d_'+d);
+    if(cb && matched && !cb.checked){ toggleDept(d); }
+  });
+
+  toast('🔗 Linked to '+apt.truckNo+'\'s appointment — review auto-checked departments before saving','info');
 }
 
 const MANAGER_NAME = 'JAI SRIMANNARAYANA';
