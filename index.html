@@ -1126,6 +1126,19 @@ tr:hover td { background: var(--surface2); }
             </select>
           </div>
         </div>
+
+        <div class="form-row cols-2" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border)">
+          <div style="grid-column:1/-1">
+            <label style="color: var(--red); font-weight: 700;">❌ Clear Pending Appointment (if truck already Security-punched)</label>
+            <div style="display: flex; gap: 8px; align-items: flex-end;">
+              <div style="flex: 1;">
+                <input type="text" id="clearAptTruck" placeholder="e.g. T194 DZV" style="font-weight: 700; text-transform: uppercase;">
+              </div>
+              <button class="btn" style="background: var(--red); color: #fff; padding: 10px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; cursor: pointer; border: none; flex-shrink: 0;" onclick="clearPendingAppointment()">Remove</button>
+            </div>
+          </div>
+        </div>
+
         <div class="form-row cols-2">
           <div>
             <label>📸 Truck Photo</label>
@@ -14184,6 +14197,33 @@ function applySecAptLink(){
   });
 
   toast('🔗 Linked to '+apt.truckNo+'\'s appointment — review auto-checked departments before saving','info');
+}
+
+function clearPendingAppointment(){
+  var tn = fmtTruck(document.getElementById('clearAptTruck').value.trim());
+  if(!tn){ toast('⚠️ Enter truck number','warn'); return; }
+  
+  var toRemove = (S.appointments||[]).filter(function(a){ 
+    return a.truckNo === tn && a.status === 'pending'; 
+  });
+  
+  if(toRemove.length === 0){
+    toast('ℹ️ No pending appointments found for '+tn,'info');
+    return;
+  }
+  
+  // Remove all pending appointments for this truck
+  toRemove.forEach(function(apt){
+    var idx = S.appointments.indexOf(apt);
+    if(idx > -1){
+      S.appointments.splice(idx, 1);
+    }
+  });
+  
+  save();
+  refreshSecAptLinkDropdown();
+  document.getElementById('clearAptTruck').value = '';
+  toast('✅ Removed '+toRemove.length+' pending appointment(s) for '+tn,'ok');
 }
 
 const MANAGER_NAME = 'JAI SRIMANNARAYANA';
