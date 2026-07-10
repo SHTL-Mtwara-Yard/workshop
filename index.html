@@ -5239,7 +5239,7 @@ function refreshSecurityPanel(){
       const depts = ins.jobs ? Object.entries(ins.jobs||{}).filter(([d,j])=>j.length).map(([d])=>dL(d)).join('+') : (e&&e.depts?e.depts.map(d=>dL(d)).join('+'):'—');
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
         <span style="font-weight:700;min-width:90px">${displayTruck}</span>
-        ${ins.bayNo || "—"!=='—'?`<span class="tag tag-blue" style="font-size:10px">${ins.bayNo || "—"}</span>`:''}
+        ${ins.bayNo!=='—'?`<span class="tag tag-blue" style="font-size:10px">${ins.bayNo}</span>`:''}
         <span style="font-size:12px;color:var(--text2)">${depts}</span>
         ${etdDate?`<span style="font-size:12px;font-family:monospace;font-weight:600">${formatETD24h(ins.etd)}</span>`:''}
         <span style="margin-left:auto">${timeTag}</span>
@@ -5307,7 +5307,7 @@ function confirmVerifiedExit(outcome){
       id: Date.now(),
       message: `🚫 HOLD — ${e.truckNo}: Security stopped exit. Driver name mismatch. Arrival: ${(ins&&ins.driverName)||'—'}. Presented: ${collectingName||'—'}. Mobile: ${collectingMobile||'—'}. Verified by: ${_securityOfficerName||'Security'}.`,
       truckLink: e.truckNo,
-      bayLink: (ins&&ins.bayNo || "—")||'',
+      bayLink: (ins&&ins.bayNo)||'',
       sentAt: new Date().toISOString(),
       read: false, readAt: null, reply: null
     });
@@ -5362,7 +5362,7 @@ function openNotifySecurityModal(insId){
   const ins = S.inspections.find(i => i.id == insId);
   if(!ins) return;
   document.getElementById('ns_insId').value = insId;
-  document.getElementById('ns_truckInfo').innerHTML = `<strong>${ins.truckNo}</strong> · ${ins.bayNo || "—"} → Parking<br><span class="text-xs text2">Arrival driver: ${ins.driverName||'—'} · ${ins.driverMobile||'—'}</span>`;
+  document.getElementById('ns_truckInfo').innerHTML = `<strong>${ins.truckNo}</strong> · ${ins.bayNo} → Parking<br><span class="text-xs text2">Arrival driver: ${ins.driverName||'—'} · ${ins.driverMobile||'—'}</span>`;
   document.getElementById('ns_driverName').value = ins.driverName||'';
   document.getElementById('ns_driverMobile').value = ins.driverMobile||'';
   document.getElementById('ns_note').value = '';
@@ -5447,10 +5447,7 @@ function refreshDropdowns(){
   const curEod=eodSel.value;
   const today=new Date().toDateString();
   const alreadyBalanced=new Set((S.eodBalance||[]).filter(b=>b.date===today).map(b=>b.truckNo));
-  
-  // Filter: only show trucks NOT already added to balance today
-  const availableTrucks=inYard.filter(e=>!alreadyBalanced.has(e.truckNo));
-  const eodOpts='<option value="">-- Select --</option>'+availableTrucks.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+  const eodOpts='<option value="">-- Select --</option>'+inYard.filter(e=>!alreadyBalanced.has(e.truckNo)).map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
   eodSel.innerHTML=eodOpts;
   if(curEod && inYard.some(e=>String(e.id)===curEod && !alreadyBalanced.has(e.truckNo))) eodSel.value=curEod;
 
@@ -6015,7 +6012,7 @@ function refreshSupBayTable(){
     return `<tr>
       <td class="fw-700">${ins.truckNo}${readyTag}${cfTag}</td>
       <td class="text2 text-xs">${ins.trailerNo||'—'}</td>
-      <td><span class="tag tag-blue">${ins.bayNo || "—"}</span></td>
+      <td><span class="tag tag-blue">${ins.bayNo}</span></td>
       <td style="min-width:140px">${progressHtml||'<span class="text2 text-xs">No jobs</span>'}<div class="text-xs text2" style="margin-top:2px">${totalDone}/${totalJobs} done</div>${progressBar}</td>
       <td class="text-xs">${ins.driverName||'—'}<br><span class="text2">${ins.driverMobile||''}</span></td>
       <td>${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</td>
@@ -6068,7 +6065,7 @@ function saveCarryForward(){
   // Log to postpone records
   if(!S.postponeRecords) S.postponeRecords=[];
   S.postponeRecords.push({
-    id:Date.now(), truckNo:ins.truckNo, bayNo:ins.bayNo || "—",
+    id:Date.now(), truckNo:ins.truckNo, bayNo:ins.bayNo,
     reason, notes, newETD:new Date(newETD).toISOString(),
     enteredBy, type:'carry_forward',
     recordedAt:new Date().toISOString()
@@ -6108,7 +6105,7 @@ function refreshSupParking(){
       <div class="park-head">
         <div class="flex items-center gap-8 flex-wrap">
           <span class="fw-700" style="font-size:14px">${ins.truckNo}</span>
-          <span class="text2 text-xs">was ${ins.bayNo || "—"} — bay now free</span>
+          <span class="text2 text-xs">was ${ins.bayNo} — bay now free</span>
           ${isOvernight?'<span class="overnight-tag">⏰ Overnight</span>':''}
           <span class="tag tag-${resp.color}">waiting ${fmtSince(resp.sinceMins)}</span>
         </div>
@@ -6265,7 +6262,7 @@ function refreshGroundPage(){
       if(!ins.t4_qcDone) return;
       const qcDate=new Date(ins.t4_qcDone);
       if(qcDate<monthStart) return;
-      const inTeam=teamBays.includes(ins.bayNo || "—");
+      const inTeam=teamBays.includes(ins.bayNo);
       if(!inTeam) return;
       total++;
       const etd=new Date(ins.etd);
@@ -6329,7 +6326,7 @@ function downloadMechMonthlyReport(){
         mechStats[mechName].jobs.push({
           date:dateStr,
           truck:ins.truckNo,
-          bay:ins.bayNo || "—",
+          bay:ins.bayNo,
           dept:dLabel[d],
           jobDesc:j.desc||'',
           jobType:ins.jobType||'',
@@ -6529,7 +6526,7 @@ function renderBayGrid(){
   });
   var ranked=activeIns.filter(function(i){ return i._overallEtd; }).sort(function(a,b){ return a._overallEtd-b._overallEtd; });
   var priorityByBay={};
-  ranked.forEach(function(ins,idx){ priorityByBay[ins.bayNo || "—"]=idx+1; });
+  ranked.forEach(function(ins,idx){ priorityByBay[ins.bayNo]=idx+1; });
 
   function renderGrid(elId, bayList){
     var el=document.getElementById(elId);
@@ -6942,9 +6939,9 @@ function computeETDStories(truckFilter){
       if(actual) storyParts.push(fmtETDTime(actual)+' (actual)');
 
       rows.push({
-        truckNo:ins.truckNo, bayNo:ins.bayNo || "—", dept:d,
+        truckNo:ins.truckNo, bayNo:ins.bayNo, dept:d,
         technician:(ins.deptStaff||{})[d]||'—',
-        assistNames: assistingNamesForDept(ins.bayNo || "—",d),
+        assistNames: assistingNamesForDept(ins.bayNo,d),
         promised, current, actual,
         revisionCount:revisions.length,
         story: storyParts.join(' → ') || '—',
@@ -6990,30 +6987,30 @@ function checkAutoCompletion(insId){
 
   // Release any assisting worker whose specific department is now fully done — they
   // don't have to wait for the whole truck. Runs on every call, independent of allDone.
-  if(S.assistingWorkers && S.assistingWorkers[ins.bayNo || "—"]){
+  if(S.assistingWorkers && S.assistingWorkers[ins.bayNo]){
     const stillWaiting=[];
-    S.assistingWorkers[ins.bayNo || "—"].forEach(a=>{
+    S.assistingWorkers[ins.bayNo].forEach(a=>{
       const name=typeof a==='string' ? a : a.name;
       const dept=typeof a==='string' ? null : a.dept;
       const deptDone = dept && byDept[dept] && byDept[dept].total>0 && byDept[dept].done===byDept[dept].total;
       if(deptDone){
-        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo || "—"){
+        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
           S.workerPunches[safeKey(name)]={ status:'available', since:new Date().toISOString() };
-          logWorkerEvent(name,'available',{reason:'dept complete',bayNo:ins.bayNo || "—",dept});
+          logWorkerEvent(name,'available',{reason:'dept complete',bayNo:ins.bayNo,dept});
         }
       } else {
         stillWaiting.push(a); // no dept recorded (legacy entry), or that dept isn't done yet
       }
     });
-    if(stillWaiting.length) S.assistingWorkers[ins.bayNo || "—"]=stillWaiting;
-    else delete S.assistingWorkers[ins.bayNo || "—"];
+    if(stillWaiting.length) S.assistingWorkers[ins.bayNo]=stillWaiting;
+    else delete S.assistingWorkers[ins.bayNo];
   }
 
   if(allDone && !ins.completedAt){
     // Freshly completed — auto-flag for Supervisor, free the bay
     ins.completedAt=new Date().toISOString();
     ins.parked=true;
-    ins.bayNo || "—"=null; // FREE THE BAY so it can be reallocated
+    ins.bayNo=null; // FREE THE BAY so it can be reallocated
     ins.supervisorRemark=null; // awaiting Supervisor's remark
     if(e){ e.parkStatus='awaiting_remark'; }
     // Auto-return ground team to bay grid after 2 seconds
@@ -7025,15 +7022,15 @@ function checkAutoCompletion(insId){
     }, 2000);
     // Catch-all: release anyone still listed against this bay (e.g. legacy no-dept
     // entries) now that the whole truck is done, even though their dept wasn't tracked.
-    if(S.assistingWorkers && S.assistingWorkers[ins.bayNo || "—"]){
-      S.assistingWorkers[ins.bayNo || "—"].forEach(a=>{
+    if(S.assistingWorkers && S.assistingWorkers[ins.bayNo]){
+      S.assistingWorkers[ins.bayNo].forEach(a=>{
         const name=typeof a==='string' ? a : a.name;
-        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo || "—"){
+        if(S.workerPunches[safeKey(name)] && S.workerPunches[safeKey(name)].status==='assisting' && S.workerPunches[name].bayNo===ins.bayNo){
           S.workerPunches[safeKey(name)]={ status:'available', since:new Date().toISOString() };
-          logWorkerEvent(name,'available',{reason:'truck complete',bayNo:ins.bayNo || "—"});
+          logWorkerEvent(name,'available',{reason:'truck complete',bayNo:ins.bayNo});
         }
       });
-      delete S.assistingWorkers[ins.bayNo || "—"];
+      delete S.assistingWorkers[ins.bayNo];
     }
   } else if(!allDone && ins.completedAt){
     // A new job was added after completion (e.g. Ground Team found something else) — reopen it
@@ -7103,7 +7100,7 @@ function renderManagerReadyTray(){
     var pill=document.createElement('div');
     pill.className='mgr-ready-pill';
     pill.dataset.insId=String(insId);
-    pill.innerHTML='🏁 <span class="pill-truck">'+ins.truckNo+'</span>&nbsp;<span class="pill-bay">Bay '+ins.bayNo || "—"+' ready</span>';
+    pill.innerHTML='🏁 <span class="pill-truck">'+ins.truckNo+'</span>&nbsp;<span class="pill-bay">Bay '+ins.bayNo+' ready</span>';
     tray.appendChild(pill);
   });
 }
@@ -7115,12 +7112,12 @@ function showCompletionAlert(insId){
   const displayTruck = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number
   _completionAlertCurrentId=insId;
   document.getElementById('caTruckNo').textContent=displayTruck;
-  document.getElementById('caBayNo').textContent=ins.bayNo || "—"+' — now free';
+  document.getElementById('caBayNo').textContent=ins.bayNo+' — now free';
   document.getElementById('caReason').value='';
   document.getElementById('caNote').value='';
   document.getElementById('caReworkReason').value='';
   document.getElementById('caReworkNote').value='';
-  document.getElementById('caReworkBay').value=ins.bayNo || "—"; // defaults to the bay it just left — Supervisor can override if taken
+  document.getElementById('caReworkBay').value=ins.bayNo; // defaults to the bay it just left — Supervisor can override if taken
   switchCompletionAlertTab('parking'); // always opens on the normal path by default
   const queueNote=document.getElementById('caQueueNote');
   if(_completionAlertQueue.length>1){
@@ -7191,7 +7188,7 @@ function resolveSendBackToBay(){
   }
 
   if(ins){
-    ins.bayNo || "—"=bay;
+    ins.bayNo=bay;
     ins.parked=false;
     ins.completedAt=null;
     ins.supervisorRemark=null;
@@ -7737,7 +7734,7 @@ function loadJobCard(){
   let html=`<div class="card mb-12" style="border-top:3px solid var(--accent)">
     <div class="flex justify-between items-center mb-12 flex-wrap gap-8">
       <div><div style="font-size:18px;font-weight:800">${truck}</div>
-        <div class="text2 text-sm">Bay: ${ins.bayNo || "—"} &nbsp;·&nbsp; ETD: ${new Date(ins.etd).toLocaleString('en-GB')} &nbsp;·&nbsp; Priority: ${ins.priority}</div>
+        <div class="text2 text-sm">Bay: ${ins.bayNo} &nbsp;·&nbsp; ETD: ${new Date(ins.etd).toLocaleString('en-GB')} &nbsp;·&nbsp; Priority: ${ins.priority}</div>
       </div>
       <div style="text-align:right"><div class="text-xs text2">Inspected</div><div class="text-sm fw-700">${new Date(ins.inspectedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</div></div>
     </div>
@@ -7752,7 +7749,7 @@ function loadJobCard(){
     const doneJobs=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done);
     const pendJobs=jobs.length-doneJobs.length;
     const assignedStaff=(ins.deptStaff||{})[d]||'';
-    const assistNames=assistingNamesForDept(ins.bayNo || "—",d);
+    const assistNames=assistingNamesForDept(ins.bayNo,d);
     const etdMissing=!deptEtdIsSet(ins.id,d);
     html+=`<div class="card mb-12" style="padding:0">
       <div class="jc-dept-head ${d}" style="padding:12px 16px">
@@ -7911,8 +7908,8 @@ function refreshMgrJobCards(){
     if(statusF==='complete' && !r.isDone) return false;
     if(statusF==='pending' && r.isDone) return false;
     if(teamF!=='all'){
-      const bayNum=parseInt((r.ins.bayNo || "—".match(/\d+/)||[])[0]);
-      if(teamF==='A' && !(bayNum>=1 && bayNum<=10) && r.ins.bayNo || "—"!=='Express Bay' && r.ins.bayNo || "—"!=='Free Bay') return false;
+      const bayNum=parseInt((r.ins.bayNo.match(/\d+/)||[])[0]);
+      if(teamF==='A' && !(bayNum>=1 && bayNum<=10) && r.ins.bayNo!=='Express Bay' && r.ins.bayNo!=='Free Bay') return false;
       if(teamF==='B' && !(bayNum>=11 && bayNum<=21)) return false;
     }
     return true;
@@ -7933,7 +7930,7 @@ function refreshMgrJobCards(){
       <td>JC-${String(idx+1).padStart(3,'0')}</td>
       <td>${r.e?new Date(r.e.entryTime).toLocaleDateString('en-GB'):'—'}</td>
       <td class="fw-700">${r.ins.truckNo}</td>
-      <td><span class="tag tag-blue">${r.ins.bayNo || "—"}</span></td>
+      <td><span class="tag tag-blue">${r.ins.bayNo}</span></td>
       <td class="text-xs">${r.ins.jobType||'—'}</td>
       <td><span class="tag tag-${dC(r.d)}">${dInfo[r.d]}</span></td>
       <td class="text-xs">${mechanic}</td>
@@ -8009,7 +8006,7 @@ function refreshTimeStamping(){
     const supMet = (t5&&supETD) ? (t5<=supETD) : null;
     const supGap = (t5&&supETD) ? (t5-supETD)/60000 : null;
 
-    const row={truck:ins.truckNo,bay:ins.bayNo || "—",t0,t1,t2,t4,t5,t1t0,t5t0,
+    const row={truck:ins.truckNo,bay:ins.bayNo,t0,t1,t2,t4,t5,t1t0,t5t0,
       groundETD,supETD,groundMet,groundGap,supMet,supGap,isAccidental,entryId:ins.entryId};
     allRows.push(row);
     if(!isAccidental) slaRows.push(row);
@@ -8258,7 +8255,7 @@ function refreshFleet(){
     const ins=S.inspections.find(i=>i.entryId===e.id);
     let bay='—', etd=null, doneCount=0, totalCount=0, minsLeft=null, hasInspection=false;
     if(ins){
-      hasInspection=true; bay=ins.bayNo || "—"; etd=new Date(ins.etd);
+      hasInspection=true; bay=ins.bayNo; etd=new Date(ins.etd);
       minsLeft=Math.round((etd-now)/60000);
       ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
         ((ins.jobs||{})[d]||[]).forEach((j,i)=>{ totalCount++; if((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done) doneCount++; });
@@ -8579,10 +8576,10 @@ function updateGroundETDBanners(){
       var dLabel={mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'}[d];
       if(minsLeft<=0){
         // BREACH — overdue
-        banners.push({type:'breach',truck:ins.truckNo,bay:ins.bayNo || "—",dept:dLabel,mech:mechName,minsLate:Math.abs(minsLeft)});
+        banners.push({type:'breach',truck:ins.truckNo,bay:ins.bayNo,dept:dLabel,mech:mechName,minsLate:Math.abs(minsLeft)});
       } else if(minsLeft<=30){
         // WARNING — 30min or less
-        banners.push({type:'warning',truck:ins.truckNo,bay:ins.bayNo || "—",dept:dLabel,mech:mechName,minsLeft:minsLeft});
+        banners.push({type:'warning',truck:ins.truckNo,bay:ins.bayNo,dept:dLabel,mech:mechName,minsLeft:minsLeft});
       }
     });
   });
@@ -8642,9 +8639,9 @@ function checkETDAlerts(){
           _lastAnnounced[warnBucket]=min2bucket;
           playETDWarningBeep();
           if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-            speakAnnouncement('Attention '+dLabel+' team. '+mechName+' in '+ins.bayNo || "—"+', your ETD for truck '+ins.truckNo+' is in '+minsLeft+' minutes. Please complete your jobs now.');
+            speakAnnouncement('Attention '+dLabel+' team. '+mechName+' in '+ins.bayNo+', your ETD for truck '+ins.truckNo+' is in '+minsLeft+' minutes. Please complete your jobs now.');
           }
-          showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+ins.bayNo || "—"+' · '+dLabel,''+mechName+' — ETD in '+minsLeft+'min · Please complete jobs now','warning');
+          showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' — ETD in '+minsLeft+'min · Please complete jobs now','warning');
         }
       } else if(minsLeft<=0){
         // BREACH
@@ -8653,9 +8650,9 @@ function checkETDAlerts(){
           _lastAnnounced[breachBucket]=min2bucket;
           playETDBreachBeep();
           if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-            speakAnnouncement('Urgent alert! '+mechName+' in '+ins.bayNo || "—"+', your '+dLabel+' ETD for truck '+ins.truckNo+' has been missed by '+Math.abs(minsLeft)+' minutes. Supervisor attention required immediately.');
+            speakAnnouncement('Urgent alert! '+mechName+' in '+ins.bayNo+', your '+dLabel+' ETD for truck '+ins.truckNo+' has been missed by '+Math.abs(minsLeft)+' minutes. Supervisor attention required immediately.');
           }
-          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+ins.bayNo || "—"+' · '+dLabel,''+mechName+' is '+fmtOverdue(Math.abs(minsLeft))+' overdue — supervisor action required','breach');
+          showFloatingETDAlert('🚨 ETD BREACHED',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' is '+fmtOverdue(Math.abs(minsLeft))+' overdue — supervisor action required','breach');
         }
       }
     });
@@ -8675,7 +8672,7 @@ function checkETDAlerts(){
             if(_lastAnnounced[supKey]!==min2bucket){
               _lastAnnounced[supKey]=min2bucket;
               playSupETDBeep();
-              showFloatingETDAlert('🏁 SUPERVISOR ETD',ins.truckNo+' · '+ins.bayNo || "—",'Truck ETD in '+supMinsLeft+'min — ensure all depts finishing','supervisor');
+              showFloatingETDAlert('🏁 SUPERVISOR ETD',ins.truckNo+' · '+ins.bayNo,'Truck ETD in '+supMinsLeft+'min — ensure all depts finishing','supervisor');
             }
           }
         }
@@ -9500,7 +9497,7 @@ function downloadFullMonthlyExport(){
       e.origin||'',
       e.fuelLevel||0,
       depts,
-      ins ? ins.bayNo || "—"||'' : '',
+      ins ? ins.bayNo||'' : '',
       safety,
       apt ? 'YES' : 'NO — Walk-in',
       apt ? fmt(apt.plannedVisit) : '',
@@ -9558,7 +9555,7 @@ function downloadFullMonthlyExport(){
         s3r.push([
           s3i,
           e.truckNo,
-          ins.bayNo || "—"||'',
+          ins.bayNo||'',
           fmtDate(e.entryTime),
           dLabel,
           j.desc||j.text||'',
@@ -9588,7 +9585,7 @@ function downloadFullMonthlyExport(){
       i+1,
       w.worker||w.name||'',
       e ? e.truckNo : w.truckNo||'',
-      ins ? ins.bayNo || "—"||'' : '',
+      ins ? ins.bayNo||'' : '',
       w.dept||'',
       w.jobDesc||w.job||'',
       fmt(w.startTime),
@@ -9601,7 +9598,7 @@ function downloadFullMonthlyExport(){
     var wp=S.workerPunches[safeKey(name)]; if(!wp||!inMonth(wp.startTime)) return;
     var ins=S.inspections.find(function(x){return x.id===wp.insId;});
     var e=ins?S.entries.find(function(x){return x.id===ins.entryId;}):null;
-    s4r.push([s4r.length+1,name,e?e.truckNo:wp.truckNo||'',ins?ins.bayNo || "—"||'':'',wp.dept||'',wp.jobDesc||'',fmt(wp.startTime),'Active (not yet complete)','']);
+    s4r.push([s4r.length+1,name,e?e.truckNo:wp.truckNo||'',ins?ins.bayNo||'':'',wp.dept||'',wp.jobDesc||'',fmt(wp.startTime),'Active (not yet complete)','']);
   });
   var ws4 = XLSX.utils.aoa_to_sheet([s4h].concat(s4r.length?s4r:[['No punch records for '+monthName]]));
   ws4['!cols']=[{wch:4},{wch:24},{wch:12},{wch:6},{wch:14},{wch:35},{wch:18},{wch:18},{wch:10}];
@@ -9621,7 +9618,7 @@ function downloadFullMonthlyExport(){
     var t5 = e.exitTime;
     var total = (t0&&t5) ? dur(t0,t5) : '';
     var slaPass = (t0&&t5) ? ((new Date(t5)-new Date(t0))/3600000 <= 5 ? 'PASS' : 'FAIL') : '';
-    s5r.push([i+1,e.truckNo,ins?ins.bayNo || "—"||'':'',fmt(t0),fmt(t1),dur(t0,t1),fmt(t2),dur(t1,t2),fmt(t4),dur(t2,t4),fmt(t5),dur(t4,t5),total,slaPass]);
+    s5r.push([i+1,e.truckNo,ins?ins.bayNo||'':'',fmt(t0),fmt(t1),dur(t0,t1),fmt(t2),dur(t1,t2),fmt(t4),dur(t2,t4),fmt(t5),dur(t4,t5),total,slaPass]);
   });
   var ws5 = XLSX.utils.aoa_to_sheet([s5h].concat(s5r.length?s5r:[['No SLA records for '+monthName]]));
   ws5['!cols']=[{wch:4},{wch:12},{wch:6},{wch:18},{wch:18},{wch:8},{wch:18},{wch:8},{wch:18},{wch:8},{wch:18},{wch:8},{wch:12},{wch:12}];
@@ -9679,7 +9676,7 @@ function refreshPostponePage(){
   sel.innerHTML='<option value="">-- Select active truck --</option>'+
     inYard.map(e=>{
       const ins=S.inspections.find(i=>i.entryId===e.id);
-      return `<option value="${e.id}">${e.truckNo}${ins?' — '+ins.bayNo || "—":''}${e.noWorkRequired?' (No work)':''}</option>`;
+      return `<option value="${e.id}">${e.truckNo}${ins?' — '+ins.bayNo:''}${e.noWorkRequired?' (No work)':''}</option>`;
     }).join('');
   if(cur) sel.value=cur;
 
@@ -9706,7 +9703,7 @@ function loadPostponeDetails(){
   if(!e){det.style.display='none';return;}
   det.style.display='block';
   let txt=`Truck: <strong>${e.truckNo}</strong> · Gate In: ${new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
-  if(ins) txt+=` · Bay: ${ins.bayNo || "—"} · ETD: ${new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;
+  if(ins) txt+=` · Bay: ${ins.bayNo} · ETD: ${new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`;
   const pending=ins?['mech','elec','tyre','weld','pneumatic','suspension'].reduce((acc,d)=>{
     const p=((ins.jobs||{})[d]||[]).filter((j,i)=>!((S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done));
     return acc+p.length;
@@ -9732,7 +9729,7 @@ function savePostponeRecord(){
     id:Date.now(),
     truckNo:e.truckNo,
     entryId:parseInt(id),
-    bayNo:ins?ins.bayNo || "—":'—',
+    bayNo:ins?ins.bayNo:'—',
     reason,
     notes,
     targetDate,
@@ -10757,7 +10754,7 @@ function raiseSpareRequest(){
   const ins=S.inspections.find(i=>i.id==truckSel.value);
   if(!S.spareRequests) S.spareRequests=[];
   S.spareRequests.push({
-    id:Date.now(), truckNo:(ins&&ins.truckNo)||'—', bayNo:(ins&&ins.bayNo || "—")||'—',
+    id:Date.now(), truckNo:(ins&&ins.truckNo)||'—', bayNo:(ins&&ins.bayNo)||'—',
     dept, partName:part, partNo, qty, priority, notes,
     requestedBy:reqBy, requestedAt:new Date().toISOString(),
     status:'pending'
@@ -11264,7 +11261,7 @@ function printJobCard(insId){
     </div>
 
     <table>
-      <tr><td style="width:30%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:30%;font-weight:bold">Bay</td><td>${ins.bayNo || "—"}</td></tr>
+      <tr><td style="width:30%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:30%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
       <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
       <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
       <tr><td style="font-weight:bold">Gate In (T0)</td><td>${fmtDt((e&&e.entryTime))}</td><td style="font-weight:bold">ETD Set (T1)</td><td>${fmtDt(ins.t1_allocated)}</td></tr>
@@ -11365,7 +11362,7 @@ function printInspectionSheet(insId){
       <p>Date: ${now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p>
     </div>
     <table>
-      <tr><td style="width:35%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:25%;font-weight:bold">Bay</td><td>${ins.bayNo || "—"}</td></tr>
+      <tr><td style="width:35%;font-weight:bold">Truck No</td><td style="font-size:14pt;font-weight:bold">${ins.truckNo}</td><td style="width:25%;font-weight:bold">Bay</td><td>${ins.bayNo}</td></tr>
       <tr><td style="font-weight:bold">Job Type</td><td>${ins.jobType||'—'}</td><td style="font-weight:bold">Priority</td><td>${ins.priority||'Normal'}</td></tr>
       <tr><td style="font-weight:bold">Driver</td><td>${ins.driverName||'—'}</td><td style="font-weight:bold">Mobile</td><td>${ins.driverMobile||'—'}</td></tr>
       <tr><td style="font-weight:bold">Gate In</td><td>${fmtDt((e&&e.entryTime))}</td><td style="font-weight:bold">ETD</td><td>${ins.etd?formatETD24h(ins.etd)+' '+formatETDDate(ins.etd):'—'}</td></tr>
@@ -11523,7 +11520,7 @@ function refreshStaleBaysList(){
   const inYard = S.entries.filter(e => !e.exitTime);
   const staleBays = S.inspections.filter(ins => {
     // Find parked/completed inspections that still have bayNo assigned
-    if(!ins.bayNo || "—" || !ins.parked) return false;
+    if(!ins.bayNo || !ins.parked) return false;
     const entry = S.entries.find(e => e.id === ins.entryId);
     if(entry && !entry.exitTime) return false; // Still in yard, not stale
     return true;
@@ -11534,7 +11531,7 @@ function refreshStaleBaysList(){
     listEl.innerHTML = '<div class="text-xs" style="color:var(--green)">✅ No stale bay assignments found.</div>';
   } else {
     listEl.innerHTML = staleBays.map(ins => 
-      `<div>🚛 <strong>${ins.truckNo}</strong> · Bay <strong>${ins.bayNo || "—"}</strong> · Parked: ${ins.parked ? '✓' : '✗'}</div>`
+      `<div>🚛 <strong>${ins.truckNo}</strong> · Bay <strong>${ins.bayNo}</strong> · Parked: ${ins.parked ? '✓' : '✗'}</div>`
     ).join('');
   }
 }
@@ -11542,7 +11539,7 @@ function refreshStaleBaysList(){
 function fixStaleBayAssignments(){
   const inYard = S.entries.filter(e => !e.exitTime);
   const staleBays = S.inspections.filter(ins => {
-    if(!ins.bayNo || "—" || !ins.parked) return false;
+    if(!ins.bayNo || !ins.parked) return false;
     const entry = S.entries.find(e => e.id === ins.entryId);
     if(entry && !entry.exitTime) return false;
     return true;
@@ -11555,7 +11552,7 @@ function fixStaleBayAssignments(){
   
   let cleared = 0;
   staleBays.forEach(ins => {
-    ins.bayNo || "—" = null;
+    ins.bayNo = null;
     cleared++;
   });
   
@@ -11601,7 +11598,7 @@ function loadDcDateTruckPreview(){
     +'<strong>'+e.truckNo+'</strong><br>'
     +'Gate In: '+new Date(e.entryTime).toLocaleString('en-GB')+'<br>'
     +(e.exitTime?'Gate Out: '+new Date(e.exitTime).toLocaleString('en-GB')+'<br>':'Still in yard<br>')
-    +(ins?'Bay: '+ins.bayNo || "—"+' · Jobs: '+jobCount:'No inspection record')
+    +(ins?'Bay: '+ins.bayNo+' · Jobs: '+jobCount:'No inspection record')
     +'<br><span style="color:var(--red);font-size:11px">Will move entry + inspection + all jobs to Recycle Bin</span></div>';
   btn.style.display='block';
 }
@@ -12104,7 +12101,7 @@ function collectStaffJobs(name, rangeStart, rangeEnd){
         rows.push({
           date:completedDate,
           truckNo:ins.truckNo,
-          bayNo:ins.bayNo || "—",
+          bayNo:ins.bayNo,
           dept:d,
           jobDesc:j.desc||j.text||'(no description)',
           completedTime:upd.time||'',
@@ -12570,7 +12567,7 @@ function renderViewPwa(){
     // Truck header
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
       +'<div><span style="font-size:15px;font-weight:800;color:#fff">'+ins.truckNo+'</span>'
-      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo || "—"+'</span></div>'
+      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo+'</span></div>'
       +'<span style="font-size:13px;font-weight:700;color:'+pctColor+'">'+pct+'%</span>'
       +'</div>';
     // Progress bar
@@ -12674,7 +12671,7 @@ function renderMechPwa(){
       var statusClass = allDone ? 'mech-bay-done' : 'mech-bay-pending';
       var safeId = 'mt_'+String(ins.id).replace(/[^a-zA-Z0-9]/g,'');
       return '<div class="mech-bay-chip '+statusClass+'" onclick="mechScrollToTruck(\''+safeId+'\',this)">'
-        +'<div style="font-size:13px;font-weight:900;color:#fff">'+ins.bayNo || "—".replace('Bay ','B')+'</div>'
+        +'<div style="font-size:13px;font-weight:900;color:#fff">'+ins.bayNo.replace('Bay ','B')+'</div>'
         +'<div style="font-size:10px;font-weight:700;color:#aaa;margin-top:2px">'+ins.truckNo+'</div>'
         +'<div class="mech-bay-dot"></div>'
         +'</div>';
@@ -12711,7 +12708,7 @@ function renderMechPwa(){
     html += '<div id="'+safeId+'" style="background:#12121f;border:1px solid #2a2a3e;border-radius:12px;padding:12px;margin-bottom:14px;scroll-margin-top:90px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
       +'<div><span style="font-size:16px;font-weight:900;color:#fff">'+ins.truckNo+'</span>'
-      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo || "—"+'</span></div>'
+      +' <span style="background:#e07b00;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700">'+ins.bayNo+'</span></div>'
       +'<span style="font-size:13px;font-weight:800;color:'+pctColor+'">'+pct+'%</span></div>';
 
     // Progress bar
@@ -12917,7 +12914,7 @@ function exportJobCardsCSV(){
         rows.push([
           'JC-'+String(idx).padStart(3,'0'),
           e?new Date(e.entryTime).toLocaleDateString('en-GB'):'',
-          ins.truckNo, ins.bayNo || "—", ins.jobType||'', dLabel, mechanic, j.desc,
+          ins.truckNo, ins.bayNo, ins.jobType||'', dLabel, mechanic, j.desc,
           j.addedBy==='Ground Team'?'Ground':'Inspection',
           t0, t1, t2, t4,
           isDone?'COMPLETE':'PENDING'
@@ -12940,7 +12937,7 @@ function exportJobCardsCSV(){
           if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
           var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
           var prevFaults=existing?existing.faults:[];
-          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo || "—", date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
+          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
         }
         truckMap[ins.truckNo].faults.push(j.desc);
       });
@@ -13037,7 +13034,7 @@ function exportTimeStampingCSV(){
     const slaTarget=6;
     const slaMet=t5?(((t5-t0)/3600000)<=slaTarget?'MET':'MISSED'):'';
     rows.push([
-      ins.truckNo, ins.bayNo || "—",
+      ins.truckNo, ins.bayNo,
       t0.toLocaleString('en-GB'),
       t1?t1.toLocaleString('en-GB'):'',
       t2?t2.toLocaleString('en-GB'):'',
@@ -13461,9 +13458,9 @@ function deleteDuplicateEntry(entryId){
 
 function renderInspectionEditPanel(ins){
   let html=`<div class="card">
-      <div class="edit-section-head"><span>👁 Supervisor Inspection — ${ins.truckNo} <span class="text2 text-xs">(Bay ${ins.bayNo || "—"})</span></span></div>
+      <div class="edit-section-head"><span>👁 Supervisor Inspection — ${ins.truckNo} <span class="text2 text-xs">(Bay ${ins.bayNo})</span></span></div>
       <div class="form-row cols-3">
-        <div><label>Bay No</label><input type="text" id="edit-bayNo-${ins.id}" value="${ins.bayNo || "—"}"></div>
+        <div><label>Bay No</label><input type="text" id="edit-bayNo-${ins.id}" value="${ins.bayNo}"></div>
         <div><label>Job Type</label>
           <select id="edit-jobType-${ins.id}">
             ${['Accidental','Running Repair','PM Maintenance','Minor Job','Major Job'].map(jt=>`<option ${ins.jobType===jt?'selected':''}>${jt}</option>`).join('')}
@@ -13606,7 +13603,7 @@ function saveEditInspection(insId){
   if(looksCorrupted(newBayNo)){
     return toast('⚠️ "'+newBayNo+'" looks corrupted (duplicated/extra characters) — please retype it cleanly','warn');
   }
-  ins.bayNo || "—"=newBayNo;
+  ins.bayNo=newBayNo;
   ins.jobType=document.getElementById('edit-jobType-'+insId).value;
   ins.priority=document.getElementById('edit-priority-'+insId).value;
   ins.trailerNo=document.getElementById('edit-trailerNo-'+insId).value.trim();
@@ -13628,7 +13625,7 @@ function buildDelayBtn(insId, dept){
   if(existing){
     return '<div style="background:rgba(239,68,68,.1);border:1px solid #ef4444;border-radius:8px;padding:8px 12px;font-size:12px;color:#dc2626;margin-top:6px">⚠️ Delay reported: '+existing+'</div>';
   }
-  return '<button onclick="reportDeptDelay(\''+insId+'\',\''+dept+'\',\''+(ins?ins.truckNo:'')+'\',\''+(ins?ins.bayNo || "—":'')+'\')" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:6px;display:block">⚠️ Report Delay · Ripoti Kuchelewa</button>';
+  return '<button onclick="reportDeptDelay(\''+insId+'\',\''+dept+'\',\''+(ins?ins.truckNo:'')+'\',\''+(ins?ins.bayNo:'')+'\')" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;width:100%;margin-top:6px;display:block">⚠️ Report Delay · Ripoti Kuchelewa</button>';
 }
 
 function reportDeptDelay(insId, dept, truckNo, bayNo){
@@ -13662,9 +13659,9 @@ function saveDeptDelay(){
   var dLabel = {mech:'Mechanical',elec:'Electrician',tyre:'Tyre',weld:'Welding'}[dept];
   S.notifications.push({
     id: Date.now(),
-    message: '⚠️ DELAY — '+(ins?ins.truckNo:'')+ ' '+dLabel+': '+reason+'. Bay: '+(ins?ins.bayNo || "—":'')+'. Reported by Ground Team.',
+    message: '⚠️ DELAY — '+(ins?ins.truckNo:'')+ ' '+dLabel+': '+reason+'. Bay: '+(ins?ins.bayNo:'')+'. Reported by Ground Team.',
     truckLink: ins?ins.truckNo:'',
-    bayLink: ins?ins.bayNo || "—":'',
+    bayLink: ins?ins.bayNo:'',
     timestamp: new Date().toISOString(),
     read: false
   });
@@ -13957,10 +13954,10 @@ function punchStartJob(insId,dept,idx){
   // not by whoever punches in to do the work.
 
   S.workerPunches[safeKey(curPunchWorker)]={
-    status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo || "—", dept, jobDesc:(ins.jobs||{})[dept][idx].desc,
+    status:'working', truckNo:ins.truckNo, bayNo:ins.bayNo, dept, jobDesc:(ins.jobs||{})[dept][idx].desc,
     since:new Date().toISOString()
   };
-  logWorkerEvent(curPunchWorker,'working',{truckNo:ins.truckNo,bayNo:ins.bayNo || "—",dept,jobDesc:(ins.jobs||{})[dept][idx].desc});
+  logWorkerEvent(curPunchWorker,'working',{truckNo:ins.truckNo,bayNo:ins.bayNo,dept,jobDesc:(ins.jobs||{})[dept][idx].desc});
   save();
   loadPunchJobs();
   refreshWorkerBoard();
@@ -14003,9 +14000,9 @@ function punchCompleteJob(insId,dept,idx){
   if(justCompletedDept){
     playDeptCompleteSound(justCompletedDept);
     if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-      speakAnnouncement(deptLabels[justCompletedDept]+' jobs completed for truck '+ins.truckNo+' in '+ins.bayNo || "—"+'. Well done '+curPunchWorker+'!');
+      speakAnnouncement(deptLabels[justCompletedDept]+' jobs completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Well done '+curPunchWorker+'!');
     }
-    showFloatingETDAlert('✅ '+deptLabels[justCompletedDept].toUpperCase()+' DONE',ins.truckNo+' · '+ins.bayNo || "—",curPunchWorker+' completed all '+deptLabels[justCompletedDept]+' jobs','celebrate');
+    showFloatingETDAlert('✅ '+deptLabels[justCompletedDept].toUpperCase()+' DONE',ins.truckNo+' · '+ins.bayNo,curPunchWorker+' completed all '+deptLabels[justCompletedDept]+' jobs','celebrate');
   }
 
   if(allDoneCheck){
@@ -14027,13 +14024,13 @@ function punchCompleteJob(insId,dept,idx){
       playCelebrationMelody();
       if(_etdAnnouncementsEnabled&&window.speechSynthesis){
         var msg=withinETD
-          ?'Outstanding! All departments completed for truck '+ins.truckNo+' in '+ins.bayNo || "—"+'. Delivered within ETD. Excellent work team!'
-          :'All departments completed for truck '+ins.truckNo+' in '+ins.bayNo || "—"+'. Truck is ready for gate out.';
+          ?'Outstanding! All departments completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Delivered within ETD. Excellent work team!'
+          :'All departments completed for truck '+ins.truckNo+' in '+ins.bayNo+'. Truck is ready for gate out.';
         speakAnnouncement(msg);
       }
       showFloatingETDAlert(
         withinETD?'🏆 ALL DONE — WITHIN ETD!':'✅ ALL DEPARTMENTS DONE',
-        ins.truckNo+' · '+ins.bayNo || "—",
+        ins.truckNo+' · '+ins.bayNo,
         withinETD?'Delivered within committed ETD — excellent team performance!':'All jobs complete — ready for Supervisor QC and gate out',
         'celebrate'
       );
@@ -14140,7 +14137,7 @@ function getOpenJobLocksFor(workerName){
       if(assigned!==workerName) return;
       const doneCount=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
       if(doneCount<jobs.length){
-        locks.push({truckNo:ins.truckNo, bayNo:ins.bayNo || "—", dept:d, doneCount, total:jobs.length});
+        locks.push({truckNo:ins.truckNo, bayNo:ins.bayNo, dept:d, doneCount, total:jobs.length});
       }
     });
   });
@@ -15101,8 +15098,8 @@ function mgrPunchComplete(insId, dept, jobIdx){
   S.jobUpdates[key] = { done:true, doneBy:worker, time:timeStr, punchedByManager:true };
 
   // Log worker event
-  logWorkerEvent(worker, 'working', {truckNo:ins.truckNo, bayNo:ins.bayNo || "—", dept:dept, jobDesc:(ins.jobs[dept][jobIdx]||{}).desc, punchedByManager:true});
-  logWorkerEvent(worker, 'available', {reason:'job complete', bayNo:ins.bayNo || "—", dept:dept, punchedByManager:true});
+  logWorkerEvent(worker, 'working', {truckNo:ins.truckNo, bayNo:ins.bayNo, dept:dept, jobDesc:(ins.jobs[dept][jobIdx]||{}).desc, punchedByManager:true});
+  logWorkerEvent(worker, 'available', {reason:'job complete', bayNo:ins.bayNo, dept:dept, punchedByManager:true});
 
   // Update workerPunches
   if(!S.workerPunches) S.workerPunches={};
