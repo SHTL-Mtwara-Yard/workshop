@@ -5413,7 +5413,7 @@ function refreshSecurityLog(){
       const outT=e.exitTime?new Date(e.exitTime):null;
       const dur=outT?Math.round((outT-inT)/60000)+'m':'—';
       const dTags=(e.depts||[]).map(d=>`<span class="tag tag-${dC(d)}">${dL(d)}</span>`).join(' ');
-      let statusTag = outT ? '<span class="tag tag-green">EXITED</span>' : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
+      let statusTag = (e.exitTime) ? '<span class="tag tag-green">EXITED</span>' : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
       const invTag = (e.missingItems&&e.missingItems.length) ? `<span class="tag tag-red" title="${e.missingItems.map(m=>m.item+': '+m.qtyPresent).join(', ')}">⚠️ ${e.missingItems.length} short</span>` : '<span class="tag tag-green">OK</span>';
       const apt=(S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && a.refNo; });
       const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
