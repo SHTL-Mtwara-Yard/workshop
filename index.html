@@ -3647,18 +3647,35 @@ var _saving=false;
 const save=()=>{
   cacheLocally();
   _saving=true;
-  // CRITICAL FIX: merge inspections with latest server data before writing,
-  // so a stale copy open in another user's browser can't wipe out a bayNo
-  // that was just saved by someone else a moment ago.
-  fbRoot.child('inspections').once('value').then(snap=>{
-    const serverInspections = snap.val() || [];
-    const merged = {};
-    serverInspections.forEach(ins=>{ merged[ins.entryId] = ins; });
+  // CRITICAL FIX: merge inspections AND entries with latest server data before
+  // writing, so a stale copy open in another user's browser can't wipe out
+  // a bayNo or a gate-in/out record that was just saved by someone else.
+  Promise.all([
+    fbRoot.child('inspections').once('value'),
+    fbRoot.child('entries').once('value')
+  ]).then(([insSnap, entSnap])=>{
+    const serverInspections = insSnap.val() || [];
+    const mergedIns = {};
+    serverInspections.forEach(ins=>{ mergedIns[ins.entryId] = ins; });
     (S.inspections||[]).forEach(ins=>{
-      const existing = merged[ins.entryId];
-      if(!existing || ins.id >= existing.id){ merged[ins.entryId] = ins; }
+      const existing = mergedIns[ins.entryId];
+      if(!existing || ins.id >= existing.id){ mergedIns[ins.entryId] = ins; }
     });
-    S.inspections = Object.values(merged);
+    S.inspections = Object.values(mergedIns);
+
+    const serverEntries = entSnap.val() || [];
+    const mergedEnt = {};
+    serverEntries.forEach(e=>{ mergedEnt[e.id] = e; });
+    (S.entries||[]).forEach(e=>{
+      const existing = mergedEnt[e.id];
+      // Prefer whichever record has more info (exitTime set wins over not set,
+      // otherwise keep the newest by id)
+      if(!existing || (e.exitTime && !existing.exitTime) || e.id >= existing.id){
+        mergedEnt[e.id] = e;
+      }
+    });
+    S.entries = Object.values(mergedEnt);
+
     fbRoot.set(S).then(()=>{
       _saving=false;
     }).catch(err=>{
