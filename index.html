@@ -1918,9 +1918,9 @@ tr:hover td { background: var(--surface2); }
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Truck No</th><th>Bay</th><th>Status</th><th>All Faults</th>
+            <th>Date</th><th>Truck No</th><th>Bay</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
           </tr></thead>
-          <tbody id="dailyReportTable"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
+          <tbody id="dailyReportTable"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -12976,18 +12976,25 @@ function getDailyReportRows(){
     if(entryDate!==targetDate) return; // only trucks that entered on the selected date
     var exitTime=e.exitTime;
     var faults=[];
+    var parts=[];
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
-      ((ins.jobs||{})[d]||[]).forEach(function(j){ faults.push(j.desc); });
+      ((ins.jobs||{})[d]||[]).forEach(function(j){
+        faults.push(j.desc);
+        if(j.partPending){ parts.push(j.partName+(j.partNotes?' ('+j.partNotes+')':'')); }
+      });
     });
     var status = exitTime ? 'LEFT TODAY' : 'PENDING — IN YARD';
     var bay = ins.bayNo || ins.lastBayNo || '—';
+    var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    var timeOut = exitTime ? new Date(exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
     var key=ins.truckNo;
     if(!truckMap[key]){
-      truckMap[key]={ date:entryDate, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice() };
+      truckMap[key]={ date:entryDate, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
     } else {
       truckMap[key].faults=truckMap[key].faults.concat(faults);
+      truckMap[key].parts=truckMap[key].parts.concat(parts);
       if(bay!=='—') truckMap[key].bay=bay;
-      if(exitTime) truckMap[key].status='LEFT TODAY';
+      if(exitTime){ truckMap[key].status='LEFT TODAY'; truckMap[key].timeOut=timeOut; }
     }
   });
   rows=Object.values(truckMap);
@@ -13005,25 +13012,29 @@ function renderDailyReport(){
   var tbody=document.getElementById('dailyReportTable');
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(function(r){
     var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : 'var(--amber)';
+    var partsStr = r.parts.length ? r.parts.join('; ') : '—';
+    var partsColor = r.parts.length ? 'var(--red)' : 'var(--text2)';
     return '<tr><td>'+r.date+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td>'+
+      '<td>'+r.timeIn+'</td><td>'+r.timeOut+'</td>'+
       '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
-      '<td>'+(r.faults.join('; ')||'—')+'</td></tr>';
+      '<td>'+(r.faults.join('; ')||'—')+'</td>'+
+      '<td style="color:'+partsColor+'">'+partsStr+'</td></tr>';
   }).join('');
 }
 
 function exportDailyReportCSV(){
   var rows=getDailyReportRows();
-  var headers=['Date','Truck','Bay','Status','All Faults'];
-  var data=rows.map(function(r){ return [r.date, r.truck, r.bay, r.status, r.faults.join('; ')||'—']; });
+  var headers=['Date','Truck','Bay','Time In','Time Out','Status','All Faults','Parts Needed'];
+  var data=rows.map(function(r){ return [r.date, r.truck, r.bay, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
-    ws['!cols']=[{wch:12},{wch:12},{wch:8},{wch:18},{wch:80}];
+    ws['!cols']=[{wch:12},{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
     var picker=document.getElementById('drDatePicker');
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
