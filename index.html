@@ -3663,8 +3663,17 @@ fbRoot.on('value', snapshot=>{
   if(_saving) return; // Don't overwrite mid-save
   const data=snapshot.val();
   if(data){
+    // Deduplicate inspections: keep only newest per entryId
+    const inspByEntry = {};
+    (data.inspections||[]).forEach(ins => {
+      if (!inspByEntry[ins.entryId] || ins.id > inspByEntry[ins.entryId].id) {
+        inspByEntry[ins.entryId] = ins;
+      }
+    });
+    const dedupedInspections = Object.values(inspByEntry);
+    
     S = {
-      entries:data.entries||[], inspections:data.inspections||[], revisits:data.revisits||[],
+      entries:data.entries||[], inspections:dedupedInspections, revisits:data.revisits||[],
       eodBalance:data.eodBalance||[], jobUpdates:data.jobUpdates||{}, deptETDs:data.deptETDs||{},
       notifications:data.notifications||[], breakdowns:data.breakdowns||[], yardAlerts:data.yardAlerts||[], workerPunches:data.workerPunches||{},
       staffRoster: data.staffRoster || JSON.parse(JSON.stringify(DEFAULT_STAFF_SEED)),
