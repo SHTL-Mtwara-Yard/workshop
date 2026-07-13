@@ -3781,6 +3781,49 @@ fbRoot.on('value', snapshot=>{
     }
   });
   if(mergeChanged) fbRoot.child('staffRoster').set(S.staffRoster).catch(function(){});
+
+  // ── ONE-TIME MIGRATION: sync roster with 13 Jul 2026 attendance sheet ──
+  // Additive only — never removes anyone already in the roster. Runs once,
+  // guarded by S.rosterMigration2607 so it never repeats or overwrites
+  // Manager's own edits after this point.
+  if(!S.rosterMigration2607){
+    var add=function(dept,names){
+      if(!S.staffRoster[dept]) S.staffRoster[dept]=[];
+      names.forEach(function(n){
+        if(S.staffRoster[dept].indexOf(n)===-1) S.staffRoster[dept].push(n);
+      });
+    };
+    var moveIfPresent=function(name,fromDept,toDept){
+      if(S.staffRoster[fromDept]){
+        var i=S.staffRoster[fromDept].indexOf(name);
+        if(i>-1) S.staffRoster[fromDept].splice(i,1);
+      }
+      add(toDept,[name]);
+    };
+    // New mechanics joined recently
+    add('mech',['KASANGA DANIEL','FARAJI MASODA','IDRISA ABUBAKARI','RASHID ABDALA','FARIDI JUMA','HAJI FAKIHI','ABDALA SAIDI HAMISI']);
+    // Tyre section addition
+    add('tyre',['MUKHSIN SHAIBU ALLY']);
+    // Suspension was empty — GERVAS COSMAS belongs here per attendance sheet
+    moveIfPresent('GERVAS COSMAS','inspection','suspension');
+    // Floor Supervisor / Floor Incharge were swapped — fix per attendance sheet
+    moveIfPresent('SAIDI MBESSI','floorsupervisor','incharge');
+    add('floorsupervisor',['CLAUS AMOS NSYANI','ISSA HARUNA RASHID','FREDI JULIAS']);
+    // Brand new sections from attendance sheet
+    add('washinggreasing',['HASSANI SAID']);
+    add('breakdown',['LUKMAN SELEMAN SALUM','YUSUPH HEMEDI','JORAM JOHNBOSCO MBIRO']);
+    add('stores',['RAJABU MADIDI','ISIHAKA ABDUL','ADELINA JULIUS','ANANIA MICHAEL KASHILILIKA']);
+    add('airinflation',['NICHOLAUS MNANKA']);
+    add('houseelectrician',['ABDUL MOHAMED (HOUSE ELC)']);
+    add('general',['SELEMAN HAMAD OMARY','SHAIBU ALLY CHAMPUNGA','THOBIA MARTIN AVIAS','KURUTHUM ISSA DADI']);
+
+    S.rosterMigration2607=true;
+    fbRoot.child('staffRoster').set(S.staffRoster).catch(function(){});
+    fbRoot.child('rosterMigration2607').set(true).catch(function(){});
+    STAFF = S.staffRoster;
+    ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
+    toast('✅ Staff roster synced with attendance sheet','ok');
+  }
   STAFF = S.staffRoster;
   ALL_STAFF = [...new Set(Object.values(STAFF).flat())].sort();
 
@@ -3891,7 +3934,13 @@ const STAFF_SECTION_LABELS = {
   suspension:'Suspension', floorsupervisor:'Floor Supervisor', incharge:'Floor Incharge',
   security:'Security Staff',
   busdriver:'Bus Driver',
-  pickupdriver:'Pickup Driver'
+  pickupdriver:'Pickup Driver',
+  washinggreasing:'Washing / Greasing',
+  breakdown:'Breakdown Team',
+  stores:'Stores',
+  airinflation:'Air Inflation',
+  houseelectrician:'House Electrician',
+  general:'General Staff'
 };
 // STAFF and ALL_STAFF are now LIVE references that always point at the current S.staffRoster.
 // They get reassigned every time Firebase data loads (see fbRoot.on('value', ...) below),
