@@ -1855,6 +1855,7 @@ tr:hover td { background: var(--surface2); }
 
   <div class="subnav">
     <div class="subtab active" onclick="showSub('mgr-jobcards',this)">All Job Cards</div>
+    <div class="subtab" onclick="showSub('mgr-dailyreport',this);renderDailyReport()" style="color:var(--green);border-color:var(--green)">📊 Daily Report</div>
     <div class="subtab" onclick="showSub('mgr-timestamp',this)">Time Stamping (T0–T4)</div>
     <div class="subtab" onclick="showSub('mgr-uptime',this)">Vehicle Uptime</div>
     <div class="subtab" onclick="showSub('mgr-notify',this)">📨 Notify Supervisor <span class="badge-pill" id="mgrUnreadBadge" style="display:none;margin-left:4px"></span></div>
@@ -1896,6 +1897,30 @@ tr:hover td { background: var(--surface2); }
             <th>T0 In</th><th>T1 ETD Set</th><th>T2 Start</th><th>T4 QC</th><th>Status</th><th>Part</th><th>🖨️</th>
           </tr></thead>
           <tbody id="mgrJobCardsTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No job cards yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB: DAILY REPORT -->
+  <div class="subpage" id="sub-mgr-dailyreport">
+    <div class="card">
+      <div class="flex gap-8 mb-12 items-center flex-wrap">
+        <input type="date" id="drDatePicker" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px" onchange="renderDailyReport()">
+        <select id="drStatusFilter" style="min-width:160px" onchange="renderDailyReport()">
+          <option value="all">All (Pending + Left Today)</option>
+          <option value="pending">Pending Only</option>
+          <option value="left">Left Today Only</option>
+          <option value="inyard">Still In Yard</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="exportDailyReportCSV()">📥 Download for Boss</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Truck No</th><th>Bay</th><th>Status</th><th>All Faults</th>
+          </tr></thead>
+          <tbody id="dailyReportTable"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -12938,6 +12963,77 @@ function dateStamp(){
 }
 
 // ═══ EXPORT: ALL JOB CARDS ═══
+// ═══ DAILY REPORT: Date, Truck, Bay, Status, Faults — pending & left-today ═══
+function getDailyReportRows(){
+  var picker=document.getElementById('drDatePicker');
+  var targetDate = picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
+  var rows=[];
+  var truckMap={};
+  S.inspections.forEach(function(ins){
+    var e=S.entries.find(function(x){ return x.id==ins.entryId; });
+    if(!e) return;
+    var entryDate=new Date(e.entryTime).toISOString().slice(0,10);
+    if(entryDate!==targetDate) return; // only trucks that entered on the selected date
+    var exitTime=e.exitTime;
+    var faults=[];
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      ((ins.jobs||{})[d]||[]).forEach(function(j){ faults.push(j.desc); });
+    });
+    var status = exitTime ? 'LEFT TODAY' : 'PENDING — IN YARD';
+    var bay = ins.bayNo || ins.lastBayNo || '—';
+    var key=ins.truckNo;
+    if(!truckMap[key]){
+      truckMap[key]={ date:entryDate, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice() };
+    } else {
+      truckMap[key].faults=truckMap[key].faults.concat(faults);
+      if(bay!=='—') truckMap[key].bay=bay;
+      if(exitTime) truckMap[key].status='LEFT TODAY';
+    }
+  });
+  rows=Object.values(truckMap);
+  var filterVal=document.getElementById('drStatusFilter')?document.getElementById('drStatusFilter').value:'all';
+  if(filterVal==='pending') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
+  else if(filterVal==='left') rows=rows.filter(function(r){ return r.status==='LEFT TODAY'; });
+  else if(filterVal==='inyard') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
+  return rows;
+}
+
+function renderDailyReport(){
+  var picker=document.getElementById('drDatePicker');
+  if(picker && !picker.value) picker.value=new Date().toISOString().slice(0,10);
+  var rows=getDailyReportRows();
+  var tbody=document.getElementById('dailyReportTable');
+  if(!tbody) return;
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(function(r){
+    var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : 'var(--amber)';
+    return '<tr><td>'+r.date+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td>'+
+      '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
+      '<td>'+(r.faults.join('; ')||'—')+'</td></tr>';
+  }).join('');
+}
+
+function exportDailyReportCSV(){
+  var rows=getDailyReportRows();
+  var headers=['Date','Truck','Bay','Status','All Faults'];
+  var data=rows.map(function(r){ return [r.date, r.truck, r.bay, r.status, r.faults.join('; ')||'—']; });
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
+    ws['!cols']=[{wch:12},{wch:12},{wch:8},{wch:18},{wch:80}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
+    var picker=document.getElementById('drDatePicker');
+    var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, 'SHTL_DailyReport_'+dateStr+'.xlsx');
+    toast('📥 Daily Report downloaded','ok');
+  } else {
+    exportCSV('SHTL_DailyReport_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
+  }
+}
+
 function exportJobCardsCSV(){
   var headers=['JC#','Date','Truck','Bay','Job Type','Department','Mechanic','Fault','Source','T0 In','T1 ETD Set','T2 Start','T4 QC','Status'];
   var rows=[];
