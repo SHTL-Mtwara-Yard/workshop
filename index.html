@@ -3647,14 +3647,32 @@ var _saving=false;
 const save=()=>{
   cacheLocally();
   _saving=true;
-  fbRoot.set(S).then(()=>{
-    _saving=false;
-    // Wait 100ms for any pending listener events to process before allowing new saves
-    setTimeout(()=>{}, 100);
-  }).catch(err=>{
-    _saving=false;
-    console.error('Firebase write failed:',err);
-    toast('⚠️ Sync failed — check connection','warn');
+  // CRITICAL FIX: merge inspections with latest server data before writing,
+  // so a stale copy open in another user's browser can't wipe out a bayNo
+  // that was just saved by someone else a moment ago.
+  fbRoot.child('inspections').once('value').then(snap=>{
+    const serverInspections = snap.val() || [];
+    const merged = {};
+    serverInspections.forEach(ins=>{ merged[ins.entryId] = ins; });
+    (S.inspections||[]).forEach(ins=>{
+      const existing = merged[ins.entryId];
+      if(!existing || ins.id >= existing.id){ merged[ins.entryId] = ins; }
+    });
+    S.inspections = Object.values(merged);
+    fbRoot.set(S).then(()=>{
+      _saving=false;
+    }).catch(err=>{
+      _saving=false;
+      console.error('Firebase write failed:',err);
+      toast('⚠️ Sync failed — check connection','warn');
+    });
+  }).catch(()=>{
+    // If merge read fails, fall back to plain write rather than blocking the save
+    fbRoot.set(S).then(()=>{ _saving=false; }).catch(err=>{
+      _saving=false;
+      console.error('Firebase write failed:',err);
+      toast('⚠️ Sync failed — check connection','warn');
+    });
   });
 };
 
