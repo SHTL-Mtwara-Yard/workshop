@@ -45,7 +45,7 @@ function checkForUpdate(){
   } catch(e){}
 }
 window.addEventListener('load', function(){
-  setInterval(checkForUpdate, 300000); // every 5 min
+  setInterval(checkForUpdate, 20000); // every 20 sec — catches stale tabs fast
 });
 
 // ═══ FORM AUTO-SAVE ═══
