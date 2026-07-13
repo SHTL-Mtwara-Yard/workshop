@@ -3649,6 +3649,8 @@ const save=()=>{
   _saving=true;
   fbRoot.set(S).then(()=>{
     _saving=false;
+    // Wait 100ms for any pending listener events to process before allowing new saves
+    setTimeout(()=>{}, 100);
   }).catch(err=>{
     _saving=false;
     console.error('Firebase write failed:',err);
