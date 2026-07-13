@@ -7056,6 +7056,7 @@ function checkAutoCompletion(insId){
     // Freshly completed — auto-flag for Supervisor, free the bay
     ins.completedAt=new Date().toISOString();
     ins.parked=true;
+    if(ins.bayNo) ins.lastBayNo=ins.bayNo; // keep permanent record of bay used, for reports/export
     ins.bayNo=null; // FREE THE BAY so it can be reallocated
     ins.supervisorRemark=null; // awaiting Supervisor's remark
     if(e){ e.parkStatus='awaiting_remark'; }
@@ -11598,6 +11599,7 @@ function fixStaleBayAssignments(){
   
   let cleared = 0;
   staleBays.forEach(ins => {
+    if(ins.bayNo) ins.lastBayNo=ins.bayNo;
     ins.bayNo = null;
     cleared++;
   });
@@ -12960,7 +12962,7 @@ function exportJobCardsCSV(){
         rows.push([
           'JC-'+String(idx).padStart(3,'0'),
           e?new Date(e.entryTime).toLocaleDateString('en-GB'):'',
-          ins.truckNo, ins.bayNo, ins.jobType||'', dLabel, mechanic, j.desc,
+          ins.truckNo, (ins.bayNo || ins.lastBayNo || ''), ins.jobType||'', dLabel, mechanic, j.desc,
           j.addedBy==='Ground Team'?'Ground':'Inspection',
           t0, t1, t2, t4,
           isDone?'COMPLETE':'PENDING'
@@ -12983,7 +12985,7 @@ function exportJobCardsCSV(){
           if(!etdVal && ins.t1_allocated) etdVal=ins.t1_allocated;
           var statusStr=exitTime?'LEFT YARD':etdVal?('IN YARD — ETD: '+new Date(etdVal).toLocaleString('en-GB')):'IN YARD';
           var prevFaults=existing?existing.faults:[];
-          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:ins.bayNo, date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
+          truckMap[ins.truckNo]={truckNo:ins.truckNo, bay:(ins.bayNo || ins.lastBayNo || ''), date:e?new Date(e.entryTime).toLocaleDateString('en-GB'):'', faults:prevFaults, jobType:ins.jobType||'', status:statusStr, _exited:!!exitTime, _entryMs:entryTimeMs};
         }
         truckMap[ins.truckNo].faults.push(j.desc);
       });
