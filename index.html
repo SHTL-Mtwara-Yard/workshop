@@ -12967,14 +12967,25 @@ function dateStamp(){
 function getDailyReportRows(){
   var picker=document.getElementById('drDatePicker');
   var targetDate = picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
+  var isToday = targetDate === new Date().toISOString().slice(0,10);
   var rows=[];
   var truckMap={};
   S.inspections.forEach(function(ins){
     var e=S.entries.find(function(x){ return x.id==ins.entryId; });
     if(!e) return;
-    var entryDate=new Date(e.entryTime).toISOString().slice(0,10);
-    if(entryDate!==targetDate) return; // only trucks that entered on the selected date
     var exitTime=e.exitTime;
+    var exitDate = exitTime ? new Date(exitTime).toISOString().slice(0,10) : null;
+    var entryDate=new Date(e.entryTime).toISOString().slice(0,10);
+
+    // Include this truck if:
+    //  - it LEFT on the target date (regardless of when it entered), OR
+    //  - it entered on the target date (captures same-day pending trucks), OR
+    //  - target date is TODAY and truck is still in yard (no exit yet) — always show current pending trucks
+    var leftOnTarget = exitDate === targetDate;
+    var enteredOnTarget = entryDate === targetDate;
+    var stillPendingToday = isToday && !exitTime;
+    if(!leftOnTarget && !enteredOnTarget && !stillPendingToday) return;
+
     var faults=[];
     var parts=[];
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
@@ -12983,24 +12994,24 @@ function getDailyReportRows(){
         if(j.partPending){ parts.push(j.partName+(j.partNotes?' ('+j.partNotes+')':'')); }
       });
     });
-    var status = exitTime ? 'LEFT TODAY' : 'PENDING — IN YARD';
+    var status = exitTime ? 'LEFT'+(leftOnTarget?' TODAY':'') : 'PENDING — IN YARD';
     var bay = ins.bayNo || ins.lastBayNo || '—';
     var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     var timeOut = exitTime ? new Date(exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
     var key=ins.truckNo;
     if(!truckMap[key]){
-      truckMap[key]={ date:entryDate, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
+      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
     } else {
       truckMap[key].faults=truckMap[key].faults.concat(faults);
       truckMap[key].parts=truckMap[key].parts.concat(parts);
       if(bay!=='—') truckMap[key].bay=bay;
-      if(exitTime){ truckMap[key].status='LEFT TODAY'; truckMap[key].timeOut=timeOut; }
+      if(exitTime){ truckMap[key].status='LEFT'+(leftOnTarget?' TODAY':''); truckMap[key].timeOut=timeOut; }
     }
   });
   rows=Object.values(truckMap);
   var filterVal=document.getElementById('drStatusFilter')?document.getElementById('drStatusFilter').value:'all';
   if(filterVal==='pending') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
-  else if(filterVal==='left') rows=rows.filter(function(r){ return r.status==='LEFT TODAY'; });
+  else if(filterVal==='left') rows=rows.filter(function(r){ return r.status.indexOf('LEFT')===0; });
   else if(filterVal==='inyard') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
   return rows;
 }
