@@ -10911,8 +10911,11 @@ function refreshSupportLogs(){
       const fmtD2=iso=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{dateStyle:'short'}); };
       gsTb.innerHTML=gsJobs.map(j=>{
         const statusTag=j.status==='in_progress'?'<span class="tag" style="background:rgba(234,179,8,.15);color:#b45309;border:1px solid rgba(234,179,8,.3)">In Progress</span>':'<span class="tag tag-green">Done</span>';
+        const endBtn=j.status!=='done'
+          ?`<button class="btn btn-success btn-sm" style="font-size:11px;padding:4px 8px;margin-left:4px" onclick="endSupportJobById(${j.id},'moreservices')">✅ End</button>`
+          :'';
         return `<tr><td>${fmtD2(j.loggedAt)}</td><td>${MORE_SVC_LABELS[j.type]||j.type}</td><td style="font-weight:700">${j.truckNo||'—'}</td>
-          <td>${j.name||'—'}</td><td>${j.job||'—'}</td><td>${fmtT2(j.startTime)}</td><td>${fmtT2(j.endTime)}</td><td>${j.dur||'—'}</td><td>${statusTag}</td></tr>`;
+          <td>${j.name||'—'}</td><td>${j.job||'—'}</td><td>${fmtT2(j.startTime)}</td><td>${fmtT2(j.endTime)}</td><td>${j.dur||'—'}</td><td>${statusTag}${endBtn}</td></tr>`;
       }).join('');
     }
   }
