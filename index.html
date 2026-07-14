@@ -2697,6 +2697,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSupportSub('washing',this)">🚿 Washing</div>
     <div class="subtab" onclick="showSupportSub('drivers',this)">🚗 Drivers</div>
     <div class="subtab" onclick="showSupportSub('boomrepairs',this)">🏗️ Boom Repairs</div>
+    <div class="subtab" onclick="showSupportSub('moreservices',this)" style="color:var(--green);border-color:var(--green)">🧩 More Services</div>
     <div class="subtab" onclick="showSupportSub('edit',this)" style="color:var(--accent)">✏️ Edit Records</div>
   </div>
 
@@ -2819,6 +2820,49 @@ tr:hover td { background: var(--surface2); }
       </div>
       <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
       <tbody id="supportLog-panelbeater"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- MORE SERVICES (Radiator, Fuel System, Air Inflation, Boom Repair, Brakes Bonding, Inspection, Painter) -->
+  <div class="support-subpage" id="ssub-moreservices">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Job — Select Department First</div>
+      <div class="form-row cols-2">
+        <div><label>Department</label>
+          <select id="gsDept" onchange="onGsDeptChange()">
+            <option value="">-- Select department --</option>
+            <option value="radiator">Radiator</option>
+            <option value="fuel">Fuel System</option>
+            <option value="airinflation">Air Inflation</option>
+            <option value="boom">Boom Repair</option>
+            <option value="brakes">Brakes Bonding</option>
+            <option value="inspection">Inspection</option>
+            <option value="painter">Painter</option>
+          </select>
+        </div>
+        <div><label>Staff Name</label><select id="gsName"><option value="">-- Select department first --</option></select></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Truck</label><select id="gsTruck"><option value="">-- Select truck --</option></select></div>
+        <div><label>Priority</label><select id="gsPriority"><option>Normal</option><option>Urgent</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>Job Description</label><input type="text" id="gsJob" placeholder="e.g. Radiator core cleaning"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="startGenericSupportJob()">▶️ Start Job</button>
+      <div id="gsActiveJob" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏱️ Job in progress</div>
+        <div style="font-size:14px;font-weight:700" id="gsActiveJobInfo"></div>
+        <button class="btn btn-success btn-block" style="margin-top:10px" onclick="endGenericSupportJob()">✅ Mark Done — End Job</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>More Services Job Log</div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadSupportLog('moreservices')">⬇️ Download CSV</button>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Dept</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="supportLog-moreservices"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -7268,7 +7312,7 @@ function resolveCompletionAlert(){
   if(ins){
     const openSupport=(S.supportJobs||[]).filter(j=>j.truckNo===ins.truckNo && j.status!=='done');
     if(openSupport.length){
-      const svcNames={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing'};
+      const svcNames={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
       const list=openSupport.map(j=>svcNames[j.type]||j.type).join(', ');
       if(!confirm('⚠️ '+ins.truckNo+' still has open Support Services job(s): '+list+'.\n\nMove to parking anyway?')){
         return;
@@ -7987,7 +8031,7 @@ function refreshMgrJobCards(){
   // Merge in Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
   // Greasing) — these live in a separate structure and were previously completely
   // absent from the master Job Cards list.
-  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing'};
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
   (S.supportJobs||[]).forEach(sj=>{
     const matchedEntry=S.entries.find(x=>x.truckNo===sj.truckNo);
     rows.push({
@@ -10348,6 +10392,82 @@ function logSupportJob(type){
   startSupportJob(type);
 }
 
+// ── MORE SERVICES: Radiator, Fuel System, Air Inflation, Boom Repair, Brakes Bonding, Inspection, Painter ──
+const MORE_SVC_TYPES=['radiator','fuel','airinflation','boom','brakes','inspection','painter'];
+const MORE_SVC_LABELS={radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
+var _activeGsJobId=null;
+
+function onGsDeptChange(){
+  const deptKey=document.getElementById('gsDept').value;
+  const nameSel=document.getElementById('gsName');
+  const truckSel=document.getElementById('gsTruck');
+  if(!deptKey){
+    nameSel.innerHTML='<option value="">-- Select department first --</option>';
+    return;
+  }
+  const staff=(STAFF[deptKey]||[]).slice().sort();
+  nameSel.innerHTML='<option value="">-- Select --</option>'+staff.map(n=>`<option>${n}</option>`).join('');
+  // Truck dropdown: all trucks currently in yard, excluding ones already DONE today for this dept
+  const today=new Date().toDateString();
+  const done=(S.supportJobs||[]).filter(j=>j.type===deptKey&&j.date===today&&j.status==='done').map(j=>j.truckNo);
+  const inYard=S.entries.filter(e=>!e.exitTime && !done.includes(e.truckNo));
+  truckSel.innerHTML='<option value="">-- Select truck --</option>'+inYard.map(e=>`<option value="${e.id}">${e.truckNo}</option>`).join('');
+}
+
+function startGenericSupportJob(){
+  const deptKey=document.getElementById('gsDept').value;
+  const name=document.getElementById('gsName').value;
+  const truckId=document.getElementById('gsTruck').value;
+  const job=document.getElementById('gsJob').value.trim();
+  const priority=document.getElementById('gsPriority').value;
+  if(!deptKey) return toast('⚠️ Select department','warn');
+  if(!name) return toast('⚠️ Select staff name','warn');
+  if(!truckId) return toast('⚠️ Select truck','warn');
+
+  const entry=S.entries.find(e=>e.id==truckId);
+  const startISO=new Date().toISOString();
+  const startTime=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  if(!S.supportJobs) S.supportJobs=[];
+  const jobObj={id:Date.now(),type:deptKey,truckNo:(entry&&entry.truckNo)||'—',name,job,priority,
+    startTime:startISO,endTime:null,durationSecs:null,dur:'—',
+    status:'in_progress',date:new Date().toDateString(),loggedAt:startISO};
+  S.supportJobs.push(jobObj);
+  save();
+
+  _activeGsJobId=jobObj.id;
+  const banner=document.getElementById('gsActiveJob');
+  const info=document.getElementById('gsActiveJobInfo');
+  if(banner) banner.style.display='block';
+  if(info) info.textContent=MORE_SVC_LABELS[deptKey]+' · '+(entry&&entry.truckNo)+' · '+name+' · Started '+startTime+(job?' · '+job:'');
+
+  document.getElementById('gsJob').value='';
+  refreshSupportLogs();
+  toast('▶️ Job started — '+(entry&&entry.truckNo),'ok');
+}
+
+function endGenericSupportJob(){
+  const job=(S.supportJobs||[]).find(j=>j.id==_activeGsJobId && j.status==='in_progress')
+    || (S.supportJobs||[]).slice().reverse().find(j=>MORE_SVC_TYPES.includes(j.type) && j.status==='in_progress');
+  if(!job) return toast('⚠️ No active job found','warn');
+
+  const endISO=new Date().toISOString();
+  const secs=Math.round((new Date(endISO)-new Date(job.startTime))/1000);
+  const mins=Math.floor(secs/60); const remSecs=secs%60;
+  job.endTime=endISO;
+  job.durationSecs=secs;
+  job.dur=mins+'m'+(remSecs>0?' '+remSecs+'s':'');
+  job.status='done';
+  save();
+
+  _activeGsJobId=null;
+  const banner=document.getElementById('gsActiveJob');
+  if(banner) banner.style.display='none';
+
+  refreshSupportLogs();
+  toast('✅ Job done — '+job.truckNo+' ('+job.dur+')','ok');
+}
+
 
 function logRefurbishJob(){
   const name=document.getElementById('refName').value;
@@ -10563,11 +10683,22 @@ function downloadBoomLog(){
 }
 
 function downloadSupportLog(type){
-  const label={panelbeater:'Panel_Beater',sandblasting:'Sand_Blasting',washing:'Washing',greasing:'Greasing'};
-  const jobs=(S.supportJobs||[]).filter(j=>j.type===type);
+  const label={panelbeater:'Panel_Beater',sandblasting:'Sand_Blasting',washing:'Washing',greasing:'Greasing',moreservices:'More_Services'};
+  const jobs = type==='moreservices'
+    ? (S.supportJobs||[]).filter(j=>MORE_SVC_TYPES.includes(j.type))
+    : (S.supportJobs||[]).filter(j=>j.type===type);
   if(!jobs.length) return toast('No records to download','warn');
   let rows,csvData;
-  if(type==='washing'){
+  if(type==='moreservices'){
+    rows=[['Date','Department','Truck','Staff','Job','Start','End','Duration','Status']];
+    jobs.forEach(j=>rows.push([
+      new Date(j.loggedAt).toLocaleDateString('en-GB'), MORE_SVC_LABELS[j.type]||j.type,
+      j.truckNo||'—', j.name||'—', j.job||'—',
+      j.startTime?new Date(j.startTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      j.endTime?new Date(j.endTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      j.dur||'—', j.status==='done'?'Done':'In Progress'
+    ]));
+  } else if(type==='washing'){
     rows=[['Date','Time','Truck','Wash Type','Staff']];
     jobs.forEach(j=>rows.push([new Date(j.loggedAt).toLocaleDateString('en-GB'),j.time||'—',j.truckNo||'—',j.washType||'—',j.name||'—']));
   } else if(type==='greasing'){
@@ -10659,6 +10790,23 @@ function refreshSupportLogs(){
         <td>${statusTag}${endBtn}</td></tr>`;
     }).join('');
   });
+
+  // More Services (Radiator, Fuel System, Air Inflation, Boom Repair, Brakes Bonding, Inspection, Painter)
+  const gsTb=document.getElementById('supportLog-moreservices');
+  if(gsTb){
+    const gsJobs=(S.supportJobs||[]).filter(j=>MORE_SVC_TYPES.includes(j.type)).slice().reverse();
+    if(!gsJobs.length){
+      gsTb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:12px">No jobs logged yet</td></tr>';
+    } else {
+      const fmtT2=iso=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
+      const fmtD2=iso=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{dateStyle:'short'}); };
+      gsTb.innerHTML=gsJobs.map(j=>{
+        const statusTag=j.status==='in_progress'?'<span class="tag" style="background:rgba(234,179,8,.15);color:#b45309;border:1px solid rgba(234,179,8,.3)">In Progress</span>':'<span class="tag tag-green">Done</span>';
+        return `<tr><td>${fmtD2(j.loggedAt)}</td><td>${MORE_SVC_LABELS[j.type]||j.type}</td><td style="font-weight:700">${j.truckNo||'—'}</td>
+          <td>${j.name||'—'}</td><td>${j.job||'—'}</td><td>${fmtT2(j.startTime)}</td><td>${fmtT2(j.endTime)}</td><td>${j.dur||'—'}</td><td>${statusTag}</td></tr>`;
+      }).join('');
+    }
+  }
 }
 
 function endSupportJobById(id,type){
@@ -10995,7 +11143,7 @@ function loadSupportEditRecords(){
   if(truckFilter) jobs=jobs.filter(j=>j.truckNo.includes(truckFilter));
   jobs=jobs.slice().reverse();
   if(!jobs.length){div.innerHTML='<div class="alert alert-info">No records found.</div>';return;}
-  const typeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',greasing:'Greasing',refurbish:'Refurbish'};
+  const typeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',greasing:'Greasing',refurbish:'Refurbish',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
   div.innerHTML=jobs.map(j=>`
     <div class="card" style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -11352,7 +11500,7 @@ function printJobCard(insId){
 
   // Support Services jobs for this truck (Panel Beater, Sand Blasting, Washing, Refurbish, Greasing, Boom Repair)
   let supportHtml='';
-  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish / Wheel Alignment',greasing:'Greasing'};
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish / Wheel Alignment',greasing:'Greasing',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
   const truckSupportJobs=(S.supportJobs||[]).filter(j=>j.truckNo===ins.truckNo);
   if(truckSupportJobs.length){
     supportHtml+='<h3>Support Services</h3><table><thead><tr><th>Service</th><th>Job</th><th>Staff</th><th>Status</th></tr></thead><tbody>';
@@ -12238,7 +12386,7 @@ function collectStaffJobs(name, rangeStart, rangeEnd){
   // Greasing) — these live in a completely separate structure from the 6 core
   // departments, with their own actual Start/End timestamps rather than a
   // department ETD, so "on time" isn't applicable — timing shown is real duration.
-  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing'};
+  const supportTypeLabels={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish/Wheel Alignment',greasing:'Greasing',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
   (S.supportJobs||[]).forEach(function(sj){
     if(sj.name!==name) return;
     if(sj.status!=='done' && sj.status!=='completed') return; // only count finished jobs
@@ -13161,7 +13309,7 @@ function exportJobCardsCSV(){
 
   // Merge Support Services jobs (Panel Beater, Sand Blasting, Washing, Refurbish,
   // Greasing) — previously totally absent from this export.
-  var supportTypeLabelsCSV={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing'};
+  var supportTypeLabelsCSV={panelbeater:'Panel Beater',sandblasting:'Sand Blasting',washing:'Washing',refurbish:'Refurbish',greasing:'Greasing',radiator:'Radiator',fuel:'Fuel System',airinflation:'Air Inflation',boom:'Boom Repair',brakes:'Brakes Bonding',inspection:'Inspection',painter:'Painter'};
   (S.supportJobs||[]).forEach(function(sj){
     idx++;
     var matchedEntry=S.entries.find(function(x){ return x.truckNo===sj.truckNo && !x.exitTime; })
