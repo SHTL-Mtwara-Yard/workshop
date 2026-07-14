@@ -5601,13 +5601,9 @@ function sendSecurityAlert(){
 function refreshSecurityLog(){
   const today=new Date().toDateString();
   const rows=S.entries.filter(e=>{
-    if(!e.exitTime) return true; // ANY truck still in the yard always shows, regardless
-                                   // of its entry-date value — protects against dates that
-                                   // got recorded oddly (bad clock, manual entry, etc.)
-                                   // silently hiding an active truck like T250 EHF.
-    const entryValid=e.entryTime && new Date(e.entryTime).toDateString()===today;
-    const exitToday=e.exitTime && new Date(e.exitTime).toDateString()===today;
-    return entryValid || exitToday;
+    // Security view shows ONLY trucks currently IN YARD (!e.exitTime)
+    // Trucks that have exited are historical — they belong in Manager Daily Report, not live Security operations
+    return !e.exitTime;
   }).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
   const tb=document.getElementById('securityLog');
   if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr>';return;}
