@@ -1,1 +1,5 @@
-{"v": 289}
+{
+  "v": "v290",
+  "deployed": "2026-07-14T12:39:00Z",
+  "change": "Fix Security log to show only IN-YARD trucks, hide already-exited"
+}
