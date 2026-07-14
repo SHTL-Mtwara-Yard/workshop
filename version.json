@@ -1,5 +1,5 @@
 {
-  "v": "v290",
-  "deployed": "2026-07-14T12:39:00Z",
-  "change": "Fix Security log to show only IN-YARD trucks, hide already-exited"
+  "v": "v291",
+  "deployed": "2026-07-14T12:55:23Z",
+  "change": "Add End button to More Services job log"
 }
