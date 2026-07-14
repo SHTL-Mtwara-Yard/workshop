@@ -2698,6 +2698,7 @@ tr:hover td { background: var(--surface2); }
     <div class="subtab" onclick="showSupportSub('drivers',this)">🚗 Drivers</div>
     <div class="subtab" onclick="showSupportSub('boomrepairs',this)">🏗️ Boom Repairs</div>
     <div class="subtab" onclick="showSupportSub('moreservices',this)" style="color:var(--green);border-color:var(--green)">🧩 More Services</div>
+    <div class="subtab" onclick="showSupportSub('trailers',this)" style="color:#f97316;border-color:#f97316">🚛 Trailers</div>
     <div class="subtab" onclick="showSupportSub('edit',this)" style="color:var(--accent)">✏️ Edit Records</div>
   </div>
 
@@ -2863,6 +2864,45 @@ tr:hover td { background: var(--surface2); }
       </div>
       <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Dept</th><th>Truck</th><th>Staff</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
       <tbody id="supportLog-moreservices"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No jobs logged yet</td></tr></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- TRAILERS (standalone trailers parked without a truck) -->
+  <div class="support-subpage" id="ssub-trailers">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#f97316"></span>Log Trailer Job</div>
+      <div class="form-row cols-2">
+        <div><label>Trailer No</label><input type="text" id="trTrailerNo" placeholder="e.g. T897 EHY" style="text-transform:uppercase"></div>
+        <div><label>Mechanic Name</label>
+          <select id="trDept" onchange="onTrDeptChange()" style="margin-bottom:6px">
+            <option value="mech">Mechanical</option>
+            <option value="elec">Electrician</option>
+            <option value="tyre">Tyre</option>
+            <option value="weld">Welding</option>
+            <option value="pneumatic">Pneumatic</option>
+            <option value="suspension">Suspension</option>
+            <option value="brakes">Brakes Bonding</option>
+          </select>
+          <select id="trName"><option value="">-- Select --</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>Job Description</label><input type="text" id="trJob" placeholder="e.g. Brake chamber replacement"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="startTrailerJob()">▶️ Start Job</button>
+      <div id="trActiveJob" style="display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-top:8px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏱️ Job in progress</div>
+        <div style="font-size:14px;font-weight:700" id="trActiveJobInfo"></div>
+        <button class="btn btn-success btn-block" style="margin-top:10px" onclick="endTrailerJob()">✅ Mark READY — End Job</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#f97316"></span>Trailer Log</div>
+        <button class="btn btn-ghost btn-sm" onclick="downloadSupportLog('trailer')">⬇️ Download CSV</button>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Trailer No</th><th>Mechanic</th><th>Job</th><th>Start</th><th>End</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="supportLog-trailer"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No trailer jobs logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -10143,6 +10183,10 @@ function refreshSupportPage(){
   // reads straight from S.supportJobs, bypassing this render step entirely.
   refreshSupportLogs();
 
+  // Populate Trailers tab mechanic dropdown on first load
+  const trNameEl=document.getElementById('trName');
+  if(trNameEl && trNameEl.options.length<=1){ onTrDeptChange(); }
+
   // Populate greasing team dropdowns
   const gStaff=(STAFF['greasing']||[]);
   ['1','2'].forEach(t=>{
@@ -10468,6 +10512,67 @@ function endGenericSupportJob(){
   toast('✅ Job done — '+job.truckNo+' ('+job.dur+')','ok');
 }
 
+// ── TRAILERS: standalone trailers parked without a truck number ──
+var _activeTrJobId=null;
+
+function onTrDeptChange(){
+  const deptKey=document.getElementById('trDept').value;
+  const nameSel=document.getElementById('trName');
+  const staff=(STAFF[deptKey]||[]).slice().sort();
+  nameSel.innerHTML='<option value="">-- Select --</option>'+staff.map(n=>`<option>${n}</option>`).join('');
+}
+
+function startTrailerJob(){
+  const trailerNo=document.getElementById('trTrailerNo').value.trim().toUpperCase();
+  const name=document.getElementById('trName').value;
+  const job=document.getElementById('trJob').value.trim();
+  if(!trailerNo) return toast('⚠️ Enter trailer number','warn');
+  if(!name) return toast('⚠️ Select mechanic name','warn');
+
+  const startISO=new Date().toISOString();
+  const startTime=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  if(!S.supportJobs) S.supportJobs=[];
+  const jobObj={id:Date.now(),type:'trailer',truckNo:trailerNo,name,job,priority:'Normal',
+    startTime:startISO,endTime:null,durationSecs:null,dur:'—',
+    status:'in_progress',date:new Date().toDateString(),loggedAt:startISO};
+  S.supportJobs.push(jobObj);
+  save();
+
+  _activeTrJobId=jobObj.id;
+  const trBanner=document.getElementById('trActiveJob');
+  const trInfo=document.getElementById('trActiveJobInfo');
+  if(trBanner) trBanner.style.display='block';
+  if(trInfo) trInfo.textContent=trailerNo+' · '+name+' · Started '+startTime+(job?' · '+job:'');
+
+  document.getElementById('trTrailerNo').value='';
+  document.getElementById('trJob').value='';
+  refreshSupportLogs();
+  toast('▶️ Trailer job started — '+trailerNo,'ok');
+}
+
+function endTrailerJob(){
+  const job=(S.supportJobs||[]).find(j=>j.id==_activeTrJobId && j.status==='in_progress')
+    || (S.supportJobs||[]).slice().reverse().find(j=>j.type==='trailer' && j.status==='in_progress');
+  if(!job) return toast('⚠️ No active trailer job found','warn');
+
+  const endISO=new Date().toISOString();
+  const secs=Math.round((new Date(endISO)-new Date(job.startTime))/1000);
+  const mins=Math.floor(secs/60); const remSecs=secs%60;
+  job.endTime=endISO;
+  job.durationSecs=secs;
+  job.dur=mins+'m'+(remSecs>0?' '+remSecs+'s':'');
+  job.status='done'; // shown as READY in the log
+  save();
+
+  _activeTrJobId=null;
+  const trBanner2=document.getElementById('trActiveJob');
+  if(trBanner2) trBanner2.style.display='none';
+
+  refreshSupportLogs();
+  toast('✅ Trailer READY — '+job.truckNo+' ('+job.dur+')','ok');
+}
+
 
 function logRefurbishJob(){
   const name=document.getElementById('refName').value;
@@ -10683,13 +10788,21 @@ function downloadBoomLog(){
 }
 
 function downloadSupportLog(type){
-  const label={panelbeater:'Panel_Beater',sandblasting:'Sand_Blasting',washing:'Washing',greasing:'Greasing',moreservices:'More_Services'};
+  const label={panelbeater:'Panel_Beater',sandblasting:'Sand_Blasting',washing:'Washing',greasing:'Greasing',moreservices:'More_Services',trailer:'Trailers'};
   const jobs = type==='moreservices'
     ? (S.supportJobs||[]).filter(j=>MORE_SVC_TYPES.includes(j.type))
     : (S.supportJobs||[]).filter(j=>j.type===type);
   if(!jobs.length) return toast('No records to download','warn');
   let rows,csvData;
-  if(type==='moreservices'){
+  if(type==='trailer'){
+    rows=[['Date','Trailer No','Mechanic','Job','Start','End','Duration','Status']];
+    jobs.forEach(j=>rows.push([
+      new Date(j.loggedAt).toLocaleDateString('en-GB'), j.truckNo||'—', j.name||'—', j.job||'—',
+      j.startTime?new Date(j.startTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      j.endTime?new Date(j.endTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
+      j.dur||'—', j.status==='done'?'READY':'In Progress'
+    ]));
+  } else if(type==='moreservices'){
     rows=[['Date','Department','Truck','Staff','Job','Start','End','Duration','Status']];
     jobs.forEach(j=>rows.push([
       new Date(j.loggedAt).toLocaleDateString('en-GB'), MORE_SVC_LABELS[j.type]||j.type,
@@ -10804,6 +10917,23 @@ function refreshSupportLogs(){
         const statusTag=j.status==='in_progress'?'<span class="tag" style="background:rgba(234,179,8,.15);color:#b45309;border:1px solid rgba(234,179,8,.3)">In Progress</span>':'<span class="tag tag-green">Done</span>';
         return `<tr><td>${fmtD2(j.loggedAt)}</td><td>${MORE_SVC_LABELS[j.type]||j.type}</td><td style="font-weight:700">${j.truckNo||'—'}</td>
           <td>${j.name||'—'}</td><td>${j.job||'—'}</td><td>${fmtT2(j.startTime)}</td><td>${fmtT2(j.endTime)}</td><td>${j.dur||'—'}</td><td>${statusTag}</td></tr>`;
+      }).join('');
+    }
+  }
+
+  // Trailers (standalone, no truck number)
+  const trTb=document.getElementById('supportLog-trailer');
+  if(trTb){
+    const trJobs=(S.supportJobs||[]).filter(j=>j.type==='trailer').slice().reverse();
+    if(!trJobs.length){
+      trTb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No trailer jobs logged yet</td></tr>';
+    } else {
+      const fmtT3=iso=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
+      const fmtD3=iso=>{ if(!iso) return '—'; const d=new Date(iso); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{dateStyle:'short'}); };
+      trTb.innerHTML=trJobs.map(j=>{
+        const statusTag=j.status==='in_progress'?'<span class="tag" style="background:rgba(234,179,8,.15);color:#b45309;border:1px solid rgba(234,179,8,.3)">In Progress</span>':'<span class="tag tag-green">✅ READY</span>';
+        return `<tr><td>${fmtD3(j.loggedAt)}</td><td style="font-weight:700">${j.truckNo||'—'}</td>
+          <td>${j.name||'—'}</td><td>${j.job||'—'}</td><td>${fmtT3(j.startTime)}</td><td>${fmtT3(j.endTime)}</td><td>${j.dur||'—'}</td><td>${statusTag}</td></tr>`;
       }).join('');
     }
   }
