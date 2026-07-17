@@ -3798,9 +3798,18 @@ const _doSave=()=>{
     serverEntries.forEach(e=>{ mergedEnt[e.id] = e; });
     (S.entries||[]).forEach(e=>{
       const existing = mergedEnt[e.id];
-      // Prefer whichever record has more info (exitTime set wins over not set,
-      // otherwise keep the newest by id)
-      if(!existing || (e.exitTime && !existing.exitTime) || e.id >= existing.id){
+      // Prefer whichever record has more info. For the SAME entry id (an
+      // update to the same real-world visit), "e.id >= existing.id" is
+      // ALWAYS true when ids are equal — that used to let a stale local
+      // copy without exitTime silently overwrite a server record that had
+      // already been closed, making already-exited trucks reappear in
+      // Parking. Fix: if the server already has exitTime and local doesn't,
+      // never let local win — the server's "exited" state is authoritative.
+      if(!existing){
+        mergedEnt[e.id] = e;
+      } else if(existing.exitTime && !e.exitTime){
+        // keep server's already-exited record — do not overwrite
+      } else if((e.exitTime && !existing.exitTime) || e.id >= existing.id){
         mergedEnt[e.id] = e;
       }
     });
