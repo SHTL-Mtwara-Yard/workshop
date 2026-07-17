@@ -687,6 +687,18 @@ tr:hover td { background: var(--surface2); }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// Offline app-shell cache: lets the page open with zero internet (laptop
+// restart, tab closed/reopened mid-outage). Once loaded, Firebase's own
+// offline persistence (already configured below) handles data sync.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(err){
+      console.warn('Offline cache setup skipped:', err);
+    });
+  });
+}
+</script>
 </head>
 <body>
 
