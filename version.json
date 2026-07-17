@@ -1,5 +1,5 @@
 {
-  "v": "v291",
-  "deployed": "2026-07-14T12:55:23Z",
-  "change": "Add End button to More Services job log"
+  "v": "v292",
+  "deployed": "2026-07-17T06:16:50Z",
+  "change": "Truck ref = appointment date; Manual Exit for Security; debounced Firebase writes"
 }
