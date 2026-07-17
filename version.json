@@ -1,5 +1,5 @@
 {
-  "v": "v293",
-  "deployed": "2026-07-17T08:03:38Z",
-  "change": "Fix bay assignment data loss (merge bayAssignments before write)"
+  "v": "v294",
+  "deployed": "2026-07-17T08:15:00Z",
+  "change": "Fix already-exited trucks reappearing in Parking (entries merge tie-break bug)"
 }
