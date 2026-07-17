@@ -3859,6 +3859,12 @@ const _doSave=()=>{
 var _saveDebounceTimer=null;
 const save=()=>{
   cacheLocally(); // keep local cache instant, even before the debounced write fires
+  // Block the live listener from the moment save() is called, not just once
+  // the debounced write actually starts. Without this, another device's write
+  // arriving during the 400ms debounce window would overwrite this device's
+  // just-made local edit (e.g. an exitTime just set) with stale server data
+  // BEFORE our own write ever went out — instantly reverting the action.
+  _saving=true;
   if(_saveDebounceTimer) clearTimeout(_saveDebounceTimer);
   _saveDebounceTimer=setTimeout(()=>{
     _saveDebounceTimer=null;
