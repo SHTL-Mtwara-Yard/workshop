@@ -1,5 +1,5 @@
 {
-  "v": "v295",
-  "deployed": "2026-07-17T08:50:24Z",
-  "change": "CRITICAL: fix debounce race condition reverting exit punches / other saves"
+  "v": "v296",
+  "deployed": "2026-07-17T11:45:14Z",
+  "change": "Fix duplicate truck entry across different origins (normalized truckNo check)"
 }
