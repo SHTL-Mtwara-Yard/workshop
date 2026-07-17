@@ -1,5 +1,5 @@
 {
-  "v": "v296",
-  "deployed": "2026-07-17T11:45:14Z",
-  "change": "Fix duplicate truck entry across different origins (normalized truckNo check)"
+  "v": "v297",
+  "deployed": "2026-07-17T12:19:06Z",
+  "change": "Offline app-shell service worker \u2014 page loads with zero internet after first visit"
 }
