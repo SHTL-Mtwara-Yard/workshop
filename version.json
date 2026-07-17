@@ -1,5 +1,5 @@
 {
-  "v": "v292",
-  "deployed": "2026-07-17T06:16:50Z",
-  "change": "Truck ref = appointment date; Manual Exit for Security; debounced Firebase writes"
+  "v": "v293",
+  "deployed": "2026-07-17T08:03:38Z",
+  "change": "Fix bay assignment data loss (merge bayAssignments before write)"
 }
