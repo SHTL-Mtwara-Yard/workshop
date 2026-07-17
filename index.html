@@ -3771,16 +3771,19 @@ function loadLocalCache(){
 }
 
 var _saving=false;
+var _lastSyncedBayAssignments={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
-  // CRITICAL FIX: merge inspections AND entries with latest server data before
-  // writing, so a stale copy open in another user's browser can't wipe out
-  // a bayNo or a gate-in/out record that was just saved by someone else.
+  // CRITICAL FIX: merge inspections, entries AND bayAssignments with latest
+  // server data before writing, so a stale copy open in another user's
+  // browser can't wipe out a bayNo, a gate-in/out record, or a bay
+  // allocation that was just saved by someone else on a different device.
   Promise.all([
     fbRoot.child('inspections').once('value'),
-    fbRoot.child('entries').once('value')
-  ]).then(([insSnap, entSnap])=>{
+    fbRoot.child('entries').once('value'),
+    fbRoot.child('bayAssignments').once('value')
+  ]).then(([insSnap, entSnap, bayAssignSnap])=>{
     const serverInspections = insSnap.val() || [];
     const mergedIns = {};
     serverInspections.forEach(ins=>{ mergedIns[ins.entryId] = ins; });
@@ -3802,6 +3805,23 @@ const _doSave=()=>{
       }
     });
     S.entries = Object.values(mergedEnt);
+
+    // bayAssignments is a flat {staffOrTruckName: bayNo} map — no id/timestamp
+    // per entry, so merge as a union: start from server's latest copy (picks
+    // up anything assigned by other devices this device hasn't seen yet),
+    // then overlay this device's own local changes on top (its just-made
+    // assignment/removal wins for the keys it touched). Keys this device
+    // deliberately deleted (present at last sync, missing now) are removed
+    // from the merged result too, so clearing a bay assignment actually
+    // sticks instead of being silently restored by the server's copy.
+    const serverBayAssignments = bayAssignSnap.val() || {};
+    const mergedBayAssignments = Object.assign({}, serverBayAssignments, S.bayAssignments||{});
+    Object.keys(_lastSyncedBayAssignments).forEach(function(key){
+      if(!(key in (S.bayAssignments||{}))){
+        delete mergedBayAssignments[key];
+      }
+    });
+    S.bayAssignments = mergedBayAssignments;
 
     fbRoot.set(S).then(()=>{
       _saving=false;
@@ -3896,6 +3916,11 @@ fbRoot.on('value', snapshot=>{
       secQrAccess: data.secQrAccess || {},
       workshopClosedDate: data.workshopClosedDate || ''
     };
+    // Snapshot of bayAssignments exactly as received from the server just now.
+    // Used by save() to tell the difference between "this key is missing
+    // because I haven't synced it yet" (keep server's value) and "this key
+    // is missing because I just deliberately cleared it" (delete on write).
+    _lastSyncedBayAssignments = Object.assign({}, S.bayAssignments||{});
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
     if(!data.staffRoster){
