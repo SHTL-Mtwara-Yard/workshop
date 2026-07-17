@@ -1,5 +1,5 @@
 {
-  "v": "v294",
-  "deployed": "2026-07-17T08:15:00Z",
-  "change": "Fix already-exited trucks reappearing in Parking (entries merge tie-break bug)"
+  "v": "v295",
+  "deployed": "2026-07-17T08:50:24Z",
+  "change": "CRITICAL: fix debounce race condition reverting exit punches / other saves"
 }
