@@ -1010,6 +1010,24 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- MANUAL EXIT MODAL (Security — for glitches / re-appeared trucks / backdated exit) -->
+<div class="modal-overlay" id="manualExitModal">
+  <div class="modal" style="max-width:420px;border-top:4px solid var(--yellow)">
+    <div class="modal-title">🕐 Manual Exit <button class="modal-close" onclick="closeModal('manualExitModal')">✕</button></div>
+    <input type="hidden" id="me_entryId">
+    <div id="me_truckInfo" style="background:var(--surface3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
+    <div class="alert alert-warn text-xs" style="margin-bottom:12px">Use this only if the truck already left but the system still shows it in Parking/Bay (glitch, missed punch, or truck reappeared after hours). This will set the exit date & time you enter below.</div>
+    <div class="form-row cols-2" style="margin-bottom:10px">
+      <div><label>Exit Date</label><input type="date" id="me_exitDate"></div>
+      <div><label>Exit Time</label><input type="time" id="me_exitTime"></div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><label>Remarks <span style="color:var(--text-muted);font-weight:400">(optional — why manual exit was needed)</span></label><input type="text" id="me_remark" placeholder="e.g. Truck left yesterday, exit was not punched"></div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="confirmManualExit()"><i class="ti ti-check" aria-hidden="true"></i> Confirm Manual Exit</button>
+  </div>
+</div>
+
 <!-- NOTIFY SECURITY MODAL (Supervisor side) -->
 <div class="modal-overlay" id="notifySecurityModal">
   <div class="modal" style="max-width:420px">
@@ -3753,7 +3771,7 @@ function loadLocalCache(){
 }
 
 var _saving=false;
-const save=()=>{
+const _doSave=()=>{
   cacheLocally();
   _saving=true;
   // CRITICAL FIX: merge inspections AND entries with latest server data before
@@ -3801,6 +3819,38 @@ const save=()=>{
     });
   });
 };
+
+// ── Debounced save() ─────────────────────────────────────────
+// Every write to fbRoot re-downloads the FULL dataset to all connected
+// devices via the fbRoot.on('value') listener below (11 devices live).
+// Many actions call save() multiple times in quick succession (e.g. a few
+// related field updates in one function). Coalescing those into a single
+// write cuts both write count and the resulting bandwidth to every device,
+// without changing any data or merge logic — same correctness, fewer trips.
+var _saveDebounceTimer=null;
+const save=()=>{
+  cacheLocally(); // keep local cache instant, even before the debounced write fires
+  if(_saveDebounceTimer) clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer=setTimeout(()=>{
+    _saveDebounceTimer=null;
+    _doSave();
+  }, 400);
+};
+// Safety net: if the tab is closed, backgrounded, or the app is about to unload
+// while a debounced write is still pending, flush it immediately so nothing
+// entered by staff is ever lost to the debounce window.
+function _flushPendingSave(){
+  if(_saveDebounceTimer){
+    clearTimeout(_saveDebounceTimer);
+    _saveDebounceTimer=null;
+    _doSave();
+  }
+}
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden') _flushPendingSave();
+});
+window.addEventListener('pagehide', _flushPendingSave);
+window.addEventListener('beforeunload', _flushPendingSave);
 
 // Live listener: any device's change lands here and re-renders the current page
 fbRoot.on('value', snapshot=>{
@@ -4602,7 +4652,8 @@ function submitAppointment(){
   }
 
   // Generate serial reference number MTW-YYYYMMDD-XXX
-  var refDate=new Date();
+  // Uses the PLANNED VISIT DATE (appointment date), not the date the request was submitted.
+  var refDate=new Date(visit);
   var refDateStr=refDate.getFullYear()+String(refDate.getMonth()+1).padStart(2,'0')+String(refDate.getDate()).padStart(2,'0');
   var todayApts=(S.appointments||[]).filter(function(a){
     return a.refNo && a.refNo.indexOf('MTW-'+refDateStr)===0;
@@ -5417,6 +5468,7 @@ function refreshSecurityPanel(){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
           <button class="btn btn-ghost btn-sm" onclick="printGatePass('${ins.id}')">🖨️ Gate Pass</button>
+          <button class="btn btn-ghost btn-sm" style="border-color:var(--yellow);color:#92400e" onclick="openManualExit('${ins.id}')">🕐 Manual Exit</button>
         </div>
       </div>`;
     }).join('');
@@ -5552,6 +5604,62 @@ function confirmVerifiedExit(outcome){
   refreshDropdowns();
   updateBadge();
   toast(`🚪 ${e.truckNo} exited — ${outcome==='different'?'⚠️ different driver recorded, Manager notified':'same driver verified'}`, outcome==='different'?'warn':'ok');
+}
+
+// ── Manual Exit — for glitches, missed punches, or trucks that reappear after hours ──
+function openManualExit(insId){
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  const e = S.entries.find(x => x.id === ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—';
+  document.getElementById('me_entryId').value = ins.entryId;
+  document.getElementById('me_truckInfo').innerHTML =
+    `<strong>${displayTruck}</strong> · Arrival driver: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}`;
+  // Default to today's date + current time — Security/Incharge can adjust (e.g. set to yesterday)
+  const now = new Date();
+  document.getElementById('me_exitDate').value = now.toISOString().slice(0,10);
+  document.getElementById('me_exitTime').value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  // Restrict to today / yesterday only — prevents accidental far-future or far-past entries
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate()-1);
+  document.getElementById('me_exitDate').min = yesterday.toISOString().slice(0,10);
+  document.getElementById('me_exitDate').max = now.toISOString().slice(0,10);
+  document.getElementById('me_remark').value = '';
+  document.getElementById('manualExitModal').classList.add('open');
+}
+
+function confirmManualExit(){
+  const entryId = parseInt(document.getElementById('me_entryId').value);
+  const exitDate = document.getElementById('me_exitDate').value;
+  const exitTime = document.getElementById('me_exitTime').value;
+  const remark = document.getElementById('me_remark').value.trim();
+  if(!exitDate || !exitTime) return toast('⚠️ Set exit date and time','warn');
+  const e = S.entries.find(x => x.id === entryId);
+  if(!e) return;
+  const exitDateTime = new Date(exitDate+'T'+exitTime+':00');
+  e.exitTime = exitDateTime.toISOString();
+  e.status = 'exited';
+  e.manualExit = true;
+  e.manualExitRemark = remark || '';
+  e.verifiedBy = _securityOfficerName || 'Security';
+  e.verifiedAt = new Date().toISOString();
+
+  // Flag to Manager so manual corrections stay visible in the audit trail
+  if(!S.notifications) S.notifications = [];
+  S.notifications.push({
+    id: Date.now(),
+    message: `🕐 Manual exit recorded for ${e.truckNo} — exit set to ${exitDateTime.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} by ${_securityOfficerName||'Security'}.${remark?' Reason: '+remark:''}`,
+    truckLink: e.truckNo,
+    sentAt: new Date().toISOString(),
+    read: false, readAt: null, reply: null
+  });
+
+  save();
+  closeModal('manualExitModal');
+  refreshSecurityPanel();
+  refreshSecurityLog();
+  refreshDropdowns();
+  updateBadge();
+  toast(`🕐 ${e.truckNo} — manual exit recorded for ${exitDateTime.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`,'ok');
 }
 
 function acknowledgeAlert(alertId){
