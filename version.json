@@ -1,5 +1,5 @@
 {
-  "v": "v298",
-  "deployed": "2026-07-18T02:16:53Z",
-  "change": "CRITICAL: never auto-reload while a save is pending \u2014 was wiping offline/reconnect entries"
+  "v": "v299",
+  "deployed": "2026-07-18T09:47:03Z",
+  "change": "CRITICAL: proper merge for inspections/entries \u2014 fixes bay allocation vanishing, exit reappearing, at the root"
 }
