@@ -1,5 +1,5 @@
 {
-  "v": "v301",
-  "deployed": "2026-07-18T10:13:16Z",
-  "change": "Add Ref No column to Daily Report / Download for Boss"
+  "v": "v302",
+  "deployed": "2026-07-18T10:39:19Z",
+  "change": "Manager can close stale Incharge request with remark, invalidating refNo for fresh raise"
 }
