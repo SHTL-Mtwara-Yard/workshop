@@ -3796,6 +3796,8 @@ function loadLocalCache(){
 
 var _saving=false;
 var _lastSyncedBayAssignments={};
+var _lastSyncedInspections={};
+var _lastSyncedEntries={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
@@ -3813,7 +3815,26 @@ const _doSave=()=>{
     serverInspections.forEach(ins=>{ mergedIns[ins.entryId] = ins; });
     (S.inspections||[]).forEach(ins=>{
       const existing = mergedIns[ins.entryId];
-      if(!existing || ins.id >= existing.id){ mergedIns[ins.entryId] = ins; }
+      if(!existing){
+        mergedIns[ins.entryId] = ins;
+        return;
+      }
+      // GENERAL FIX (replaces the old "ins.id >= existing.id" rule, which was
+      // ALWAYS true for the same record and let any stale local copy silently
+      // overwrite newer server data — this is what was making bay allocations
+      // set by Supervisor vanish when another device saved afterward).
+      // Compare this local record to what THIS device last actually received
+      // from the server. If nothing changed locally since then, this is just
+      // a stale copy being re-saved incidentally — defer entirely to the
+      // server's current version. If something DID change locally (the user
+      // just edited this exact record), keep the local version — that's a
+      // real, intentional edit that should win.
+      const lastSynced = _lastSyncedInspections[ins.entryId];
+      const localUnchanged = lastSynced !== undefined && JSON.stringify(ins) === lastSynced;
+      if(!localUnchanged){
+        mergedIns[ins.entryId] = ins;
+      }
+      // else: keep server's version already in mergedIns — do not overwrite
     });
     S.inspections = Object.values(mergedIns);
 
@@ -3822,20 +3843,20 @@ const _doSave=()=>{
     serverEntries.forEach(e=>{ mergedEnt[e.id] = e; });
     (S.entries||[]).forEach(e=>{
       const existing = mergedEnt[e.id];
-      // Prefer whichever record has more info. For the SAME entry id (an
-      // update to the same real-world visit), "e.id >= existing.id" is
-      // ALWAYS true when ids are equal — that used to let a stale local
-      // copy without exitTime silently overwrite a server record that had
-      // already been closed, making already-exited trucks reappear in
-      // Parking. Fix: if the server already has exitTime and local doesn't,
-      // never let local win — the server's "exited" state is authoritative.
       if(!existing){
         mergedEnt[e.id] = e;
-      } else if(existing.exitTime && !e.exitTime){
-        // keep server's already-exited record — do not overwrite
-      } else if((e.exitTime && !existing.exitTime) || e.id >= existing.id){
+        return;
+      }
+      // Same general fix as inspections above, applied to entries. This
+      // naturally covers the exitTime case from before (an exit punch is a
+      // local change, so it correctly wins) without needing a field-specific
+      // special case anymore.
+      const lastSynced = _lastSyncedEntries[e.id];
+      const localUnchanged = lastSynced !== undefined && JSON.stringify(e) === lastSynced;
+      if(!localUnchanged){
         mergedEnt[e.id] = e;
       }
+      // else: keep server's version already in mergedEnt — do not overwrite
     });
     S.entries = Object.values(mergedEnt);
 
@@ -3960,6 +3981,16 @@ fbRoot.on('value', snapshot=>{
     // because I haven't synced it yet" (keep server's value) and "this key
     // is missing because I just deliberately cleared it" (delete on write).
     _lastSyncedBayAssignments = Object.assign({}, S.bayAssignments||{});
+    // Snapshots of inspections/entries exactly as received from the server
+    // just now, keyed by entryId / id. Used by save() to tell "this device
+    // hasn't touched this record since last sync" (defer to server, even on
+    // a full re-save) from "this device just edited this exact record"
+    // (local wins). This is what stops a Ground Team device's unrelated save
+    // from silently reverting a bay allocation or exit punch made elsewhere.
+    _lastSyncedInspections = {};
+    (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = JSON.stringify(ins); });
+    _lastSyncedEntries = {};
+    (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = JSON.stringify(e); });
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
     if(!data.staffRoster){
