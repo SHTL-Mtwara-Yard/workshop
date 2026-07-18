@@ -23,9 +23,17 @@
     }
   } catch(e){}
 })();
-// Background re-check every 5 minutes while page is open
+// Background re-check every 20 sec while page is open
 function checkForUpdate(){
   try {
+    // CRITICAL: never reload while a save is pending/in-flight — that would
+    // destroy in-memory data (an offline-queued entry, a debounced save not
+    // yet written to Firebase) before it's actually persisted. If a save is
+    // in progress, skip this cycle — we'll check again in 20 seconds, by
+    // which time the save should be done. Guarded with typeof since these
+    // vars are defined later in the page and may not exist yet on first load.
+    if(typeof _saving !== 'undefined' && _saving) return;
+    if(typeof _saveDebounceTimer !== 'undefined' && _saveDebounceTimer) return;
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'https://raw.githubusercontent.com/shtl-mtwara-yard/workshop/main/version.json?t=' + Date.now(), true);
     xhr.onreadystatechange = function(){
@@ -35,6 +43,9 @@ function checkForUpdate(){
           var latest = d && d.v ? String(d.v) : null;
           var stored = localStorage.getItem('shtl_ver');
           if(latest && stored && stored !== latest){
+            // Double-check right before reloading too — a save could have
+            // started during this network round-trip.
+            if((typeof _saving !== 'undefined' && _saving) || (typeof _saveDebounceTimer !== 'undefined' && _saveDebounceTimer)) return;
             localStorage.setItem('shtl_ver', latest);
             window.location.reload(true);
           } else if(latest) localStorage.setItem('shtl_ver', latest);
@@ -47,6 +58,7 @@ function checkForUpdate(){
 window.addEventListener('load', function(){
   setInterval(checkForUpdate, 20000); // every 20 sec — catches stale tabs fast
 });
+
 
 // ═══ FORM AUTO-SAVE ═══
 // Auto-save form inputs to localStorage with debounce
