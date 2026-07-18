@@ -1960,9 +1960,9 @@ if('serviceWorker' in navigator){
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Truck No</th><th>Bay</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
+            <th>Date</th><th>Ref No</th><th>Truck No</th><th>Bay</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
           </tr></thead>
-          <tbody id="dailyReportTable"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
+          <tbody id="dailyReportTable"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -13544,9 +13544,22 @@ function getDailyReportRows(){
     var bay = ins.bayNo || ins.lastBayNo || '—';
     var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     var timeOut = exitTime ? new Date(exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+    // No direct id link exists between a gate entry and its originating
+    // appointment, so match by truck number + closest planned visit date to
+    // when the truck actually arrived (best-effort — covers the normal case
+    // where a truck arrives on or near its planned visit date).
+    var refNo='—';
+    var candidateApts=(S.appointments||[]).filter(function(a){ return fmtTruck(a.truckNo)===fmtTruck(ins.truckNo) && a.refNo; });
+    if(candidateApts.length){
+      var entryMs=new Date(e.entryTime).getTime();
+      candidateApts.sort(function(a,b){
+        return Math.abs(new Date(a.plannedVisit).getTime()-entryMs) - Math.abs(new Date(b.plannedVisit).getTime()-entryMs);
+      });
+      refNo=candidateApts[0].refNo;
+    }
     var key=ins.truckNo;
     if(!truckMap[key]){
-      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
+      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
     } else {
       truckMap[key].faults=truckMap[key].faults.concat(faults);
       truckMap[key].parts=truckMap[key].parts.concat(parts);
@@ -13569,14 +13582,14 @@ function renderDailyReport(){
   var tbody=document.getElementById('dailyReportTable');
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(function(r){
     var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : 'var(--amber)';
     var partsStr = r.parts.length ? r.parts.join('; ') : '—';
     var partsColor = r.parts.length ? 'var(--red)' : 'var(--text2)';
-    return '<tr><td>'+r.date+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td>'+
+    return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td>'+
       '<td>'+r.timeIn+'</td><td>'+r.timeOut+'</td>'+
       '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
       '<td>'+(r.faults.join('; ')||'—')+'</td>'+
@@ -13586,12 +13599,12 @@ function renderDailyReport(){
 
 function exportDailyReportCSV(){
   var rows=getDailyReportRows();
-  var headers=['Date','Truck','Bay','Time In','Time Out','Status','All Faults','Parts Needed'];
-  var data=rows.map(function(r){ return [r.date, r.truck, r.bay, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
+  var headers=['Date','Ref No','Truck','Bay','Time In','Time Out','Status','All Faults','Parts Needed'];
+  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
-    ws['!cols']=[{wch:12},{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+    ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
     var picker=document.getElementById('drDatePicker');
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
