@@ -2715,6 +2715,8 @@ if('serviceWorker' in navigator){
         <span class="tag tag-purple">Welding</span>
         <span class="tag tag-red">Delayed</span>
         <span class="tag" style="background:rgba(57,211,83,.15);color:var(--teal);border:1px solid rgba(57,211,83,.3)">Ready to Leave</span>
+        <span class="tag" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca">⚠ = Dept ETD not set</span>
+        <span class="tag" style="background:#f0fdf4;color:#16a34a;border:1px solid #86efac">✓ = All ETDs set</span>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:6px">👆 Tap any bay to open Ground Team for that bay</div>
       <div id="ovParkingSection" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
@@ -9288,7 +9290,24 @@ function refreshOverview(){
     const mainD=Object.entries(ins.jobs||{}).find(([d,j])=>j.length)&&[0]||'mech';
     const isDel=new Date(ins.etd)<now;
     const isReady = e && e.readyToLeave;
-    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${displayTruckName}</div></div>`;
+    // ETD-set indicator: which assigned departments (have at least one job)
+    // haven't set their ETD yet. Once every assigned department has set
+    // theirs, show a green check instead — lets Manager/Supervisor spot at
+    // a glance, across the whole yard, which trucks are still waiting on
+    // someone to plan their time.
+    const dLabelShort={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pnm',suspension:'Susp'};
+    const assignedDepts=Object.entries(ins.jobs||{}).filter(([d,jobs])=>jobs&&jobs.length>0).map(([d])=>d);
+    const missingETDDepts=assignedDepts.filter(d=>!S.deptETDs[ins.id+'_'+d]);
+    let etdBadge='';
+    if(assignedDepts.length){
+      if(missingETDDepts.length){
+        const names=missingETDDepts.map(d=>dLabelShort[d]||d).join(', ');
+        etdBadge=`<div title="ETD not set: ${names}" style="font-size:9px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:1px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⚠ ${names}</div>`;
+      } else {
+        etdBadge=`<div style="font-size:9px;color:#16a34a;background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:1px 4px;margin-top:2px">✓ ETD Set</div>`;
+      }
+    }
+    return `<div class="bay-cell occupied-${mainD} ${isDel?'delayed':''} ${isReady&&!isDel?'ready':''}" title="Tap to open Ground Team — ${b}" onclick="jumpToGroundTeam('${b}')" style="cursor:pointer"><div class="bay-no">${b.replace('Bay ','B')}</div><div class="bay-truck">${displayTruckName}</div>${etdBadge}</div>`;
   }).join('');
 
   // No-work-required trucks
