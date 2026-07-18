@@ -4680,6 +4680,19 @@ function dupAptReraise(aptId){
   var comp=document.getElementById('iat_complaints').value.trim();
   if(comp) apt.complaints=comp;
   apt.reraisedAt=new Date().toISOString();
+  // Regenerate the reference number to match the NEW visit date — otherwise
+  // a truck re-raised for a fresh visit keeps showing its old, stale date
+  // (e.g. still "MTW-20260708-xxx" days later even though it's a brand new
+  // request for today/tomorrow).
+  if(visit){
+    var refDate=new Date(visit);
+    var refDateStr=refDate.getFullYear()+String(refDate.getMonth()+1).padStart(2,'0')+String(refDate.getDate()).padStart(2,'0');
+    var sameDayApts=(S.appointments||[]).filter(function(a){
+      return a.id!==apt.id && a.refNo && a.refNo.indexOf('MTW-'+refDateStr)===0;
+    });
+    var seqNo=String(sameDayApts.length+1).padStart(3,'0');
+    apt.refNo='MTW-'+refDateStr+'-'+seqNo;
+  }
   save();
   document.getElementById('dupAptModal').remove();
   ['iat_truckNo','iat_driverName','iat_driverMobile','iat_complaints','iat_visit'].forEach(function(id){
