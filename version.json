@@ -1,5 +1,5 @@
 {
-  "v": "v305",
-  "deployed": "2026-07-19T13:22:05Z",
-  "change": "PERMANENT FIX: Firebase transactions for entries/inspections/bayAssignments \u2014 eliminates concurrent-write data loss at the root"
+  "v": "v306",
+  "deployed": "2026-07-19T13:30:32Z",
+  "change": "Add KM tracking in Stores (per part + per truck, auto-calculated Life KM)"
 }
