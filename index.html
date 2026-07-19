@@ -3256,6 +3256,7 @@ if('serviceWorker' in navigator){
     <button class="subtab active" id="stab-pending" onclick="showStoresTab('pending',this)">⏳ Pending Requests</button>
     <button class="subtab" id="stab-ready" onclick="showStoresTab('ready',this)">✅ Ready to Issue</button>
     <button class="subtab" id="stab-issued" onclick="showStoresTab('issued',this)">📦 Issued Log</button>
+    <button class="subtab" id="stab-kmlog" onclick="showStoresTab('kmlog',this)" style="color:#7c3aed">🛣️ Truck KM Log</button>
     <button class="subtab" id="stab-requisition" onclick="showStoresTab('requisition',this)" style="color:#1a6fb5">📋 Requisition Slip</button>
   </div>
 
@@ -3286,8 +3287,50 @@ if('serviceWorker' in navigator){
       </div>
       <input type="text" id="storesIssuedSearch" placeholder="Search truck / part..." oninput="refreshStoresPage()" style="margin-bottom:10px">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Date</th><th>Truck</th><th>Bay</th><th>Dept</th><th>Part</th><th>Qty</th><th>Requested</th><th>Issued</th><th>Duration</th><th>Old Part</th><th>Issued By</th></tr></thead>
-        <tbody id="storesIssuedLog"><tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Truck</th><th>Bay</th><th>Dept</th><th>Part</th><th>Qty</th><th>Requested</th><th>Issued</th><th>Duration</th><th>Old Part</th><th>Issued By</th><th>Last KM</th><th>Present KM</th><th>Life KM</th></tr></thead>
+        <tbody id="storesIssuedLog"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- TRUCK KM LOG -->
+  <div id="stores-kmlog" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title"><span class="dot" style="background:#7c3aed"></span>🛣️ Record Truck KM Reading</div>
+      <div class="text-xs text2 mb-12">Last KM auto-fills from this truck's previous reading. Life KM = Present − Last (distance covered since then).</div>
+      <div class="form-row cols-2" style="margin-bottom:10px">
+        <div>
+          <label>Truck No</label>
+          <select id="kmLogTruck" onchange="prefillLastKm()">
+            <option value="">-- Select truck --</option>
+          </select>
+        </div>
+        <div>
+          <label>Recorded By</label>
+          <input type="text" id="kmLogBy" placeholder="Store staff name" oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+      <div class="form-row cols-2" style="margin-bottom:10px">
+        <div>
+          <label>Last KM <span style="color:var(--text-muted);font-weight:400">(auto-filled, editable)</span></label>
+          <input type="number" id="kmLogLast" placeholder="e.g. 120000" oninput="previewTruckLifeKm()">
+        </div>
+        <div>
+          <label>Present KM</label>
+          <input type="number" id="kmLogPresent" placeholder="e.g. 128500" oninput="previewTruckLifeKm()">
+        </div>
+      </div>
+      <div id="kmLogPreview" style="font-size:13px;color:var(--text2);margin-bottom:12px">Life KM: — (enter both to calculate)</div>
+      <button class="btn btn-primary btn-block" onclick="saveTruckKmReading()">💾 Save Reading</button>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#7c3aed"></span>KM Reading History</div>
+        <button class="btn btn-ghost btn-sm" onclick="exportTruckKmCSV()">⬇️ Download CSV</button>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Date</th><th>Truck</th><th>Last KM</th><th>Present KM</th><th>Life KM</th><th>Recorded By</th></tr></thead>
+        <tbody id="truckKmLogTable"><tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No readings yet</td></tr></tbody>
       </table></div>
     </div>
   </div>
@@ -3762,7 +3805,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{} };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, truckKmLog:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -3974,7 +4017,8 @@ fbRoot.on('value', snapshot=>{
       deptDelayRemarks: data.deptDelayRemarks || {},
       viewQrAccess: data.viewQrAccess || {},
       secQrAccess: data.secQrAccess || {},
-      workshopClosedDate: data.workshopClosedDate || ''
+      workshopClosedDate: data.workshopClosedDate || '',
+      truckKmLog: data.truckKmLog || []
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -11251,13 +11295,14 @@ function logTrip(){
 // ══════════════════════════════════════════
 
 function showStoresTab(tab, btn){
-  ['pending','ready','issued','raise','requisition'].forEach(t=>{
+  ['pending','ready','issued','kmlog','raise','requisition'].forEach(t=>{
     const el=document.getElementById('stores-'+t);
     if(el) el.style.display=t===tab?'block':'none';
     const b=document.getElementById('stab-'+t);
     if(b){b.classList.toggle('active',t===tab);}
   });
   if(tab==='requisition') initRequisitionForm();
+  else if(tab==='kmlog') refreshTruckKmLog();
   else refreshStoresPage();
 }
 
@@ -11337,6 +11382,17 @@ function refreshStoresPage(){
             <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Issued By (Store Staff)</label>
             <input type="text" id="issuedby-${r.id}" placeholder="Store staff name" oninput="this.value=this.value.toUpperCase()" style="margin-top:4px">
           </div>
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <div style="flex:1">
+              <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Last KM (old part fitted at)</label>
+              <input type="number" id="lastkm-${r.id}" placeholder="e.g. 120000" oninput="updatePartLifeKm('${r.id}')" style="margin-top:4px">
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase">Present KM (truck now)</label>
+              <input type="number" id="presentkm-${r.id}" placeholder="e.g. 145000" oninput="updatePartLifeKm('${r.id}')" style="margin-top:4px">
+            </div>
+          </div>
+          <div id="lifekm-${r.id}" style="font-size:12px;color:var(--text2);margin-bottom:10px">Life KM: — (enter both to calculate)</div>
           <button class="btn btn-primary btn-block" onclick="issueSpare('${r.id}')">📦 Issue Part + Old Part Received</button>
         </div>`).join('');
     }
@@ -11348,7 +11404,7 @@ function refreshStoresPage(){
     const search=((document.getElementById('storesIssuedSearch')||{}).value||'').trim().toUpperCase();
     let issued=S.spareRequests.filter(r=>r.status==='issued').reverse();
     if(search) issued=issued.filter(r=>r.truckNo.includes(search)||r.partName.includes(search));
-    if(!issued.length){iLog.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr>';}
+    if(!issued.length){iLog.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:16px">No issued parts yet</td></tr>';}
     else{
       iLog.innerHTML=issued.map(r=>{
         const reqT=new Date(r.requestedAt);
@@ -11367,6 +11423,9 @@ function refreshStoresPage(){
           <td style="font-weight:700;color:var(--green)">${dur}</td>
           <td style="font-size:11px">${r.oldPartCondition||'—'}</td>
           <td>${r.issuedBy||'—'}</td>
+          <td>${r.lastKm!=null?r.lastKm.toLocaleString():'—'}</td>
+          <td>${r.presentKm!=null?r.presentKm.toLocaleString():'—'}</td>
+          <td style="font-weight:700;color:${r.lifeKm!=null?(r.lifeKm<0?'var(--red)':'var(--green)'):'var(--text2)'}">${r.lifeKm!=null?r.lifeKm.toLocaleString()+' km':'—'}</td>
         </tr>`;
       }).join('');
     }
@@ -11422,6 +11481,26 @@ function markSpareReady(id){
   toast('✅ Part marked ready — announcement sent 🔊','ok');
 }
 
+function updatePartLifeKm(id){
+  const lastKm=parseFloat(document.getElementById('lastkm-'+id).value);
+  const presentKm=parseFloat(document.getElementById('presentkm-'+id).value);
+  const el=document.getElementById('lifekm-'+id);
+  if(!el) return;
+  if(isNaN(lastKm)||isNaN(presentKm)){
+    el.textContent='Life KM: — (enter both to calculate)';
+    el.style.color='var(--text2)';
+    return;
+  }
+  const life=presentKm-lastKm;
+  if(life<0){
+    el.textContent='⚠️ Present KM is less than Last KM — check the readings';
+    el.style.color='var(--red)';
+  } else {
+    el.textContent='Life KM (part usage): '+life.toLocaleString()+' km';
+    el.style.color='var(--green)';
+  }
+}
+
 function issueSpare(id){
   const req=(S.spareRequests||[]).find(r=>r.id==id);
   if(!req) return;
@@ -11429,10 +11508,17 @@ function issueSpare(id){
   const issuedBy=document.getElementById('issuedby-'+id).value.trim().toUpperCase();
   if(!oldPart) return toast('⚠️ Select old part condition','warn');
   if(!issuedBy) return toast('⚠️ Enter store staff name','warn');
+  const lastKmEl=document.getElementById('lastkm-'+id);
+  const presentKmEl=document.getElementById('presentkm-'+id);
+  const lastKm=lastKmEl?parseFloat(lastKmEl.value):NaN;
+  const presentKm=presentKmEl?parseFloat(presentKmEl.value):NaN;
   req.status='issued';
   req.issuedAt=new Date().toISOString();
   req.oldPartCondition=oldPart;
   req.issuedBy=issuedBy;
+  if(!isNaN(lastKm)) req.lastKm=lastKm;
+  if(!isNaN(presentKm)) req.presentKm=presentKm;
+  if(!isNaN(lastKm) && !isNaN(presentKm)) req.lifeKm=presentKm-lastKm;
   save();
   refreshStoresPage();
   toast('📦 Part issued — '+req.partName+' for '+req.truckNo,'ok');
@@ -11451,7 +11537,7 @@ function cancelSpareRequest(id){
 function exportStoresCSV(){
   const issued=(S.spareRequests||[]).filter(r=>r.status==='issued');
   if(!issued.length) return toast('No issued records to export','warn');
-  const rows=[['Date','Truck','Bay','Dept','Part Name','Part No','Qty','Priority','Requested By','Requested At','Ready At','Issued At','Duration(mins)','Old Part Condition','Issued By','Notes']];
+  const rows=[['Date','Truck','Bay','Dept','Part Name','Part No','Qty','Priority','Requested By','Requested At','Ready At','Issued At','Duration(mins)','Old Part Condition','Issued By','Notes','Last KM','Present KM','Life KM']];
   issued.forEach(r=>{
     const durMins=r.issuedAt&&r.requestedAt?Math.round((new Date(r.issuedAt)-new Date(r.requestedAt))/60000):'—';
     rows.push([
@@ -11460,13 +11546,115 @@ function exportStoresCSV(){
       r.requestedBy,new Date(r.requestedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
       r.readyAt?new Date(r.readyAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
       r.issuedAt?new Date(r.issuedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—',
-      durMins,r.oldPartCondition||'—',r.issuedBy||'—',r.notes||'—'
+      durMins,r.oldPartCondition||'—',r.issuedBy||'—',r.notes||'—',
+      r.lastKm!=null?r.lastKm:'—', r.presentKm!=null?r.presentKm:'—', r.lifeKm!=null?r.lifeKm:'—'
     ]);
   });
   const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download='Stores_Log_'+new Date().toLocaleDateString('en-GB').replace(/\//g,'-')+'.csv';
+  a.click();
+}
+
+// ── TRUCK KM LOG ──────────────────────────────────────────────
+function refreshTruckKmLog(){
+  if(!S.truckKmLog) S.truckKmLog=[];
+  // Populate truck dropdown from currently known trucks (entries), deduped
+  const sel=document.getElementById('kmLogTruck');
+  if(sel){
+    const known=Array.from(new Set((S.entries||[]).map(e=>e.truckNo))).sort();
+    const prevVal=sel.value;
+    sel.innerHTML='<option value="">-- Select truck --</option>'+known.map(t=>`<option value="${t}">${t}</option>`).join('');
+    if(known.includes(prevVal)) sel.value=prevVal;
+  }
+  const tbody=document.getElementById('truckKmLogTable');
+  if(!tbody) return;
+  const rows=(S.truckKmLog||[]).slice().reverse();
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text2);padding:16px">No readings yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td style="font-size:11px">${new Date(r.recordedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
+    <td style="font-weight:700">${r.truckNo}</td>
+    <td>${r.lastKm.toLocaleString()}</td>
+    <td>${r.presentKm.toLocaleString()}</td>
+    <td style="font-weight:700;color:${r.lifeKm<0?'var(--red)':'var(--green)'}">${r.lifeKm.toLocaleString()} km</td>
+    <td>${r.recordedBy||'—'}</td>
+  </tr>`).join('');
+}
+
+function prefillLastKm(){
+  const truck=document.getElementById('kmLogTruck').value;
+  const lastEl=document.getElementById('kmLogLast');
+  if(!truck || !lastEl) return;
+  // Find this truck's most recent reading and use its Present KM as the new Last KM
+  const history=(S.truckKmLog||[]).filter(r=>r.truckNo===truck).sort((a,b)=>new Date(b.recordedAt)-new Date(a.recordedAt));
+  if(history.length){
+    lastEl.value=history[0].presentKm;
+  } else {
+    lastEl.value='';
+  }
+  previewTruckLifeKm();
+}
+
+function previewTruckLifeKm(){
+  const lastKm=parseFloat(document.getElementById('kmLogLast').value);
+  const presentKm=parseFloat(document.getElementById('kmLogPresent').value);
+  const el=document.getElementById('kmLogPreview');
+  if(!el) return;
+  if(isNaN(lastKm)||isNaN(presentKm)){
+    el.textContent='Life KM: — (enter both to calculate)';
+    el.style.color='var(--text2)';
+    return;
+  }
+  const life=presentKm-lastKm;
+  if(life<0){
+    el.textContent='⚠️ Present KM is less than Last KM — check the readings';
+    el.style.color='var(--red)';
+  } else {
+    el.textContent='Life KM: '+life.toLocaleString()+' km covered since last reading';
+    el.style.color='var(--green)';
+  }
+}
+
+function saveTruckKmReading(){
+  const truck=document.getElementById('kmLogTruck').value;
+  const recordedBy=document.getElementById('kmLogBy').value.trim().toUpperCase();
+  const lastKm=parseFloat(document.getElementById('kmLogLast').value);
+  const presentKm=parseFloat(document.getElementById('kmLogPresent').value);
+  if(!truck) return toast('⚠️ Select a truck','warn');
+  if(!recordedBy) return toast('⚠️ Enter recorded by name','warn');
+  if(isNaN(lastKm)||isNaN(presentKm)) return toast('⚠️ Enter both Last KM and Present KM','warn');
+  if(presentKm<lastKm) return toast('⚠️ Present KM cannot be less than Last KM — check the readings','warn');
+  if(!S.truckKmLog) S.truckKmLog=[];
+  S.truckKmLog.push({
+    id: Date.now(),
+    truckNo: truck,
+    lastKm: lastKm,
+    presentKm: presentKm,
+    lifeKm: presentKm-lastKm,
+    recordedBy: recordedBy,
+    recordedAt: new Date().toISOString()
+  });
+  save();
+  document.getElementById('kmLogLast').value='';
+  document.getElementById('kmLogPresent').value='';
+  document.getElementById('kmLogPreview').textContent='Life KM: — (enter both to calculate)';
+  refreshTruckKmLog();
+  toast('💾 KM reading saved for '+truck,'ok');
+}
+
+function exportTruckKmCSV(){
+  const rows=[['Date','Truck','Last KM','Present KM','Life KM','Recorded By']];
+  (S.truckKmLog||[]).forEach(r=>{
+    rows.push([new Date(r.recordedAt).toLocaleDateString('en-GB'), r.truckNo, r.lastKm, r.presentKm, r.lifeKm, r.recordedBy||'—']);
+  });
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='Truck_KM_Log_'+new Date().toLocaleDateString('en-GB').replace(/\//g,'-')+'.csv';
   a.click();
 }
 
