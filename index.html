@@ -3817,110 +3817,80 @@ var _lastSyncedEntries={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
-  // CRITICAL FIX: merge inspections, entries AND bayAssignments with latest
-  // server data before writing, so a stale copy open in another user's
-  // browser can't wipe out a bayNo, a gate-in/out record, or a bay
-  // allocation that was just saved by someone else on a different device.
-  Promise.all([
-    fbRoot.child('inspections').once('value'),
-    fbRoot.child('entries').once('value'),
-    fbRoot.child('bayAssignments').once('value')
-  ]).then(([insSnap, entSnap, bayAssignSnap])=>{
-    const serverInspections = insSnap.val() || [];
-    const serverEntriesRaw = entSnap.val() || [];
-    // SAFETY GUARD: if we previously had inspections/entries synced (we know
-    // there SHOULD be data) but this fresh read came back empty, that's a
-    // strong sign of a transient connectivity/read glitch, not genuinely
-    // empty data. Writing this would wipe bay/job data for EVERY device.
-    // Abort this save and retry shortly instead of risking that.
-    const hadInspectionsBefore = Object.keys(_lastSyncedInspections).length > 0;
-    const hadEntriesBefore = Object.keys(_lastSyncedEntries).length > 0;
-    if((hadInspectionsBefore && serverInspections.length===0) || (hadEntriesBefore && serverEntriesRaw.length===0)){
-      console.warn('SAFETY: server read came back suspiciously empty — aborting this save, retrying shortly');
-      _saving=false;
-      setTimeout(save, 1500);
-      return;
-    }
-    const mergedIns = {};
-    serverInspections.forEach(ins=>{ mergedIns[ins.entryId] = ins; });
-    (S.inspections||[]).forEach(ins=>{
-      const existing = mergedIns[ins.entryId];
-      if(!existing){
-        mergedIns[ins.entryId] = ins;
-        return;
-      }
-      // GENERAL FIX (replaces the old "ins.id >= existing.id" rule, which was
-      // ALWAYS true for the same record and let any stale local copy silently
-      // overwrite newer server data — this is what was making bay allocations
-      // set by Supervisor vanish when another device saved afterward).
-      // Compare this local record to what THIS device last actually received
-      // from the server. If nothing changed locally since then, this is just
-      // a stale copy being re-saved incidentally — defer entirely to the
-      // server's current version. If something DID change locally (the user
-      // just edited this exact record), keep the local version — that's a
-      // real, intentional edit that should win.
-      const lastSynced = _lastSyncedInspections[ins.entryId];
-      const localUnchanged = lastSynced !== undefined && JSON.stringify(ins) === lastSynced;
-      if(!localUnchanged){
-        mergedIns[ins.entryId] = ins;
-      }
-      // else: keep server's version already in mergedIns — do not overwrite
-    });
-    S.inspections = Object.values(mergedIns);
-
-    const serverEntries = serverEntriesRaw;
-    const mergedEnt = {};
-    serverEntries.forEach(e=>{ mergedEnt[e.id] = e; });
+  // ── PERMANENT FIX ─────────────────────────────────────────────
+  // Previous approach: read entries/inspections/bayAssignments once,
+  // merge locally, then write the whole thing back. That has an inherent
+  // race: if ANOTHER device writes in the gap between our read and our
+  // write, our write silently overwrites theirs (this is what caused bay
+  // allocations, exit punches, and whole inspection records to
+  // intermittently vanish/revert, even after several rounds of patches).
+  //
+  // Fix: use Firebase's built-in transaction() for entries, inspections,
+  // and bayAssignments. A transaction gives your callback the CURRENT
+  // server value, and if another client wrote to that same path between
+  // the read and the commit, Firebase automatically re-runs your callback
+  // with the newest data and retries — atomically, with no gap a
+  // concurrent write can slip through. This removes the entire class of
+  // "two devices race, one silently loses" bugs at the root, for every
+  // action, without needing a special case per field ever again.
+  const entriesTxn = fbRoot.child('entries').transaction(serverEntries=>{
+    serverEntries = serverEntries || [];
+    const merged = {};
+    serverEntries.forEach(e=>{ if(e) merged[e.id]=e; });
     (S.entries||[]).forEach(e=>{
-      const existing = mergedEnt[e.id];
-      if(!existing){
-        mergedEnt[e.id] = e;
-        return;
-      }
-      // Same general fix as inspections above, applied to entries. This
-      // naturally covers the exitTime case from before (an exit punch is a
-      // local change, so it correctly wins) without needing a field-specific
-      // special case anymore.
-      const lastSynced = _lastSyncedEntries[e.id];
-      const localUnchanged = lastSynced !== undefined && JSON.stringify(e) === lastSynced;
-      if(!localUnchanged){
-        mergedEnt[e.id] = e;
-      }
-      // else: keep server's version already in mergedEnt — do not overwrite
+      const lastSynced=_lastSyncedEntries[e.id];
+      const localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
+      if(!localUnchanged) merged[e.id]=e;
     });
-    S.entries = Object.values(mergedEnt);
+    // Honor deletions this device made since its last sync (Manager delete,
+    // recycle bin move, etc.) — a key that was synced before but is missing
+    // locally now was intentionally removed, so drop it here too.
+    Object.keys(_lastSyncedEntries).forEach(key=>{
+      const stillLocal=(S.entries||[]).some(e=>String(e.id)===String(key));
+      if(!stillLocal) delete merged[key];
+    });
+    return Object.values(merged);
+  });
 
-    // bayAssignments is a flat {staffOrTruckName: bayNo} map — no id/timestamp
-    // per entry, so merge as a union: start from server's latest copy (picks
-    // up anything assigned by other devices this device hasn't seen yet),
-    // then overlay this device's own local changes on top (its just-made
-    // assignment/removal wins for the keys it touched). Keys this device
-    // deliberately deleted (present at last sync, missing now) are removed
-    // from the merged result too, so clearing a bay assignment actually
-    // sticks instead of being silently restored by the server's copy.
-    const serverBayAssignments = bayAssignSnap.val() || {};
-    const mergedBayAssignments = Object.assign({}, serverBayAssignments, S.bayAssignments||{});
-    Object.keys(_lastSyncedBayAssignments).forEach(function(key){
-      if(!(key in (S.bayAssignments||{}))){
-        delete mergedBayAssignments[key];
-      }
+  const inspectionsTxn = fbRoot.child('inspections').transaction(serverInsp=>{
+    serverInsp = serverInsp || [];
+    const merged = {};
+    serverInsp.forEach(ins=>{ if(ins) merged[ins.entryId]=ins; });
+    (S.inspections||[]).forEach(ins=>{
+      const lastSynced=_lastSyncedInspections[ins.entryId];
+      const localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
+      if(!localUnchanged) merged[ins.entryId]=ins;
     });
-    S.bayAssignments = mergedBayAssignments;
+    Object.keys(_lastSyncedInspections).forEach(key=>{
+      const stillLocal=(S.inspections||[]).some(ins=>String(ins.entryId)===String(key));
+      if(!stillLocal) delete merged[key];
+    });
+    return Object.values(merged);
+  });
 
-    fbRoot.set(S).then(()=>{
-      _saving=false;
-    }).catch(err=>{
-      _saving=false;
-      console.error('Firebase write failed:',err);
-      toast('⚠️ Sync failed — check connection','warn');
+  const bayTxn = fbRoot.child('bayAssignments').transaction(serverBay=>{
+    serverBay = serverBay || {};
+    const merged = Object.assign({}, serverBay, S.bayAssignments||{});
+    Object.keys(_lastSyncedBayAssignments).forEach(key=>{
+      if(!(key in (S.bayAssignments||{}))) delete merged[key];
     });
-  }).catch(()=>{
-    // If merge read fails, fall back to plain write rather than blocking the save
-    fbRoot.set(S).then(()=>{ _saving=false; }).catch(err=>{
-      _saving=false;
-      console.error('Firebase write failed:',err);
-      toast('⚠️ Sync failed — check connection','warn');
-    });
+    return merged;
+  });
+
+  // Everything else in S (staffRoster, notifications, supportJobs, etc.) —
+  // these haven't shown the same concurrent-conflict pattern, so keep the
+  // simpler direct write for them, unchanged from before.
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments');
+  const restPayload = {};
+  restKeys.forEach(k=>{ restPayload[k]=S[k]; });
+  const restWrite = fbRoot.update(restPayload);
+
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, restWrite]).then(()=>{
+    _saving=false;
+  }).catch(err=>{
+    _saving=false;
+    console.error('Firebase write failed:',err);
+    toast('⚠️ Sync failed — check connection','warn');
   });
 };
 
