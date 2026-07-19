@@ -3827,6 +3827,20 @@ const _doSave=()=>{
     fbRoot.child('bayAssignments').once('value')
   ]).then(([insSnap, entSnap, bayAssignSnap])=>{
     const serverInspections = insSnap.val() || [];
+    const serverEntriesRaw = entSnap.val() || [];
+    // SAFETY GUARD: if we previously had inspections/entries synced (we know
+    // there SHOULD be data) but this fresh read came back empty, that's a
+    // strong sign of a transient connectivity/read glitch, not genuinely
+    // empty data. Writing this would wipe bay/job data for EVERY device.
+    // Abort this save and retry shortly instead of risking that.
+    const hadInspectionsBefore = Object.keys(_lastSyncedInspections).length > 0;
+    const hadEntriesBefore = Object.keys(_lastSyncedEntries).length > 0;
+    if((hadInspectionsBefore && serverInspections.length===0) || (hadEntriesBefore && serverEntriesRaw.length===0)){
+      console.warn('SAFETY: server read came back suspiciously empty — aborting this save, retrying shortly');
+      _saving=false;
+      setTimeout(save, 1500);
+      return;
+    }
     const mergedIns = {};
     serverInspections.forEach(ins=>{ mergedIns[ins.entryId] = ins; });
     (S.inspections||[]).forEach(ins=>{
@@ -3854,7 +3868,7 @@ const _doSave=()=>{
     });
     S.inspections = Object.values(mergedIns);
 
-    const serverEntries = entSnap.val() || [];
+    const serverEntries = serverEntriesRaw;
     const mergedEnt = {};
     serverEntries.forEach(e=>{ mergedEnt[e.id] = e; });
     (S.entries||[]).forEach(e=>{
