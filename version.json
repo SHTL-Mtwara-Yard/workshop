@@ -1,5 +1,5 @@
 {
-  "v": "v304",
-  "deployed": "2026-07-19T08:38:16Z",
-  "change": "CRITICAL SAFETY: abort/retry save on suspiciously-empty server read, prevents system-wide data wipe"
+  "v": "v305",
+  "deployed": "2026-07-19T13:22:05Z",
+  "change": "PERMANENT FIX: Firebase transactions for entries/inspections/bayAssignments \u2014 eliminates concurrent-write data loss at the root"
 }
