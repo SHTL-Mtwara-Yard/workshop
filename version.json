@@ -1,5 +1,5 @@
 {
-  "v": "v303",
-  "deployed": "2026-07-18T18:19:07Z",
-  "change": "Bay Status Map shows which departments haven't set ETD (red warning, green check when complete)"
+  "v": "v304",
+  "deployed": "2026-07-19T08:38:16Z",
+  "change": "CRITICAL SAFETY: abort/retry save on suspiciously-empty server read, prevents system-wide data wipe"
 }
