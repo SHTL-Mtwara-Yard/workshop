@@ -1,5 +1,5 @@
 {
-  "v": "v307",
-  "deployed": "2026-07-20T05:19:48Z",
-  "change": "Consolidated KM tracking into Requisition Slip (removed separate tab), auto-fill + auto-calc, Print Slip included"
+  "v": "v308",
+  "deployed": "2026-07-20T10:14:47Z",
+  "change": "Add Reopen Workshop button to undo accidental Close Workshop"
 }
