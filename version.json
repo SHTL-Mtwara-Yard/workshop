@@ -1,5 +1,5 @@
 {
-  "v": "v306",
-  "deployed": "2026-07-19T13:30:32Z",
-  "change": "Add KM tracking in Stores (per part + per truck, auto-calculated Life KM)"
+  "v": "v307",
+  "deployed": "2026-07-20T05:19:48Z",
+  "change": "Consolidated KM tracking into Requisition Slip (removed separate tab), auto-fill + auto-calc, Print Slip included"
 }
