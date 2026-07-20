@@ -1868,7 +1868,8 @@ if('serviceWorker' in navigator){
     </div>
     <div class="flex gap-8">
       <button class="btn btn-primary" onclick="exportAllManagerFiles()">📥 Export All Files (7 CSVs)</button>
-      <button class="btn btn-ghost" onclick="openCloseWorkshopModal()">🌙 Close Workshop for Today</button>
+      <button class="btn btn-ghost" id="btnCloseWorkshop" onclick="openCloseWorkshopModal()">🌙 Close Workshop for Today</button>
+      <button class="btn btn-danger" id="btnReopenWorkshop" style="display:none" onclick="reopenWorkshop()">☀️ Reopen Workshop</button>
     </div>
   </div>
 
@@ -14537,6 +14538,7 @@ var curPunchTeam='A';
 function refreshPunchTab(){
   // Show workshop closed banner and hide punch UI if closed today
   var isClosed = S.workshopClosedDate===new Date().toDateString();
+  updateWorkshopCloseButtons();
   var banner = document.getElementById('workshopClosedBanner');
   var step1 = document.getElementById('punchStep1Card');
   var step2 = document.getElementById('punchStep2');
@@ -14963,6 +14965,7 @@ function getOpenJobLocksFor(workerName){
 }
 
 function refreshWorkerBoard(){
+  updateWorkshopCloseButtons();
   const board=document.getElementById('workerBoard');
   // Build the full list of names to show: anyone who has self-punched today,
   // PLUS anyone currently holding an open job lock (even if they never opened
@@ -15056,6 +15059,25 @@ function confirmCloseWorkshop(){
   closeModal('closeWorkshopModal');
   refreshWorkerBoard();
   toast('🌙 Workshop closed for today — cleared '+cleared+' stale punch(es)','ok');
+}
+
+// Reverses an accidental "Close Workshop" — clears today's closed flag so
+// punches/bay work resume normally right away.
+function reopenWorkshop(){
+  if(!confirm('Reopen the workshop for today? Staff will be able to punch in and work will resume.')) return;
+  S.workshopClosedDate='';
+  save();
+  refreshWorkerBoard();
+  updateWorkshopCloseButtons();
+  toast('☀️ Workshop reopened — punching is active again','ok');
+}
+
+function updateWorkshopCloseButtons(){
+  const isClosed = S.workshopClosedDate===new Date().toDateString();
+  const closeBtn=document.getElementById('btnCloseWorkshop');
+  const reopenBtn=document.getElementById('btnReopenWorkshop');
+  if(closeBtn) closeBtn.style.display = isClosed ? 'none' : '';
+  if(reopenBtn) reopenBtn.style.display = isClosed ? '' : 'none';
 }
 
 // ═══ MANAGER: STAFF ROSTER (add/remove employees, syncs live everywhere) ═══
