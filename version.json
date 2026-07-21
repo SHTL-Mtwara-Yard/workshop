@@ -1,5 +1,5 @@
 {
-  "v": "v308",
-  "deployed": "2026-07-20T10:14:47Z",
-  "change": "Add Reopen Workshop button to undo accidental Close Workshop"
+  "v": "v309",
+  "deployed": "2026-07-21T09:06:23Z",
+  "change": "Harden Ground page rendering so one bad department can't hide the rest (Electrician/Tyre/Welding disappearing)"
 }
