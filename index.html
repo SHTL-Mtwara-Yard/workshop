@@ -7102,6 +7102,7 @@ function loadBayJobs(){
   }
   let totalJobs=0, totalDone=0;
   ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
+    try {
     if(dFilter!=='all'&&dFilter!==d)return;
     const jobs=(ins.jobs||{})[d]||[];
     const di=dInfo[d];
@@ -7136,6 +7137,10 @@ function loadBayJobs(){
       </div>`;
     });
     jHtml+='</div>';
+    } catch(deptErr){
+      console.error('Ground job render failed for dept', d, deptErr);
+      jHtml+=`<div class="jc-dept-block mb-12"><div class="jc-dept-head ${d}"><span style="color:var(--red);font-weight:700">⚠️ ${dInfo[d].l} — display error, other departments unaffected</span></div></div>`;
+    }
   });
   jDiv.innerHTML=jHtml;
   // Show print button when truck is loaded
@@ -7153,6 +7158,7 @@ function loadBayJobs(){
     </div>
   </div>`;
   ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
+    try {
     const jobs=(ins.jobs||{})[d]||[];if(!jobs.length)return;
     const di=dInfo[d];
     const doneC=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
@@ -7231,6 +7237,10 @@ function loadBayJobs(){
         }
       </div>
     </div>`;
+    } catch(deptErr){
+      console.error('ETD panel render failed for dept', d, deptErr);
+      eHtml+=`<div style="margin-bottom:16px;color:var(--red);font-size:12px">⚠️ ${dInfo[d].l} — display error, other departments unaffected</div>`;
+    }
   });
   eDiv.innerHTML=eHtml;
 }
