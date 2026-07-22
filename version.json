@@ -1,5 +1,5 @@
 {
-  "v": "v309",
-  "deployed": "2026-07-21T09:06:23Z",
-  "change": "Harden Ground page rendering so one bad department can't hide the rest (Electrician/Tyre/Welding disappearing)"
+  "v": "v310",
+  "deployed": "2026-07-22T10:28:51Z",
+  "change": "30-min ETD warning now sends a notification instead of sound/speech"
 }
