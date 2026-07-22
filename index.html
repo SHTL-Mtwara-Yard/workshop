@@ -9071,11 +9071,16 @@ function checkETDAlerts(){
         var warnBucket=alertKey+'_warn_'+Math.floor(minsLeft/10); // re-alert every 10min window
         if(_lastAnnounced[warnBucket]!==min2bucket){
           _lastAnnounced[warnBucket]=min2bucket;
-          playETDWarningBeep();
-          if(_etdAnnouncementsEnabled&&window.speechSynthesis){
-            speakAnnouncement('Attention '+dLabel+' team. '+mechName+' in '+ins.bayNo+', your ETD for truck '+ins.truckNo+' is in '+minsLeft+' minutes. Please complete your jobs now.');
-          }
           showFloatingETDAlert('⏰ ETD WARNING',ins.truckNo+' · '+ins.bayNo+' · '+dLabel,''+mechName+' — ETD in '+minsLeft+'min · Please complete jobs now','warning');
+          if(!S.notifications) S.notifications=[];
+          S.notifications.push({
+            id: Date.now()+Math.floor(Math.random()*1000),
+            message: '⏰ '+ins.truckNo+' · Bay '+ins.bayNo+' — '+dLabel+' ETD ending in '+minsLeft+' min ('+mechName+'). Please finish the job as soon as possible.',
+            truckLink: ins.truckNo,
+            sentAt: new Date().toISOString(),
+            read: false, readAt: null, reply: null
+          });
+          save();
         }
       } else if(minsLeft<=0){
         // BREACH
