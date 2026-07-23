@@ -1,5 +1,5 @@
 {
-  "v": "v311",
-  "deployed": "2026-07-23T05:23:36Z",
-  "change": "Manager can type free-text announcement, spoken aloud on all enabled devices"
+  "v": "v312",
+  "deployed": "2026-07-23T11:38:20Z",
+  "change": "Fix supportJobs (Grease/Panel Beater/etc.) records disappearing before End punch \u2014 same transaction fix as entries/inspections"
 }
