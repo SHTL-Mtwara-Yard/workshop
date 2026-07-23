@@ -1873,6 +1873,16 @@ if('serviceWorker' in navigator){
     </div>
   </div>
 
+  <!-- MANAGER BROADCAST ANNOUNCEMENT -->
+  <div class="card" style="border-top:3px solid #7c3aed;margin-bottom:12px">
+    <div class="card-title"><span class="dot" style="background:#7c3aed"></span>📢 Send Announcement</div>
+    <div class="text-xs text2 mb-8">Speaks aloud on every device that has announcements enabled (🔊 button on Ground page), and shows as a pop-up + notification everywhere else. Examples: "ETD not set by Electrician for T779 EAV", "Truck T884 DYS has left, please prepare next truck", "All staff — safety briefing in 10 minutes".</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="text" id="mgrAnnounceMsg" placeholder="Type announcement message..." style="flex:1;min-width:240px" onkeydown="if(event.key==='Enter') sendManagerAnnouncement()">
+      <button class="btn btn-primary" onclick="sendManagerAnnouncement()">📢 Announce to All</button>
+    </div>
+  </div>
+
   
   <!-- YARD ALERTS SECTION -->
   <div class="card" style="border-top:3px solid var(--red);margin-bottom:12px">
@@ -3765,7 +3775,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{} };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -3977,7 +3987,8 @@ fbRoot.on('value', snapshot=>{
       deptDelayRemarks: data.deptDelayRemarks || {},
       viewQrAccess: data.viewQrAccess || {},
       secQrAccess: data.secQrAccess || {},
-      workshopClosedDate: data.workshopClosedDate || ''
+      workshopClosedDate: data.workshopClosedDate || '',
+      broadcastAnnouncement: data.broadcastAnnouncement || null
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -4128,6 +4139,23 @@ function refreshCurrentPage(){
   }
 
   checkCompletionAlertQueue();
+
+  // ── Manager broadcast announcement ──────────────────────────────
+  // Detects a NEW broadcast (by id) and speaks it aloud on THIS device if
+  // announcements are enabled here. On the very first snapshot after page
+  // load, just remember the current id WITHOUT speaking — otherwise every
+  // device would replay old announcements every time it reloads/reconnects.
+  if(S.broadcastAnnouncement && S.broadcastAnnouncement.id){
+    if(_lastHeardBroadcastId===null){
+      _lastHeardBroadcastId=S.broadcastAnnouncement.id; // first load — don't replay
+    } else if(S.broadcastAnnouncement.id!==_lastHeardBroadcastId){
+      _lastHeardBroadcastId=S.broadcastAnnouncement.id;
+      if(_etdAnnouncementsEnabled && window.speechSynthesis){
+        speakAnnouncement(S.broadcastAnnouncement.message);
+      }
+      showFloatingETDAlert('📢 ANNOUNCEMENT','From '+(S.broadcastAnnouncement.sentBy||'Manager'),S.broadcastAnnouncement.message,'supervisor');
+    }
+  }
 }
 
 // ═══ STAFF ROSTER (mapped to departments) ═══
@@ -8822,6 +8850,7 @@ function refreshFleet(){
 // name, never this sanitized version.
 function safeKey(s){ return String(s||'').replace(/[.#$\[\]\/]/g,'_'); }
 var _etdAnnouncementsEnabled=false;
+var _lastHeardBroadcastId=null;
 var _etdAnnounceInterval=null;
 var _lastAnnounced={};
 function fmtOverdue(mins){
@@ -15085,6 +15114,32 @@ function reopenWorkshop(){
   refreshWorkerBoard();
   updateWorkshopCloseButtons();
   toast('☀️ Workshop reopened — punching is active again','ok');
+}
+
+// Manager types a free-text message here; it gets spoken aloud on every device
+// that has announcements enabled (same 🔊 unlock used for ETD alerts), and
+// shown as a floating pop-up + added to the notification inbox everywhere else.
+function sendManagerAnnouncement(){
+  const el=document.getElementById('mgrAnnounceMsg');
+  const message=el.value.trim();
+  if(!message) return toast('⚠️ Type a message first','warn');
+  S.broadcastAnnouncement={
+    id: Date.now(),
+    message: message,
+    sentBy: 'Manager',
+    sentAt: new Date().toISOString()
+  };
+  if(!S.notifications) S.notifications=[];
+  S.notifications.push({
+    id: Date.now()+Math.floor(Math.random()*1000),
+    message: '📢 Announcement: '+message,
+    truckLink: null,
+    sentAt: new Date().toISOString(),
+    read: false, readAt: null, reply: null
+  });
+  save();
+  el.value='';
+  toast('📢 Announcement sent to all devices','ok');
 }
 
 function updateWorkshopCloseButtons(){
