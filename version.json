@@ -1,5 +1,5 @@
 {
-  "v": "v310",
-  "deployed": "2026-07-22T10:28:51Z",
-  "change": "30-min ETD warning now sends a notification instead of sound/speech"
+  "v": "v311",
+  "deployed": "2026-07-23T05:23:36Z",
+  "change": "Manager can type free-text announcement, spoken aloud on all enabled devices"
 }
