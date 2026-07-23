@@ -3827,6 +3827,7 @@ var _saving=false;
 var _lastSyncedBayAssignments={};
 var _lastSyncedInspections={};
 var _lastSyncedEntries={};
+var _lastSyncedSupportJobs={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
@@ -3890,15 +3891,35 @@ const _doSave=()=>{
     return merged;
   });
 
-  // Everything else in S (staffRoster, notifications, supportJobs, etc.) —
-  // these haven't shown the same concurrent-conflict pattern, so keep the
-  // simpler direct write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments');
+  // supportJobs (Greasing, Panel Beater, Radiator, More Services, etc.) had
+  // the SAME disappearing-record problem as entries/inspections — punching
+  // Start added a job locally, but any other device's unrelated save could
+  // overwrite it away before End was ever punched. Same transaction fix.
+  const supportJobsTxn = fbRoot.child('supportJobs').transaction(serverJobs=>{
+    serverJobs = serverJobs || [];
+    const merged = {};
+    serverJobs.forEach(j=>{ if(j) merged[j.id]=j; });
+    (S.supportJobs||[]).forEach(j=>{
+      const lastSynced=_lastSyncedSupportJobs[j.id];
+      const localUnchanged = lastSynced!==undefined && JSON.stringify(j)===lastSynced;
+      if(!localUnchanged) merged[j.id]=j;
+    });
+    Object.keys(_lastSyncedSupportJobs).forEach(key=>{
+      const stillLocal=(S.supportJobs||[]).some(j=>String(j.id)===String(key));
+      if(!stillLocal) delete merged[key];
+    });
+    return Object.values(merged);
+  });
+
+  // Everything else in S (staffRoster, notifications, etc.) — these haven't
+  // shown the same concurrent-conflict pattern, so keep the simpler direct
+  // write for them, unchanged from before.
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
-  Promise.all([entriesTxn, inspectionsTxn, bayTxn, restWrite]).then(()=>{
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, restWrite]).then(()=>{
     _saving=false;
   }).catch(err=>{
     _saving=false;
@@ -4005,6 +4026,8 @@ fbRoot.on('value', snapshot=>{
     (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = JSON.stringify(ins); });
     _lastSyncedEntries = {};
     (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = JSON.stringify(e); });
+    _lastSyncedSupportJobs = {};
+    (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = JSON.stringify(j); });
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
     if(!data.staffRoster){
