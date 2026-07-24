@@ -1800,21 +1800,53 @@ if('serviceWorker' in navigator){
 
   <!-- SUMMARY CARDS -->
   <div class="revisit-summary">
-    <div class="revisit-card lt5">
+    <div class="revisit-card lt5" style="cursor:pointer" onclick="scrollToRevisitBucket('lt5')">
       <div class="revisit-big" id="lt5Count" style="color:var(--red)">0</div>
       <div style="font-size:13px;font-weight:600;margin-top:4px">Under 5,000 km 🔴</div>
       <div class="text-xs text2 mt-8">Critical — workmanship focus</div>
     </div>
-    <div class="revisit-card lt10">
+    <div class="revisit-card lt10" style="cursor:pointer" onclick="scrollToRevisitBucket('lt10')">
       <div class="revisit-big" id="lt10Count" style="color:var(--yellow)">0</div>
       <div style="font-size:13px;font-weight:600;margin-top:4px">5,000–10,000 km 🟡</div>
       <div class="text-xs text2 mt-8">Monitor closely</div>
     </div>
-    <div class="revisit-card" style="background:var(--surface);border:1px solid var(--green)">
+    <div class="revisit-card" style="background:var(--surface);border:1px solid var(--green);cursor:pointer" onclick="scrollToRevisitBucket('gt10')">
       <div class="revisit-big" id="gt10Count" style="color:var(--green)">0</div>
       <div style="font-size:13px;font-weight:600;margin-top:4px">Over 10,000 km 🟢</div>
       <div class="text-xs text2 mt-8">Quality work — incentive eligible</div>
     </div>
+  </div>
+
+  <!-- KM BUCKET DETAIL TABLES -->
+  <div class="card mb-12" id="bucket-lt5" style="border-top:3px solid var(--red)">
+    <div class="flex justify-between items-center flex-wrap gap-8">
+      <div class="card-title" style="margin:0">🔴 Under 5,000 km — Truck List</div>
+      <button class="btn btn-ghost btn-sm" onclick="exportRevisitBucketCSV('lt5')">⬇️ Download CSV</button>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Truck</th><th>KM</th><th>Department</th><th>Issue</th><th>Date</th></tr></thead>
+      <tbody id="lt5Table"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card mb-12" id="bucket-lt10" style="border-top:3px solid var(--yellow)">
+    <div class="flex justify-between items-center flex-wrap gap-8">
+      <div class="card-title" style="margin:0">🟡 5,000–10,000 km — Truck List</div>
+      <button class="btn btn-ghost btn-sm" onclick="exportRevisitBucketCSV('lt10')">⬇️ Download CSV</button>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Truck</th><th>KM</th><th>Department</th><th>Issue</th><th>Date</th></tr></thead>
+      <tbody id="lt10Table"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card mb-12" id="bucket-gt10" style="border-top:3px solid var(--green)">
+    <div class="flex justify-between items-center flex-wrap gap-8">
+      <div class="card-title" style="margin:0">🟢 Over 10,000 km — Truck List</div>
+      <button class="btn btn-ghost btn-sm" onclick="exportRevisitBucketCSV('gt10')">⬇️ Download CSV</button>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Truck</th><th>KM</th><th>Department</th><th>Issue</th><th>Date</th></tr></thead>
+      <tbody id="gt10Table"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr></tbody>
+    </table></div>
   </div>
 
   <!-- FAULT BREAKDOWN -->
@@ -8300,14 +8332,17 @@ function logRevisit(){
 function refreshRevisit(){
   const lt5=S.revisits.filter(r=>r.km<5000);
   const lt10=S.revisits.filter(r=>r.km>=5000&&r.km<10000);
+  const gt10=S.revisits.filter(r=>r.km>=10000);
   document.getElementById('lt5Count').textContent=lt5.length;
   document.getElementById('lt10Count').textContent=lt10.length;
+  document.getElementById('gt10Count').textContent=gt10.length;
   const renderTbl=(arr,id)=>{
     const tb=document.getElementById(id);
-    tb.innerHTML=arr.length?arr.map(r=>`<tr><td class="fw-700">${r.truck}</td><td style="color:${r.km<5000?'var(--red)':'var(--yellow)'};font-weight:700">${r.km.toLocaleString()} km</td><td>${r.dept}</td><td>${r.issue}</td><td class="text2 text-xs">${r.date}</td></tr>`).join('')
+    if(!tb) return;
+    tb.innerHTML=arr.length?arr.slice().sort((a,b)=>b.ts-a.ts).map(r=>`<tr><td class="fw-700">${r.truck}</td><td style="color:${r.km<5000?'var(--red)':r.km<10000?'var(--yellow)':'var(--green)'};font-weight:700">${r.km.toLocaleString()} km</td><td>${r.dept}</td><td>${r.issue}</td><td class="text2 text-xs">${r.date}</td></tr>`).join('')
       :'<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr>';
   };
-  renderTbl(lt5,'lt5Table');renderTbl(lt10,'lt10Table');
+  renderTbl(lt5,'lt5Table');renderTbl(lt10,'lt10Table');renderTbl(gt10,'gt10Table');
   renderTrend();
 }
 
@@ -16233,6 +16268,22 @@ function refreshRevisit(){
   if(lt10El) lt10El.textContent=lt10.length;
   if(gt10El) gt10El.textContent=gt10.length;
 
+  var renderBucketTbl=function(arr,id){
+    var tb=document.getElementById(id);
+    if(!tb) return;
+    if(!arr.length){
+      tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No records</td></tr>';
+      return;
+    }
+    tb.innerHTML=arr.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).map(function(r){
+      var kmColor = r.km<5000?'var(--red)':r.km<10000?'var(--yellow)':'var(--green)';
+      return '<tr><td class="fw-700">'+r.truck+'</td><td style="color:'+kmColor+';font-weight:700">'+r.km.toLocaleString()+' km</td><td>'+(r.dept||'—')+'</td><td>'+(r.issue||'—')+'</td><td class="text2 text-xs">'+r.date+'</td></tr>';
+    }).join('');
+  };
+  renderBucketTbl(lt5,'lt5Table');
+  renderBucketTbl(lt10,'lt10Table');
+  renderBucketTbl(gt10,'gt10Table');
+
   // Fault breakdown
   var faultEl=document.getElementById('faultBreakdown');
   if(faultEl){
@@ -16249,6 +16300,36 @@ function refreshRevisit(){
   }
 
   refreshRevisitTab('mechanic');
+}
+
+function scrollToRevisitBucket(bucket){
+  var el=document.getElementById('bucket-'+bucket);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function exportRevisitBucketCSV(bucket){
+  var revisits=S.revisits||[];
+  var filtered, label;
+  if(bucket==='lt5'){
+    filtered=revisits.filter(function(r){ return r.km<5000 && (r.fault==='mechanic'||r.fault==='spare'); });
+    label='Under_5000km';
+  } else if(bucket==='lt10'){
+    filtered=revisits.filter(function(r){ return r.km>=5000&&r.km<10000 && (r.fault==='mechanic'||r.fault==='spare'); });
+    label='5000_to_10000km';
+  } else {
+    filtered=revisits.filter(function(r){ return r.km>=10000 && (r.fault==='mechanic'||r.fault==='spare'); });
+    label='Over_10000km';
+  }
+  if(!filtered.length) return toast('No records in this bucket to download','warn');
+  var rows=[['Truck','KM','Department','Issue','Date']];
+  filtered.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).forEach(function(r){
+    rows.push([r.truck, r.km, r.dept||'—', r.issue||'—', r.date]);
+  });
+  var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='Revisit_'+label+'_'+new Date().toLocaleDateString('en-GB').replace(/\//g,'-')+'.csv';
+  a.click();
 }
 
 function refreshRevisitTab(tab){
