@@ -1,5 +1,5 @@
 {
-  "v": "v312",
-  "deployed": "2026-07-23T11:38:20Z",
-  "change": "Fix supportJobs (Grease/Panel Beater/etc.) records disappearing before End punch \u2014 same transaction fix as entries/inspections"
+  "v": "v313",
+  "deployed": "2026-07-24T20:29:59Z",
+  "change": "Add truck-list tables + CSV download for Revisit KM buckets"
 }
