@@ -1,5 +1,5 @@
 {
-  "v": "v313",
-  "deployed": "2026-07-24T20:29:59Z",
-  "change": "Add truck-list tables + CSV download for Revisit KM buckets"
+  "v": "v314",
+  "deployed": "2026-07-25T13:41:08Z",
+  "change": "Add Clear All / Mark All Read for notifications + auto-cap to 150 entries to prevent unbounded growth"
 }
