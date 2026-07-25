@@ -2101,7 +2101,13 @@ if('serviceWorker' in navigator){
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Sent Notifications &amp; Status</div>
+      <div class="flex justify-between items-center flex-wrap gap-8">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>Sent Notifications &amp; Status</div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="markAllNotificationsRead()">✅ Mark All Read</button>
+          <button class="btn btn-danger btn-sm" onclick="clearAllNotifications()">🗑️ Clear All</button>
+        </div>
+      </div>
       <div id="mgrNotifyList"><div class="alert alert-info">No notifications sent yet.</div></div>
     </div>
 
@@ -3969,6 +3975,7 @@ const _doSave=()=>{
 // without changing any data or merge logic — same correctness, fewer trips.
 var _saveDebounceTimer=null;
 const save=()=>{
+  if(typeof capNotifications==='function') capNotifications(); // keep notifications from growing forever
   cacheLocally(); // keep local cache instant, even before the debounced write fires
   // Block the live listener from the moment save() is called, not just once
   // the debounced write actually starts. Without this, another device's write
@@ -9511,6 +9518,36 @@ function sendNotification(){
   document.getElementById('notifyBayLink').value='';
   refreshMgrNotify();
   toast('📨 Notification sent to Supervisor','ok');
+}
+
+function markAllNotificationsRead(){
+  if(!S.notifications||!S.notifications.length) return toast('No notifications to mark','info');
+  var now=new Date().toISOString();
+  S.notifications.forEach(function(n){ if(!n.read){ n.read=true; n.readAt=now; } });
+  save();
+  refreshMgrNotify();
+  toast('✅ All notifications marked as read','ok');
+}
+
+function clearAllNotifications(){
+  if(!S.notifications||!S.notifications.length) return toast('No notifications to clear','info');
+  if(!confirm('Clear all '+S.notifications.length+' notifications? This cannot be undone.')) return;
+  S.notifications=[];
+  save();
+  refreshMgrNotify();
+  toast('🗑️ All notifications cleared','ok');
+}
+
+// Keeps the notifications list from growing forever in Firebase — every
+// save, trim down to the most recent 150 READ notifications plus ALL unread
+// ones (so nothing waiting for a reply is ever silently dropped).
+function capNotifications(){
+  if(!S.notifications || S.notifications.length<=150) return;
+  var unread=S.notifications.filter(function(n){ return !n.read; });
+  var read=S.notifications.filter(function(n){ return n.read; })
+    .sort(function(a,b){ return new Date(b.sentAt)-new Date(a.sentAt); })
+    .slice(0, Math.max(0, 150-unread.length));
+  S.notifications=unread.concat(read).sort(function(a,b){ return new Date(a.sentAt)-new Date(b.sentAt); });
 }
 
 function refreshSupNotify(){
