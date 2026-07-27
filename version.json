@@ -1,5 +1,5 @@
 {
-  "v": "v315",
-  "deployed": "2026-07-27T07:50:19Z",
-  "change": "Fix department ETD flickering (deptETDs now uses Firebase transaction, same as bayAssignments)"
+  "v": "v316",
+  "deployed": "2026-07-27T08:05:53Z",
+  "change": "Fix Manager broadcast announcement never being spoken (first-ever broadcast was silently swallowed)"
 }
