@@ -4222,18 +4222,21 @@ function refreshCurrentPage(){
   // ── Manager broadcast announcement ──────────────────────────────
   // Detects a NEW broadcast (by id) and speaks it aloud on THIS device if
   // announcements are enabled here. On the very first snapshot after page
-  // load, just remember the current id WITHOUT speaking — otherwise every
-  // device would replay old announcements every time it reloads/reconnects.
-  if(S.broadcastAnnouncement && S.broadcastAnnouncement.id){
-    if(_lastHeardBroadcastId===null){
-      _lastHeardBroadcastId=S.broadcastAnnouncement.id; // first load — don't replay
-    } else if(S.broadcastAnnouncement.id!==_lastHeardBroadcastId){
-      _lastHeardBroadcastId=S.broadcastAnnouncement.id;
-      if(_etdAnnouncementsEnabled && window.speechSynthesis){
-        speakAnnouncement(S.broadcastAnnouncement.message);
-      }
-      showFloatingETDAlert('📢 ANNOUNCEMENT','From '+(S.broadcastAnnouncement.sentBy||'Manager'),S.broadcastAnnouncement.message,'supervisor');
+  // load, just remember whatever broadcast id already exists WITHOUT
+  // speaking it — otherwise every device would replay old announcements
+  // every time it reloads/reconnects. Uses a separate "have we seen the
+  // first snapshot yet" flag so this works correctly even when NO broadcast
+  // has ever been sent yet at load time (the previous version treated the
+  // very first real broadcast as "initial load" and silently never spoke it).
+  if(!_hasSeenFirstBroadcastSnapshot){
+    _hasSeenFirstBroadcastSnapshot=true;
+    _lastHeardBroadcastId=(S.broadcastAnnouncement && S.broadcastAnnouncement.id) || null;
+  } else if(S.broadcastAnnouncement && S.broadcastAnnouncement.id && S.broadcastAnnouncement.id!==_lastHeardBroadcastId){
+    _lastHeardBroadcastId=S.broadcastAnnouncement.id;
+    if(_etdAnnouncementsEnabled && window.speechSynthesis){
+      speakAnnouncement(S.broadcastAnnouncement.message);
     }
+    showFloatingETDAlert('📢 ANNOUNCEMENT','From '+(S.broadcastAnnouncement.sentBy||'Manager'),S.broadcastAnnouncement.message,'supervisor');
   }
 }
 
@@ -8933,6 +8936,7 @@ function refreshFleet(){
 function safeKey(s){ return String(s||'').replace(/[.#$\[\]\/]/g,'_'); }
 var _etdAnnouncementsEnabled=false;
 var _lastHeardBroadcastId=null;
+var _hasSeenFirstBroadcastSnapshot=false;
 var _etdAnnounceInterval=null;
 var _lastAnnounced={};
 function fmtOverdue(mins){
