@@ -1,5 +1,5 @@
 {
-  "v": "v316",
-  "deployed": "2026-07-27T08:05:53Z",
-  "change": "Fix Manager broadcast announcement never being spoken (first-ever broadcast was silently swallowed)"
+  "v": "v317",
+  "deployed": "2026-07-27T18:10:51Z",
+  "change": "Daily Report download fetches fresh data before generating - no more stale-device mismatches"
 }
