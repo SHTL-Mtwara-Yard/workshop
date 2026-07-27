@@ -3866,6 +3866,7 @@ var _lastSyncedBayAssignments={};
 var _lastSyncedInspections={};
 var _lastSyncedEntries={};
 var _lastSyncedSupportJobs={};
+var _lastSyncedDeptETDs={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
@@ -3949,15 +3950,30 @@ const _doSave=()=>{
     return Object.values(merged);
   });
 
+  // deptETDs is a flat {insId_dept: etdString} map — same class of bug as
+  // bayAssignments: one device setting Electrician's ETD could silently
+  // overwrite/omit Mechanical's ETD (set moments earlier by another device)
+  // since the whole map used to be written wholesale. This is what caused
+  // the Bay Status Map's "✓ ETD Set" / "⚠ Dept ETD not set" badge to flicker
+  // inconsistently. Same union+deletion-tracking merge as bayAssignments.
+  const deptETDsTxn = fbRoot.child('deptETDs').transaction(serverETDs=>{
+    serverETDs = serverETDs || {};
+    const merged = Object.assign({}, serverETDs, S.deptETDs||{});
+    Object.keys(_lastSyncedDeptETDs).forEach(key=>{
+      if(!(key in (S.deptETDs||{}))) delete merged[key];
+    });
+    return merged;
+  });
+
   // Everything else in S (staffRoster, notifications, etc.) — these haven't
   // shown the same concurrent-conflict pattern, so keep the simpler direct
   // write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs');
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
-  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, restWrite]).then(()=>{
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, restWrite]).then(()=>{
     _saving=false;
   }).catch(err=>{
     _saving=false;
@@ -4055,6 +4071,7 @@ fbRoot.on('value', snapshot=>{
     // because I haven't synced it yet" (keep server's value) and "this key
     // is missing because I just deliberately cleared it" (delete on write).
     _lastSyncedBayAssignments = Object.assign({}, S.bayAssignments||{});
+    _lastSyncedDeptETDs = Object.assign({}, S.deptETDs||{});
     // Snapshots of inspections/entries exactly as received from the server
     // just now, keyed by entryId / id. Used by save() to tell "this device
     // hasn't touched this record since last sync" (defer to server, even on
