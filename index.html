@@ -4017,9 +4017,55 @@ function _flushPendingSave(){
 }
 document.addEventListener('visibilitychange', function(){
   if(document.visibilityState==='hidden') _flushPendingSave();
+  else if(document.visibilityState==='visible') _resyncOnVisible();
 });
 window.addEventListener('pagehide', _flushPendingSave);
 window.addEventListener('beforeunload', _flushPendingSave);
+
+// Mobile devices are the main risk here: when a phone's screen locks or the
+// browser tab is backgrounded for a while, the live Firebase connection can
+// go stale and not always resume cleanly, leaving this device's copy of
+// entries/inspections frozen in the past (e.g. Bay Status Map still showing
+// a truck as occupying its bay long after it exited on every other device).
+// Force a fresh one-time read and merge every time the app becomes visible
+// again, so this self-heals automatically instead of needing a manual
+// reload. Debounced to avoid firing on rapid visibility flicker.
+var _resyncOnVisibleTimer=null;
+function _resyncOnVisible(){
+  if(_resyncOnVisibleTimer) clearTimeout(_resyncOnVisibleTimer);
+  _resyncOnVisibleTimer=setTimeout(function(){
+    _resyncOnVisibleTimer=null;
+    if(_saving) return; // don't fight an in-flight save; listener will catch up naturally
+    Promise.all([
+      fbRoot.child('entries').once('value'),
+      fbRoot.child('inspections').once('value')
+    ]).then(function(results){
+      var freshEntries = results[0].val() || [];
+      var freshInspections = results[1].val() || [];
+      var mergedEntries={};
+      freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
+      (S.entries||[]).forEach(function(e){
+        var existing=mergedEntries[e.id];
+        var lastSynced=_lastSyncedEntries[e.id];
+        var localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
+        if(!existing || !localUnchanged) mergedEntries[e.id]=e;
+      });
+      var mergedInspections={};
+      freshInspections.forEach(function(ins){ if(ins) mergedInspections[ins.entryId]=ins; });
+      (S.inspections||[]).forEach(function(ins){
+        var existing=mergedInspections[ins.entryId];
+        var lastSynced=_lastSyncedInspections[ins.entryId];
+        var localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
+        if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
+      });
+      S.entries=Object.values(mergedEntries);
+      S.inspections=Object.values(mergedInspections);
+      if(typeof runInitialRender==='function') runInitialRender();
+    }).catch(function(err){
+      console.warn('Resync on visible failed, live listener will catch up', err);
+    });
+  }, 500);
+}
 
 // Live listener: any device's change lands here and re-renders the current page
 fbRoot.on('value', snapshot=>{
