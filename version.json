@@ -1,5 +1,5 @@
 {
-  "v": "v323",
-  "deployed": "2026-07-28T15:25:42Z",
-  "change": "Ground Team: visible 'still syncing' banner so a punch never silently reappears unexplained. Manager: new Device Sync Status panel showing which device (Lenovo/iPad/etc.) still has unconfirmed updates."
+  "v": "v324",
+  "deployed": "2026-07-28T19:17:07Z",
+  "change": "UX polish batch 1: live workshop summary bar on every page (In Yard/Under Repair/Waiting Parts/Ready/Gate Out Today); sticky Save button on Supervisor inspection form"
 }
