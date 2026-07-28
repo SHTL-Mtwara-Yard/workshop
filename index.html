@@ -3861,13 +3861,47 @@ function setConnIndicator(status){
 
 // Local-only safety net: keep the last known good state cached so the app
 // still opens with recent data if the device is briefly offline.
-function cacheLocally(){ try{ localStorage.setItem('shtl_v3_cache', JSON.stringify(S)); }catch(e){} }
+function cacheLocally(){
+  try{
+    localStorage.setItem('shtl_v3_cache', JSON.stringify(S));
+    // Also persist the "last confirmed synced by server" snapshots. This is
+    // what makes offline-write recovery below possible: Firebase's own
+    // transaction() queue (used for entries/inspections/bayAssignments/
+    // supportJobs/deptETDs, specifically to fix the multi-device race
+    // condition) is documented to NOT survive an app restart while offline —
+    // unlike normal writes, which Firebase does queue durably. Without this,
+    // a Ground Team device that punches an exit while offline, then reloads
+    // before reconnecting (auto-update check, tab close, PWA backgrounded),
+    // silently loses that punch forever — the truck keeps showing "in yard"
+    // on every other device with no error anywhere. See recovery logic in
+    // the fbRoot.on('value') handler below.
+    localStorage.setItem('shtl_v3_lastSynced', JSON.stringify({
+      entries:_lastSyncedEntries||{}, inspections:_lastSyncedInspections||{},
+      supportJobs:_lastSyncedSupportJobs||{}, bayAssignments:_lastSyncedBayAssignments||{},
+      deptETDs:_lastSyncedDeptETDs||{}
+    }));
+  }catch(e){}
+}
 function loadLocalCache(){
   try{
     const c=localStorage.getItem('shtl_v3_cache');
     if(c) S=JSON.parse(c);
   }catch(e){}
 }
+
+// ── OFFLINE-WRITE RECOVERY: capture candidate on load ────────────────────
+// Snapshot whatever was cached from the END of the previous session, before
+// this session's Firebase listener overwrites S with fresh server data. If
+// the previous session ended with a local edit that never made it to the
+// server (see cacheLocally() note above), this is our only remaining copy
+// of it. Compared against fresh server data and reapplied further down.
+var _recoveredLocalS = null, _recoveredSyncSnapshot = null;
+try {
+  var _rc = localStorage.getItem('shtl_v3_cache');
+  var _rs = localStorage.getItem('shtl_v3_lastSynced');
+  if(_rc) _recoveredLocalS = JSON.parse(_rc);
+  if(_rs) _recoveredSyncSnapshot = JSON.parse(_rs);
+} catch(e){}
 
 var _saving=false;
 var _lastSyncedBayAssignments={};
@@ -4154,6 +4188,50 @@ fbRoot.on('value', snapshot=>{
     (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = JSON.stringify(e); });
     _lastSyncedSupportJobs = {};
     (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = JSON.stringify(j); });
+
+    // ── OFFLINE-WRITE RECOVERY: reapply on first snapshot ─────────────
+    // Runs once, only on the very first real Firebase snapshot after load
+    // (before _fbReady flips true). Compares the previous session's cached
+    // local state against what it had last confirmed as synced back then —
+    // any record that differs was edited locally but never reached the
+    // server (see cacheLocally() for why this can happen while offline).
+    // That record gets reapplied on top of TODAY's fresh server data — the
+    // same "local wins if it differs from last-known-synced" rule already
+    // used live in _doSave()'s transactions — then pushed again via save().
+    if(_recoveredLocalS && !_fbReady){
+      var _recovered = false;
+      [{key:'entries',idField:'id'},{key:'inspections',idField:'entryId'},{key:'supportJobs',idField:'id'}].forEach(function(c){
+        var localArr = _recoveredLocalS[c.key] || [];
+        var syncedMap = (_recoveredSyncSnapshot && _recoveredSyncSnapshot[c.key]) || {};
+        var freshMap = {};
+        (S[c.key]||[]).forEach(function(item){ freshMap[item[c.idField]] = item; });
+        localArr.forEach(function(item){
+          var key = item[c.idField];
+          var wasSynced = syncedMap[key];
+          var stillUnchanged = wasSynced!==undefined && JSON.stringify(item)===wasSynced;
+          if(!stillUnchanged){ freshMap[key] = item; _recovered = true; }
+        });
+        S[c.key] = Object.values(freshMap);
+      });
+      // bayAssignments / deptETDs: plain maps where local always wins per-key
+      // on write — matches the exact merge rule _doSave() already uses for them.
+      ['bayAssignments','deptETDs'].forEach(function(k){
+        var localMap = _recoveredLocalS[k] || {};
+        var syncedMap = (_recoveredSyncSnapshot && _recoveredSyncSnapshot[k]) || {};
+        Object.keys(localMap).forEach(function(key){
+          var wasSynced = syncedMap[key];
+          var stillUnchanged = wasSynced!==undefined && JSON.stringify(localMap[key])===JSON.stringify(wasSynced);
+          if(!stillUnchanged){ S[k][key] = localMap[key]; _recovered = true; }
+        });
+      });
+      _recoveredLocalS = null; _recoveredSyncSnapshot = null;
+      if(_recovered){
+        setTimeout(function(){
+          toast('🔄 Recovered an update from before reconnect — resyncing…','warn');
+          save();
+        }, 800);
+      }
+    }
     // If this is a brand new database with no roster saved yet, seed it once so it
     // persists going forward and every device converges on the same starting list.
     if(!data.staffRoster){
