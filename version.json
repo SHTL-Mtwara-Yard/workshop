@@ -1,5 +1,5 @@
 {
-  "v": "v321",
-  "deployed": "2026-07-28T10:17:52Z",
-  "change": "Add On-Time Completion % to Mechanic Performance (per mechanic + fleet-wide)"
+  "v": "v322",
+  "deployed": "2026-07-28T15:03:02Z",
+  "change": "Fix: offline exit/entry punches lost forever if device reloads before reconnecting (Firebase transactions don't survive offline restarts) — added local recovery + auto-resync on reconnect"
 }
