@@ -1587,6 +1587,20 @@ if('serviceWorker' in navigator){
     <button onclick="document.getElementById('punchReminderBanner').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer">✕</button>
   </div>
 
+  <!-- SYNC STATUS BANNER — shows whenever this device has punches/updates that
+       haven't yet been confirmed by the server (e.g. weak connection). Not
+       dismissible, since the point is the user should wait for it to clear
+       rather than assume their punch is done. -->
+  <div id="syncPendingBanner" style="display:none;background:linear-gradient(135deg,#b45309,#92400e);color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:12px;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:20px">⏳</span>
+    <span style="font-weight:700;flex:1" id="syncPendingBannerText">Syncing…</span>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <span onclick="openRenameDeviceModal()" style="cursor:pointer;font-size:11px;color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:3px 8px" title="If Manager needs to know which device this is, give it a name">📱 <span id="deviceLabelTag"></span> ✏️</span>
+  </div>
+
+
   <div class="subnav">
     <div class="subtab active" onclick="showGroundSub('ground-baywork',this)">Bay Work</div>
     <div class="subtab" onclick="showGroundSub('ground-punch',this)">👤 Punch Status</div>
@@ -1905,6 +1919,16 @@ if('serviceWorker' in navigator){
     </div>
   </div>
 
+  <!-- DEVICE SYNC STATUS — shows any device (Ground Team Lenovo/iPad/etc.) that
+       currently has punches or updates not yet confirmed by the server. Empty
+       and hidden when everything is synced. Self-clears per device once that
+       device's pending items are confirmed. -->
+  <div class="card" id="deviceSyncStatusCard" style="display:none;border-top:3px solid #b45309;margin-bottom:12px">
+    <div class="card-title"><span class="dot" style="background:#b45309"></span>⏳ Devices With Unsynced Updates</div>
+    <div class="text-xs text2 mb-8">These devices have made a change (e.g. a Ground Team exit punch) that hasn't reached the server yet — usually a weak connection. It will sync and disappear from this list automatically; nothing is lost in the meantime.</div>
+    <div id="deviceSyncStatusList"></div>
+  </div>
+
   <!-- MANAGER BROADCAST ANNOUNCEMENT -->
   <div class="card" style="border-top:3px solid #7c3aed;margin-bottom:12px">
     <div class="card-title"><span class="dot" style="background:#7c3aed"></span>📢 Send Announcement</div>
@@ -1914,6 +1938,7 @@ if('serviceWorker' in navigator){
       <button class="btn btn-primary" onclick="sendManagerAnnouncement()">📢 Announce to All</button>
     </div>
   </div>
+
 
   
   <!-- YARD ALERTS SECTION -->
@@ -3807,6 +3832,15 @@ if('serviceWorker' in navigator){
   </div>
 </div>
 
+<div class="modal-overlay" id="renameDeviceModal">
+  <div class="modal">
+    <div class="modal-title">📱 Name This Device<button class="modal-close" onclick="closeModal('renameDeviceModal')">✕</button></div>
+    <p class="mb-12 text2 text-sm">Give this device a name Manager will recognize on the Sync Status panel — e.g. "Lenovo Bay 3", "iPad Security Gate".</p>
+    <input type="text" id="renameDeviceInput" placeholder="Device name" style="width:100%;margin-bottom:12px">
+    <button class="btn btn-primary btn-block" onclick="confirmRenameDevice()">Save</button>
+  </div>
+</div>
+
 <!-- ════════════════ FIREBASE (live sync across all users) ════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
@@ -3821,7 +3855,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{} };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -3902,6 +3936,137 @@ try {
   if(_rc) _recoveredLocalS = JSON.parse(_rc);
   if(_rs) _recoveredSyncSnapshot = JSON.parse(_rs);
 } catch(e){}
+
+// ── DEVICE SYNC VISIBILITY ────────────────────────────────────────────
+// Ground Team was rightly frustrated: a punch looked done on their screen,
+// then quietly reappeared elsewhere with no explanation, and it read as the
+// software's fault. This gives every device a persistent, honest status:
+// Ground Team sees "still syncing, please wait" instead of assuming it's
+// done; Manager sees which specific device still has something pending.
+function _getDeviceId(){
+  try{
+    var id = localStorage.getItem('shtl_v3_deviceId');
+    if(!id){
+      id = 'd_' + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+      localStorage.setItem('shtl_v3_deviceId', id);
+    }
+    return id;
+  }catch(e){ return 'd_'+Date.now(); }
+}
+function _detectDeviceType(){
+  var ua = navigator.userAgent || '';
+  if(/iPad/.test(ua)) return 'iPad';
+  if(/iPhone/.test(ua)) return 'iPhone';
+  if(/Android/.test(ua)) return 'Android';
+  if(/Windows/.test(ua)) return 'Windows Laptop';
+  if(/Macintosh/.test(ua)) return 'Mac';
+  return 'Device';
+}
+var _deviceId = _getDeviceId();
+var _deviceLabel = (function(){
+  try{
+    var l = localStorage.getItem('shtl_v3_deviceLabel');
+    if(!l){ l = _detectDeviceType() + ' · ' + _deviceId.slice(-4).toUpperCase(); localStorage.setItem('shtl_v3_deviceLabel', l); }
+    return l;
+  }catch(e){ return _detectDeviceType(); }
+})();
+function openRenameDeviceModal(){
+  var el=document.getElementById('renameDeviceInput');
+  if(el) el.value=_deviceLabel;
+  var m=document.getElementById('renameDeviceModal');
+  if(m) m.classList.add('open');
+}
+function confirmRenameDevice(){
+  var val=(document.getElementById('renameDeviceInput').value||'').trim();
+  if(!val) return;
+  _deviceLabel=val;
+  try{ localStorage.setItem('shtl_v3_deviceLabel', val); }catch(e){}
+  closeModal('renameDeviceModal');
+  _updateDeviceSyncStatus();
+  toast('✅ Device name saved','ok');
+}
+
+// Compares current local state against what was last confirmed synced by
+// the server, across every collection that uses transaction() writes. This
+// is exactly the same "differs from last-known-synced" check _doSave() uses
+// live and the offline recovery above uses on reload — reused here purely
+// for display, nothing here changes what gets saved.
+function _computePendingSummary(){
+  var pending=[];
+  [{key:'entries',idField:'id',label:function(x){return x.truckNo||('#'+x.id);}},
+   {key:'inspections',idField:'entryId',label:function(x){var e=(S.entries||[]).find(function(en){return String(en.id)===String(x.entryId);}); return e?e.truckNo:('#'+x.entryId);}},
+   {key:'supportJobs',idField:'id',label:function(x){return x.truckNo||('#'+x.id);}}
+  ].forEach(function(c){
+    var syncedMap = (c.key==='entries')?_lastSyncedEntries:(c.key==='inspections')?_lastSyncedInspections:_lastSyncedSupportJobs;
+    (S[c.key]||[]).forEach(function(item){
+      var key=item[c.idField];
+      var wasSynced=syncedMap[key];
+      var unchanged = wasSynced!==undefined && JSON.stringify(item)===wasSynced;
+      if(!unchanged) pending.push(c.label(item));
+    });
+  });
+  return pending;
+}
+var _lastPendingBannerState=null;
+function _updateSyncBanner(){
+  var labelTag=document.getElementById('deviceLabelTag');
+  if(labelTag) labelTag.textContent=_deviceLabel;
+  var banner=document.getElementById('syncPendingBanner');
+  if(!banner) return;
+  var pending=_computePendingSummary();
+  if(pending.length>0){
+    banner.style.display='flex';
+    var txt=document.getElementById('syncPendingBannerText');
+    var uniq=[...new Set(pending)];
+    txt.textContent = uniq.length===1
+      ? ('Still syncing '+uniq[0]+' — please wait before assuming it saved.')
+      : (uniq.length+' updates still syncing ('+uniq.slice(0,4).join(', ')+(uniq.length>4?'…':'')+') — please wait.');
+  } else {
+    banner.style.display='none';
+  }
+  _updateDeviceSyncStatus(pending.length);
+}
+// Broadcasts THIS device's own pending count/list to its own key in Firebase
+// — deliberately outside the S/save()/restWrite cycle (see _doSave) so it
+// can never race with another device's status, and outside the transaction
+// group since it's just a status display, not operational data. Lightly
+// throttled since _updateSyncBanner can fire often.
+var _lastBroadcastPendingCount=-1, _deviceStatusThrottle=null;
+function _updateDeviceSyncStatus(pendingCount){
+  if(typeof pendingCount==='undefined') pendingCount=_computePendingSummary().length;
+  if(pendingCount===_lastBroadcastPendingCount) return;
+  if(_deviceStatusThrottle) clearTimeout(_deviceStatusThrottle);
+  _deviceStatusThrottle=setTimeout(function(){
+    _lastBroadcastPendingCount=pendingCount;
+    var payload = pendingCount>0
+      ? {label:_deviceLabel, pendingCount:pendingCount, lastUpdate:new Date().toISOString()}
+      : null; // clear this device's entry entirely once nothing is pending
+    fbRoot.child('deviceSyncStatus/'+_deviceId).set(payload).catch(function(){});
+  }, 1000);
+}
+// Renders the Manager-page panel from live deviceSyncStatus data (arrives
+// via the normal listener like everything else — see S={...} below).
+function refreshDeviceSyncStatus(){
+  var card=document.getElementById('deviceSyncStatusCard');
+  var list=document.getElementById('deviceSyncStatusList');
+  if(!card||!list) return;
+  var statuses=S.deviceSyncStatus||{};
+  var entries=Object.keys(statuses).map(function(id){ return statuses[id]; }).filter(function(s){ return s && s.pendingCount>0; });
+  if(!entries.length){ card.style.display='none'; return; }
+  card.style.display='block';
+  entries.sort(function(a,b){ return new Date(b.lastUpdate)-new Date(a.lastUpdate); });
+  list.innerHTML = entries.map(function(s){
+    var ago='';
+    try{
+      var mins=Math.round((Date.now()-new Date(s.lastUpdate).getTime())/60000);
+      ago = mins<1 ? 'just now' : (mins+'m ago');
+    }catch(e){}
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.25);border-radius:8px;margin-bottom:6px">'
+      +'<div><strong>'+s.label+'</strong> <span class="text2 text-xs">— last update '+ago+'</span></div>'
+      +'<span class="tag" style="background:#b45309;color:#fff">'+s.pendingCount+' pending</span>'
+      +'</div>';
+  }).join('');
+}
 
 var _saving=false;
 var _lastSyncedBayAssignments={};
@@ -4010,13 +4175,14 @@ const _doSave=()=>{
   // Everything else in S (staffRoster, notifications, etc.) — these haven't
   // shown the same concurrent-conflict pattern, so keep the simpler direct
   // write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs');
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
   Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, restWrite]).then(()=>{
     _saving=false;
+    if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   }).catch(err=>{
     _saving=false;
     console.error('Firebase write failed:',err);
@@ -4035,6 +4201,7 @@ var _saveDebounceTimer=null;
 const save=()=>{
   if(typeof capNotifications==='function') capNotifications(); // keep notifications from growing forever
   cacheLocally(); // keep local cache instant, even before the debounced write fires
+  if(typeof _updateSyncBanner==='function') _updateSyncBanner(); // show "still syncing" the instant a local edit happens
   // Block the live listener from the moment save() is called, not just once
   // the debounced write actually starts. Without this, another device's write
   // arriving during the 400ms debounce window would overwrite this device's
@@ -4168,7 +4335,8 @@ fbRoot.on('value', snapshot=>{
       viewQrAccess: data.viewQrAccess || {},
       secQrAccess: data.secQrAccess || {},
       workshopClosedDate: data.workshopClosedDate || '',
-      broadcastAnnouncement: data.broadcastAnnouncement || null
+      broadcastAnnouncement: data.broadcastAnnouncement || null,
+      deviceSyncStatus: data.deviceSyncStatus || {}
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -4299,6 +4467,8 @@ fbRoot.on('value', snapshot=>{
 
   cacheLocally();
   setConnIndicator('live');
+  if(typeof _updateSyncBanner==='function') _updateSyncBanner();
+  if(typeof refreshDeviceSyncStatus==='function') refreshDeviceSyncStatus();
   if(!_fbReady){
     _fbReady=true;
     runInitialRender();
@@ -4549,7 +4719,7 @@ function showGroundSub(id,el){
   if(id==='ground-leaderboard') renderGroundLeaderboard();
 }
 
-function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); refreshPostponePage(); }
+function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); refreshPostponePage(); if(typeof refreshDeviceSyncStatus==='function') refreshDeviceSyncStatus(); }
 
 // ═══ FUEL SLIDER ═══
 function updateFuelFromSlider(val){
@@ -6917,6 +7087,7 @@ function refreshGroundPage(){
   var todayPunches=(S.workerLog||[]).filter(function(l){ return new Date(l.time).toDateString()===today && l.status==='working'; });
   var banner=document.getElementById('punchReminderBanner');
   if(banner) banner.style.display=todayPunches.length===0?'flex':'none';
+  if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   const bays=selTeam==='A'
     ?['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay']
     :['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
