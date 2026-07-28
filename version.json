@@ -1,5 +1,5 @@
 {
-  "v": "v320",
-  "deployed": "2026-07-28T09:53:43Z",
-  "change": "Fix Mechanic Performance metrics - clarify Avg Elapsed Time vs Active Hours, add Avg Active Hrs/Job, Utilization %, Jobs/Day"
+  "v": "v321",
+  "deployed": "2026-07-28T10:17:52Z",
+  "change": "Add On-Time Completion % to Mechanic Performance (per mechanic + fleet-wide)"
 }
