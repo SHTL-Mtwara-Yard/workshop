@@ -2053,6 +2053,15 @@ if('serviceWorker' in navigator){
         </select>
         <button class="btn btn-ghost btn-sm" onclick="exportDailyReportCSV()">📥 Download for Boss</button>
       </div>
+      <div class="flex gap-8 mb-12 items-center flex-wrap" style="padding-top:10px;border-top:1px dashed var(--border)">
+        <span class="text-xs text2" style="font-weight:700">🔧 Repair History (one row per job — for pattern/recurring-failure analysis):</span>
+        <input type="date" id="rhFromDate" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
+        <span class="text-xs text2">to</span>
+        <input type="date" id="rhToDate" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
+        <button class="btn btn-ghost btn-sm" onclick="exportRepairHistory()">📥 Download Repair History</button>
+      </div>
+    </div>
+    <div class="card">
       <div class="tbl-wrap">
         <table>
           <thead><tr>
@@ -7598,6 +7607,25 @@ function loadBayJobs(){
     jobs.forEach((j,i)=>{
       const key=`${ins.id}_${d}_${i}`;const upd=S.jobUpdates[key]||{};const isDone=upd.done||j.done;
       const addedTag = j.addedBy==='Ground Team' ? '<span class="tag" style="background:#ffedd5;color:var(--accent);border:1px solid #fdba74">+ Added by Ground</span>' : '';
+      // Optional repair-action note: shows a small badge once picked; shows a
+      // one-tap quick-pick row just once, right after this job is ticked done
+      // (see _awaitingNotePrompt) — never blocks completion, never repeats.
+      const noteBadge = upd.note ? `<div class="tag" style="background:#fff2e8;color:var(--accent);border:1px solid #fdba74;font-weight:700;margin-top:4px">📝 ${upd.note}</div>` : '';
+      const showPrompt = isDone && !upd.note && _awaitingNotePrompt[key];
+      let promptHtml='';
+      if(showPrompt){
+        const chips=(REPAIR_ACTION_CHIPS[d]||[]).map(c=>`<span class="tag" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);font-weight:600" onclick="pickRepairNote('${ins.id}','${d}',${i},'${c.replace(/'/g,"\\'")}')">${c}</span>`).join(' ');
+        promptHtml=`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--text2);width:100%">What was done? (optional)</span>
+          ${chips}
+          <span class="tag" style="cursor:pointer;color:var(--text2)" onclick="skipRepairNote('${ins.id}','${d}',${i})">Skip</span>
+          <span style="font-size:10.5px;color:var(--blue);cursor:pointer;text-decoration:underline dotted" onclick="showRepairNoteInput('${ins.id}','${d}',${i})">own words</span>
+          <div id="rnInput_${d}_${i}" style="display:none;gap:6px;width:100%;margin-top:4px">
+            <input type="text" id="rnText_${d}_${i}" placeholder="e.g. Fabricated new bracket" style="flex:1;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:8px">
+            <button class="btn btn-primary btn-sm" onclick="saveRepairNoteInput('${ins.id}','${d}',${i})">Save</button>
+          </div>
+        </div>`;
+      }
       jHtml+=`<div class="jc-item ${isDone?'done':''}">
         <input type="checkbox" ${isDone?'checked':''} ${etdMissing&&!isDone?'disabled title="Set department ETD first"':''} onchange="toggleJobGround('${ins.id}','${d}',${i},this)">
         <div class="jc-item-text ${isDone?'struck':''}">${j.sno}. ${j.desc}</div>
@@ -7605,6 +7633,8 @@ function loadBayJobs(){
         ${j.fault?`<span style="font-size:14px" title="${j.fault}">${{mechanic:'🔧',driver:'👨‍✈️',route:'🛣️',accident:'💥',spare:'⚙️',wear:'🔄'}[j.fault]||''}</span>`:''}
         <span class="tag tag-${j.priority==='Critical'?'red':j.priority==='Urgent'?'yellow':'green'}">${j.priority}</span>
         ${isDone?`<span class="jc-done-by">✅ Done by: ${upd.doneBy||'Team'} at ${upd.time||''}</span>`:''}
+        ${noteBadge}
+        ${promptHtml}
       </div>`;
     });
     jHtml+='</div>';
@@ -8126,6 +8156,43 @@ function resolveSendBackToBay(){
   setTimeout(checkCompletionAlertQueue, 200);
 }
 
+// ── REPAIR ACTION (optional, low-friction) ────────────────────────────
+// Tracks which just-completed jobs should show the one-tap quick-pick row
+// (see loadBayJobs() render below). Session-only and on purpose: a job
+// completed before this feature existed, or in a previous session, won't
+// retroactively nag anyone — the prompt only appears right after YOU tick
+// the box. Never blocks completion; skipping is always one tap away.
+var _awaitingNotePrompt={};
+var REPAIR_ACTION_CHIPS={
+  mech:['Replaced part','Adjusted','Tightened','Topped up','Repaired'],
+  elec:['Replaced part','Rewired','Reset/Reprogrammed','Cleaned contact'],
+  tyre:['Replaced tyre','Repaired puncture','Balanced/Aligned','Retorqued'],
+  weld:['Welded/Repaired','Replaced part','Straightened'],
+  pneumatic:['Replaced part','Repaired leak','Adjusted'],
+  suspension:['Replaced part','Adjusted','Tightened','Repaired']
+};
+function pickRepairNote(insId,dept,idx,note){
+  var key=insId+'_'+dept+'_'+idx;
+  if(S.jobUpdates[key]) S.jobUpdates[key].note=note;
+  delete _awaitingNotePrompt[key];
+  save();
+  loadBayJobs();
+}
+function skipRepairNote(insId,dept,idx){
+  var key=insId+'_'+dept+'_'+idx;
+  delete _awaitingNotePrompt[key];
+  loadBayJobs(); // local-only dismissal — nothing to save, no note means no note
+}
+function showRepairNoteInput(insId,dept,idx){
+  var el=document.getElementById('rnInput_'+dept+'_'+idx);
+  if(el) el.style.display='flex';
+}
+function saveRepairNoteInput(insId,dept,idx){
+  var el=document.getElementById('rnText_'+dept+'_'+idx);
+  var val=el?el.value.trim():'';
+  if(!val) return;
+  pickRepairNote(insId,dept,idx,val);
+}
 // Required check before any job can be marked done: that department's ETD must
 // already be set, so T2 timestamps are always present and SLA reporting is reliable
 // by construction rather than depending on someone remembering to fill it in.
@@ -8158,6 +8225,7 @@ function toggleJobGround(insId,dept,idx,cb){
     // Has owner — save with their name
     var key=insId+'_'+dept+'_'+idx;
     S.jobUpdates[key]={done:true,doneBy:doneBy,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
+    _awaitingNotePrompt[key]=true; // show the optional quick-pick repair-action row just this once, right after completion
   } else {
     var key=insId+'_'+dept+'_'+idx;
     S.jobUpdates[key]={done:false,doneBy:'',time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
@@ -8212,6 +8280,7 @@ function confirmJobAttribution(insId,dept,idx){
   if(!name){ toast('⚠️ Select a mechanic name first','warn'); return; }
   var key=insId+'_'+dept+'_'+idx;
   S.jobUpdates[key]={done:true,doneBy:name,time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),date:new Date().toDateString()};
+  _awaitingNotePrompt[key]=true;
   // Also set as job owner
   var ins=S.inspections.find(function(i){return i.id==insId;});
   if(ins){
@@ -14292,6 +14361,55 @@ function _generateDailyReportFile(){
     renderDailyReport();
   } else {
     exportCSV('SHTL_DailyReport_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
+  }
+}
+
+// One row per completed job (not per truck) — this is the format that's
+// actually filterable/pivotable in Excel for recurring-failure and
+// most-replaced-part analysis. Repair Action comes from the optional
+// quick-pick/typed note (see pickRepairNote) — jobs completed before that
+// existed, or where it was skipped, simply show "—" rather than blocking
+// the export or guessing.
+function exportRepairHistory(){
+  var fromVal=document.getElementById('rhFromDate')?document.getElementById('rhFromDate').value:'';
+  var toVal=document.getElementById('rhToDate')?document.getElementById('rhToDate').value:'';
+  var fromMs = fromVal ? new Date(fromVal+'T00:00:00').getTime() : -Infinity;
+  var toMs = toVal ? new Date(toVal+'T23:59:59').getTime() : Infinity;
+  var deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
+  var rows=[];
+  (S.inspections||[]).forEach(function(ins){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+i]||{};
+        var isDone=upd.done||j.done;
+        if(!isDone) return;
+        var doneDateMs = upd.date ? new Date(upd.date).getTime() : (ins.inspectedAt?new Date(ins.inspectedAt).getTime():0);
+        if(isNaN(doneDateMs) || doneDateMs<fromMs || doneDateMs>toMs) return;
+        rows.push([
+          upd.date || (ins.inspectedAt?new Date(ins.inspectedAt).toDateString():'—'),
+          ins.truckNo||'—',
+          deptLabels[d]||d,
+          j.desc||'—',
+          upd.note||'—',
+          upd.doneBy||'—',
+          upd.time||'—'
+        ]);
+      });
+    });
+  });
+  var headers=['Date','Truck','Dept','Complaint','Repair Action','Mechanic','Time Done'];
+  if(!rows.length){ toast('ℹ️ No completed jobs in that date range','info'); return; }
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet([headers].concat(rows));
+    ws['!cols']=[{wch:14},{wch:12},{wch:14},{wch:36},{wch:26},{wch:22},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Repair History');
+    var fname='SHTL_RepairHistory_'+(fromVal||'all')+'_to_'+(toVal||'now')+'.xlsx';
+    XLSX.writeFile(wb, fname);
+    toast('📥 Repair History downloaded ('+rows.length+' jobs)','ok');
+  } else {
+    exportCSV('SHTL_RepairHistory_'+new Date().toISOString().slice(0,10)+'.csv', headers, rows);
   }
 }
 
