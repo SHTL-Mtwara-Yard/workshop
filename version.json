@@ -1,5 +1,5 @@
 {
-  "v": "v318",
-  "deployed": "2026-07-28T09:01:41Z",
-  "change": "Force fresh resync when app becomes visible again - fixes stale Bay Status Map on mobile"
+  "v": "v319",
+  "deployed": "2026-07-28T09:14:06Z",
+  "change": "Add periodic 3-min safety-net resync for devices that stay continuously visible and never self-heal via visibilitychange"
 }
