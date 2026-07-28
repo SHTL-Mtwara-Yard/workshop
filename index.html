@@ -4031,41 +4031,57 @@ window.addEventListener('beforeunload', _flushPendingSave);
 // again, so this self-heals automatically instead of needing a manual
 // reload. Debounced to avoid firing on rapid visibility flicker.
 var _resyncOnVisibleTimer=null;
+function _doFreshResync(){
+  if(_saving) return; // don't fight an in-flight save; listener will catch up naturally
+  Promise.all([
+    fbRoot.child('entries').once('value'),
+    fbRoot.child('inspections').once('value')
+  ]).then(function(results){
+    var freshEntries = results[0].val() || [];
+    var freshInspections = results[1].val() || [];
+    var mergedEntries={};
+    freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
+    (S.entries||[]).forEach(function(e){
+      var existing=mergedEntries[e.id];
+      var lastSynced=_lastSyncedEntries[e.id];
+      var localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
+      if(!existing || !localUnchanged) mergedEntries[e.id]=e;
+    });
+    var mergedInspections={};
+    freshInspections.forEach(function(ins){ if(ins) mergedInspections[ins.entryId]=ins; });
+    (S.inspections||[]).forEach(function(ins){
+      var existing=mergedInspections[ins.entryId];
+      var lastSynced=_lastSyncedInspections[ins.entryId];
+      var localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
+      if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
+    });
+    S.entries=Object.values(mergedEntries);
+    S.inspections=Object.values(mergedInspections);
+    if(typeof runInitialRender==='function') runInitialRender();
+  }).catch(function(err){
+    console.warn('Resync failed, live listener will catch up', err);
+  });
+}
+
 function _resyncOnVisible(){
   if(_resyncOnVisibleTimer) clearTimeout(_resyncOnVisibleTimer);
   _resyncOnVisibleTimer=setTimeout(function(){
     _resyncOnVisibleTimer=null;
-    if(_saving) return; // don't fight an in-flight save; listener will catch up naturally
-    Promise.all([
-      fbRoot.child('entries').once('value'),
-      fbRoot.child('inspections').once('value')
-    ]).then(function(results){
-      var freshEntries = results[0].val() || [];
-      var freshInspections = results[1].val() || [];
-      var mergedEntries={};
-      freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
-      (S.entries||[]).forEach(function(e){
-        var existing=mergedEntries[e.id];
-        var lastSynced=_lastSyncedEntries[e.id];
-        var localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
-        if(!existing || !localUnchanged) mergedEntries[e.id]=e;
-      });
-      var mergedInspections={};
-      freshInspections.forEach(function(ins){ if(ins) mergedInspections[ins.entryId]=ins; });
-      (S.inspections||[]).forEach(function(ins){
-        var existing=mergedInspections[ins.entryId];
-        var lastSynced=_lastSyncedInspections[ins.entryId];
-        var localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
-        if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
-      });
-      S.entries=Object.values(mergedEntries);
-      S.inspections=Object.values(mergedInspections);
-      if(typeof runInitialRender==='function') runInitialRender();
-    }).catch(function(err){
-      console.warn('Resync on visible failed, live listener will catch up', err);
-    });
+    _doFreshResync();
   }, 500);
 }
+
+// SAFETY NET: some devices (e.g. a Manager's desktop tab left open and
+// visible on a monitor all day) never trigger a visibilitychange event, so
+// the resync-on-visible fix above never runs for them — yet their live
+// Firebase connection can still silently go stale over many hours. Run the
+// same self-healing resync on a periodic timer too, regardless of
+// visibility, so every device eventually corrects itself even if it never
+// gets backgrounded. Every 3 minutes is frequent enough to catch drift
+// quickly without adding meaningful bandwidth.
+window.addEventListener('load', function(){
+  setInterval(_doFreshResync, 3*60*1000);
+});
 
 // Live listener: any device's change lands here and re-renders the current page
 fbRoot.on('value', snapshot=>{
