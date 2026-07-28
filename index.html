@@ -2056,9 +2056,9 @@ if('serviceWorker' in navigator){
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Ref No</th><th>Truck No</th><th>Bay</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
+            <th>Date</th><th>Ref No</th><th>Truck No</th><th>Bay</th><th>ETD</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
           </tr></thead>
-          <tbody id="dailyReportTable"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
+          <tbody id="dailyReportTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -6302,7 +6302,13 @@ function refreshSecurityLog(){
       const dTags=(e.depts||[]).map(d=>`<span class="tag tag-${dC(d)}">${dL(d)}</span>`).join(' ');
       let statusTag = (e.exitTime) ? '<span class="tag tag-green">EXITED</span>' : (e.readyToLeave?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">READY ✓</span>':'<span class="tag tag-blue">IN YARD</span>');
       const invTag = (e.missingItems&&e.missingItems.length) ? `<span class="tag tag-red" title="${e.missingItems.map(m=>m.item+': '+m.qtyPresent).join(', ')}">⚠️ ${e.missingItems.length} short</span>` : '<span class="tag tag-green">OK</span>';
-      const apt=(S.appointments||[]).find(function(a){ return a.truckNo===e.truckNo && a.refNo; });
+      // Use the authoritative link created at entry time (punchEntry() sets
+      // apt.reportedEntryId = entry.id when it auto-matches a pending
+      // appointment) — NOT a guess by truck number, which used to pull in
+      // a stale ref number from some unrelated past appointment for the
+      // same truck whenever Security typed the truck number directly with
+      // no real appointment behind this particular visit.
+      const apt=(S.appointments||[]).find(function(a){ return a.reportedEntryId===e.id; });
       const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
       return `<tr>
         <td>${i+1}</td>
@@ -14176,28 +14182,28 @@ function getDailyReportRows(){
     });
     var status = exitTime ? 'LEFT'+(leftOnTarget?' TODAY':'') : 'PENDING — IN YARD';
     var bay = ins.bayNo || ins.lastBayNo || '—';
+    var etd = ins.etd ? new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}) : '—';
     var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     var timeOut = exitTime ? new Date(exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
-    // No direct id link exists between a gate entry and its originating
-    // appointment, so match by truck number + closest planned visit date to
-    // when the truck actually arrived (best-effort — covers the normal case
-    // where a truck arrives on or near its planned visit date).
+    // Use the authoritative link: punchEntry() sets apt.reportedEntryId =
+    // entry.id when a matching pending appointment is auto-matched at entry
+    // time (within a 3-day window of the planned visit). This replaces the
+    // old best-effort "closest appointment by truck number" guess, which
+    // would happily attach a stale ref number from some unrelated past
+    // appointment whenever Security typed the truck number directly with no
+    // real appointment behind this particular visit — leave it blank ('—')
+    // instead when there's genuinely no linked appointment.
     var refNo='—';
-    var candidateApts=(S.appointments||[]).filter(function(a){ return fmtTruck(a.truckNo)===fmtTruck(ins.truckNo) && a.refNo; });
-    if(candidateApts.length){
-      var entryMs=new Date(e.entryTime).getTime();
-      candidateApts.sort(function(a,b){
-        return Math.abs(new Date(a.plannedVisit).getTime()-entryMs) - Math.abs(new Date(b.plannedVisit).getTime()-entryMs);
-      });
-      refNo=candidateApts[0].refNo;
-    }
+    var linkedApt=(S.appointments||[]).find(function(a){ return a.reportedEntryId===e.id; });
+    if(linkedApt && linkedApt.refNo) refNo=linkedApt.refNo;
     var key=ins.truckNo;
     if(!truckMap[key]){
-      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
+      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, etd:etd, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
     } else {
       truckMap[key].faults=truckMap[key].faults.concat(faults);
       truckMap[key].parts=truckMap[key].parts.concat(parts);
       if(bay!=='—') truckMap[key].bay=bay;
+      if(etd!=='—') truckMap[key].etd=etd;
       if(exitTime){ truckMap[key].status='LEFT'+(leftOnTarget?' TODAY':''); truckMap[key].timeOut=timeOut; }
     }
   });
@@ -14216,14 +14222,14 @@ function renderDailyReport(){
   var tbody=document.getElementById('dailyReportTable');
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(function(r){
     var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : 'var(--amber)';
     var partsStr = r.parts.length ? r.parts.join('; ') : '—';
     var partsColor = r.parts.length ? 'var(--red)' : 'var(--text2)';
-    return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td>'+
+    return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td><td>'+r.etd+'</td>'+
       '<td>'+r.timeIn+'</td><td>'+r.timeOut+'</td>'+
       '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
       '<td>'+(r.faults.join('; ')||'—')+'</td>'+
@@ -14272,12 +14278,12 @@ function exportDailyReportCSV(){
 
 function _generateDailyReportFile(){
   var rows=getDailyReportRows();
-  var headers=['Date','Ref No','Truck','Bay','Time In','Time Out','Status','All Faults','Parts Needed'];
-  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
+  var headers=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
+  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
-    ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+    ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
     var picker=document.getElementById('drDatePicker');
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
