@@ -419,6 +419,10 @@ tr:hover td { background: var(--surface2); }
 
 /* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding:16px; }
+/* Keeps a form's primary action (Save/Submit) reachable at the bottom of the
+   viewport on long scrolling forms, instead of requiring a scroll-to-bottom.
+   Sits above the bottom safe-area on phones/tablets. */
+.sticky-form-actions { position: sticky; bottom: 0; background: var(--card); padding: 10px 0; margin-top: 12px; border-top: 1px solid var(--border); z-index: 20; }
 .modal-overlay.open { display: flex; }
 .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius2); padding: 22px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
 .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
@@ -752,6 +756,16 @@ if('serviceWorker' in navigator){
     <span class="badge-pill" id="waitingBadge">0 waiting</span>
   </div>
 </nav>
+
+<!-- LIVE SUMMARY BAR — always visible, every page. Gives every user (any
+     role) instant workshop-wide awareness without navigating to Overview. -->
+<div id="liveSummaryBar" style="display:flex;gap:0;flex-wrap:wrap;background:var(--card);border-bottom:1px solid var(--border);padding:6px 12px;font-size:12px;font-weight:700">
+  <span style="padding:2px 14px;border-right:1px solid var(--border)">🚚 In Yard: <span id="lsb-inyard">0</span></span>
+  <span style="padding:2px 14px;border-right:1px solid var(--border)">🔧 Under Repair: <span id="lsb-repair">0</span></span>
+  <span style="padding:2px 14px;border-right:1px solid var(--border)">⏳ Waiting Parts: <span id="lsb-parts">0</span></span>
+  <span style="padding:2px 14px;border-right:1px solid var(--border)">✅ Ready: <span id="lsb-ready">0</span></span>
+  <span style="padding:2px 14px">🚪 Gate Out Today: <span id="lsb-gateout">0</span></span>
+</div>
 <!-- LANG TOGGLE FLOATING BUTTON -->
 <button id="langToggleBtn" onclick="cycleLang()" title="Change announcement language" style="position:fixed;bottom:18px;right:18px;z-index:9998;background:#e65c00;border:2px solid #fff;color:#fff;padding:10px 16px;border-radius:24px;cursor:pointer;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,0.45);white-space:nowrap;letter-spacing:0.5px">🔊 🇬🇧 EN</button>
 
@@ -1533,7 +1547,7 @@ if('serviceWorker' in navigator){
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="sticky-form-actions" style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-block" onclick="saveSupervisorEntry()">✅ SAVE INSPECTION &amp; ALLOCATE BAY</button>
         <button class="btn btn-ghost btn-sm" id="supPrintBtn" style="display:none" onclick="printInspectionSheet(window._lastInsId)">🖨️ Print Sheet</button>
       </div>
@@ -3937,12 +3951,33 @@ try {
   if(_rs) _recoveredSyncSnapshot = JSON.parse(_rs);
 } catch(e){}
 
-// ── DEVICE SYNC VISIBILITY ────────────────────────────────────────────
+// Compact workshop-wide summary shown on every page (see #liveSummaryBar).
+// Deliberately reuses the exact same definitions as the Overview page so the
+// two numbers can never disagree.
+function refreshLiveSummaryBar(){
+  try{
+    var today=new Date().toDateString();
+    var inYard=S.entries.filter(function(e){ return !e.exitTime; });
+    var ready=inYard.filter(function(e){ return e.readyToLeave; });
+    var gateOutToday=S.entries.filter(function(e){ return e.exitTime && new Date(e.entryTime).toDateString()===today; });
+    var waitingParts=inYard.filter(function(e){
+      return (S.pendingParts||[]).some(function(p){ return p.truckNo===e.truckNo && !p.resolved; });
+    });
+    var underRepair=inYard.length-ready.length;
+    var set=function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
+    set('lsb-inyard', inYard.length);
+    set('lsb-repair', underRepair<0?0:underRepair);
+    set('lsb-parts', waitingParts.length);
+    set('lsb-ready', ready.length);
+    set('lsb-gateout', gateOutToday.length);
+  }catch(e){ console.error('refreshLiveSummaryBar failed:', e); }
+}
 // Ground Team was rightly frustrated: a punch looked done on their screen,
 // then quietly reappeared elsewhere with no explanation, and it read as the
 // software's fault. This gives every device a persistent, honest status:
 // Ground Team sees "still syncing, please wait" instead of assuming it's
 // done; Manager sees which specific device still has something pending.
+// ── DEVICE SYNC VISIBILITY ────────────────────────────────────────────
 function _getDeviceId(){
   try{
     var id = localStorage.getItem('shtl_v3_deviceId');
@@ -4469,6 +4504,7 @@ fbRoot.on('value', snapshot=>{
   setConnIndicator('live');
   if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   if(typeof refreshDeviceSyncStatus==='function') refreshDeviceSyncStatus();
+  if(typeof refreshLiveSummaryBar==='function') refreshLiveSummaryBar();
   if(!_fbReady){
     _fbReady=true;
     runInitialRender();
