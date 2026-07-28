@@ -1,5 +1,5 @@
 {
-  "v": "v325",
-  "deployed": "2026-07-28T19:33:25Z",
-  "change": "Fix Ref No showing a stale/unrelated appointment number for trucks entered without a real appointment (now blank, using the actual entry-appointment link instead of a truck-number guess) — fixed in both Security log and Daily Report. Added ETD column to Daily Report table and download."
+  "v": "v326",
+  "deployed": "2026-07-28T20:06:20Z",
+  "change": "Optional repair-action quick-pick when a Ground Team job is marked done (one-tap chips per department, or type your own words, or skip — never blocks completion). New Manager > Daily Report > Repair History export: one row per completed job (Truck/Dept/Complaint/Repair Action/Mechanic/Time) with a date range, for recurring-failure and most-replaced-part analysis."
 }
