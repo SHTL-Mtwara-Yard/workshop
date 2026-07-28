@@ -1,5 +1,5 @@
 {
-  "v": "v317",
-  "deployed": "2026-07-27T18:10:51Z",
-  "change": "Daily Report download fetches fresh data before generating - no more stale-device mismatches"
+  "v": "v318",
+  "deployed": "2026-07-28T09:01:41Z",
+  "change": "Force fresh resync when app becomes visible again - fixes stale Bay Status Map on mobile"
 }
