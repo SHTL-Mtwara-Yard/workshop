@@ -1,5 +1,5 @@
 {
-  "v": "v319",
-  "deployed": "2026-07-28T09:14:06Z",
-  "change": "Add periodic 3-min safety-net resync for devices that stay continuously visible and never self-heal via visibilitychange"
+  "v": "v320",
+  "deployed": "2026-07-28T09:53:43Z",
+  "change": "Fix Mechanic Performance metrics - clarify Avg Elapsed Time vs Active Hours, add Avg Active Hrs/Job, Utilization %, Jobs/Day"
 }
