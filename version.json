@@ -1,5 +1,5 @@
 {
-  "v": "v324",
-  "deployed": "2026-07-28T19:17:07Z",
-  "change": "UX polish batch 1: live workshop summary bar on every page (In Yard/Under Repair/Waiting Parts/Ready/Gate Out Today); sticky Save button on Supervisor inspection form"
+  "v": "v325",
+  "deployed": "2026-07-28T19:33:25Z",
+  "change": "Fix Ref No showing a stale/unrelated appointment number for trucks entered without a real appointment (now blank, using the actual entry-appointment link instead of a truck-number guess) — fixed in both Security log and Daily Report. Added ETD column to Daily Report table and download."
 }
