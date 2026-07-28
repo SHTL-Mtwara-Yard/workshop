@@ -2248,6 +2248,7 @@ if('serviceWorker' in navigator){
       <div class="stat-box stat-green"><div class="stat-label">Total Jobs Completed</div><div class="stat-val" id="mp-total" style="color:var(--green)">0</div></div>
       <div class="stat-box stat-yellow"><div class="stat-label">Avg Elapsed Time/Job (Fleet)</div><div class="stat-val" id="mp-avgtime" style="color:var(--yellow)">—</div></div>
       <div class="stat-box stat-blue"><div class="stat-label">Jobs/Day (Fleet Avg)</div><div class="stat-val" id="mp-jobsperday" style="color:var(--blue)">—</div></div>
+      <div class="stat-box stat-green"><div class="stat-label">On-Time % (Fleet)</div><div class="stat-val" id="mp-ontime" style="color:var(--green)">—</div></div>
       <div class="stat-box stat-orange"><div class="stat-label">Extra Jobs Found</div><div class="stat-val" id="mp-extra" style="color:var(--accent)">0</div></div>
     </div>
 
@@ -2262,9 +2263,10 @@ if('serviceWorker' in navigator){
             <th title="Active Hours ÷ Total Completed — the real average hands-on time per job">Avg Active Hrs/Job</th>
             <th title="Active Hours ÷ 192 available hours/month (8h × 24 days)">Utilization %</th>
             <th title="Total Completed ÷ days elapsed this month — a clean productivity measure">Jobs/Day</th>
+            <th title="Jobs marked done AT OR BEFORE the department's ETD deadline, as a % of all timed jobs">On-Time %</th>
             <th>Originally Assigned</th><th>Extra Found (Ground)</th><th>Extra %</th>
           </tr></thead>
-          <tbody id="mechPerfTable"><tr><td colspan="13" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr></tbody>
+          <tbody id="mechPerfTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr></tbody>
         </table>
       </div>
       <div class="text-xs text2 mt-12">"Avg Elapsed Time/Job" is calendar time (ETD-set → done) — it can span waiting for parts or other jobs, so it's normal for it to be much larger than actual hands-on time. For true labor-time-per-job, use "Avg Active Hrs/Job" instead. Extra Found % = jobs they completed that were added by Ground Team during repair, as a share of their total — a high % may mean inspection is missing things, not that the mechanic is underperforming.</div>
@@ -13242,9 +13244,9 @@ function refreshMechPerf(){
   document.getElementById('perfMonthLabel').textContent=monthLabel;
 
   // Build per-mechanic aggregation
-  const perf={}; // name -> {depts:Set, workshopDone:0, breakdownCount:0, totalTimeHrs:0, timedJobs:0, originalAssigned:0, extraFound:0}
+  const perf={}; // name -> {depts:Set, workshopDone:0, breakdownCount:0, totalTimeHrs:0, timedJobs:0, originalAssigned:0, extraFound:0, onTimeJobs:0, lateJobs:0}
   function ensure(name){
-    if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0};
+    if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0,onTimeJobs:0,lateJobs:0};
     return perf[name];
   }
 
@@ -13283,6 +13285,10 @@ function refreshMechPerf(){
             p.totalTimeHrs+=hrs;
             p.timedJobs++;
           }
+          // On-time = job marked done at or before the department's ETD deadline.
+          // Uses the SAME t2/completedAt pair as the elapsed-time metric above,
+          // just compared against "now" of completion rather than accumulated.
+          if(completedAt<=startT) p.onTimeJobs++; else p.lateJobs++;
         }
       });
     });
@@ -13336,21 +13342,25 @@ function refreshMechPerf(){
   daysElapsedInPeriod=Math.max(1,daysElapsedInPeriod); // avoid divide-by-zero on day 1
 
   // Fleet-wide stats
-  let totalCompleted=0, totalExtra=0, totalTimeHrs=0, totalTimedJobs=0;
+  let totalCompleted=0, totalExtra=0, totalTimeHrs=0, totalTimedJobs=0, totalOnTime=0, totalLate=0;
   names.forEach(n=>{
     totalCompleted += perf[n].workshopDone + perf[n].breakdownCount;
     totalExtra += perf[n].extraFound;
     totalTimeHrs += perf[n].totalTimeHrs;
     totalTimedJobs += perf[n].timedJobs;
+    totalOnTime += perf[n].onTimeJobs;
+    totalLate += perf[n].lateJobs;
   });
   document.getElementById('mp-count').textContent=names.length;
   document.getElementById('mp-total').textContent=totalCompleted;
   document.getElementById('mp-avgtime').textContent = totalTimedJobs ? (totalTimeHrs/totalTimedJobs).toFixed(1)+'h' : '—';
   document.getElementById('mp-jobsperday').textContent = names.length ? (totalCompleted/names.length/daysElapsedInPeriod).toFixed(1) : '—';
+  const fleetOnTimeTotal=totalOnTime+totalLate;
+  document.getElementById('mp-ontime').textContent = fleetOnTimeTotal>0 ? Math.round((totalOnTime/fleetOnTimeTotal)*100)+'%' : '—';
   document.getElementById('mp-extra').textContent=totalExtra;
 
   const tb=document.getElementById('mechPerfTable');
-  if(!names.length){tb.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr>';return;}
+  if(!names.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No completed jobs this month yet</td></tr>';return;}
 
   const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
   tb.innerHTML=names.map(n=>{
@@ -13377,6 +13387,9 @@ function refreshMechPerf(){
     const utilizationPct = Math.round((activeHrs/AVAILABLE_HOURS_PER_MONTH)*100);
     const utilColor = utilizationPct>100 ? 'var(--red)' : utilizationPct>=70 ? 'var(--green)' : utilizationPct>=40 ? 'var(--yellow)' : 'var(--text2)';
     const jobsPerDay = (totalCompletedForMech/daysElapsedInPeriod).toFixed(1);
+    const onTimeTotal = p.onTimeJobs + p.lateJobs;
+    const onTimePct = onTimeTotal>0 ? Math.round((p.onTimeJobs/onTimeTotal)*100) : null;
+    const onTimeColor = onTimePct===null ? 'var(--text2)' : onTimePct>=85 ? 'var(--green)' : onTimePct>=60 ? 'var(--yellow)' : 'var(--red)';
     return `<tr>
       <td class="fw-700">${n}</td>
       <td>${deptTags}</td>
@@ -13388,6 +13401,7 @@ function refreshMechPerf(){
       <td class="fw-700">${avgActiveHrsPerJob}</td>
       <td style="color:${utilColor};font-weight:700">${activeHrs>0?utilizationPct+'%':'—'}</td>
       <td class="fw-700">${jobsPerDay}</td>
+      <td style="color:${onTimeColor};font-weight:700">${onTimePct!==null?onTimePct+'%':'—'}</td>
       <td>${p.originalAssigned}</td>
       <td>${p.extraFound}</td>
       <td style="color:${extraColor};font-weight:700">${totalJobsForPct?extraPct+'%':'—'}</td>
@@ -14202,7 +14216,7 @@ function exportMechPerfCSV(){
   }
 
   const perf={};
-  function ensure(name){ if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0}; return perf[name]; }
+  function ensure(name){ if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0,onTimeJobs:0,lateJobs:0}; return perf[name]; }
 
   S.inspections.forEach(ins=>{
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
@@ -14224,8 +14238,10 @@ function exportMechPerfCSV(){
         p.workshopDone++;
         if(j.addedBy==='Ground Team'){ p.extraFound++; } else { p.originalAssigned++; }
         if(t2){
-          const hrs=(completedAt-new Date(t2))/3600000;
+          const startT=new Date(t2);
+          const hrs=(completedAt-startT)/3600000;
           if(hrs>=0&&hrs<200){ p.totalTimeHrs+=hrs; p.timedJobs++; }
+          if(completedAt<=startT) p.onTimeJobs++; else p.lateJobs++;
         }
       });
     });
@@ -14251,7 +14267,7 @@ function exportMechPerfCSV(){
   daysElapsedCSV=Math.max(1,daysElapsedCSV);
 
   const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
-  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Elapsed Time/Job Hrs (ETD->Done)','Active Hours (Month)','Avg Active Hrs/Job','Utilization %','Jobs/Day','Originally Assigned','Extra Found (Ground)','Extra %'];
+  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Elapsed Time/Job Hrs (ETD->Done)','Active Hours (Month)','Avg Active Hrs/Job','Utilization %','Jobs/Day','On-Time %','Originally Assigned','Extra Found (Ground)','Extra %'];
   const rows=Object.keys(perf).map(n=>{
     const p=perf[n];
     const totalForPct=p.originalAssigned+p.extraFound;
@@ -14262,7 +14278,9 @@ function exportMechPerfCSV(){
     const avgActiveHrsPerJobCSV = totalCompletedCSV>0 ? (activeHrs/totalCompletedCSV).toFixed(2) : '';
     const utilizationPctCSV = activeHrs>0 ? Math.round((activeHrs/192)*100)+'%' : '';
     const jobsPerDayCSV = (totalCompletedCSV/daysElapsedCSV).toFixed(1);
-    return [n, [...p.depts].map(d=>dLabel[d]).join('/'), p.workshopDone, p.breakdownCount, totalCompletedCSV, avgTime, activeHrs.toFixed(2), avgActiveHrsPerJobCSV, utilizationPctCSV, jobsPerDayCSV, p.originalAssigned, p.extraFound, totalForPct?extraPct+'%':''];
+    const onTimeTotalCSV = p.onTimeJobs+p.lateJobs;
+    const onTimePctCSV = onTimeTotalCSV>0 ? Math.round((p.onTimeJobs/onTimeTotalCSV)*100)+'%' : '';
+    return [n, [...p.depts].map(d=>dLabel[d]).join('/'), p.workshopDone, p.breakdownCount, totalCompletedCSV, avgTime, activeHrs.toFixed(2), avgActiveHrsPerJobCSV, utilizationPctCSV, jobsPerDayCSV, onTimePctCSV, p.originalAssigned, p.extraFound, totalForPct?extraPct+'%':''];
   });
   exportCSV('SHTL_MechanicPerformance_'+dateStamp()+'.csv', headers, rows);
 }
