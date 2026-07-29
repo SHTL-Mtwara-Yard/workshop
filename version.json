@@ -1,5 +1,5 @@
 {
-  "v": "v332",
-  "deployed": "2026-07-29T09:29:23Z",
-  "change": "Fix: completing/reopening a job (e.g. resolving a deferred Known Issue) on a truck that already exited through Security was re-triggering the 'Truck Ready \u2014 Action Required' popup and reopening its bay status, even though the truck was already gone. That flow now stops entirely once exitTime is set. Also fixed the popup showing 'undefined' instead of the actual bay name."
+  "v": "v333",
+  "deployed": "2026-07-29T13:26:53Z",
+  "change": "Fix: Edit Records search silently crashed (no results shown, no error visible) for any truck with a job in Pneumatic or Suspension department, due to a department map that only had 4 of 6 departments \u2014 this is why T213 EHF's search appeared to do nothing. Also fixed an unrelated pre-existing bug spamming console errors on every page refresh (undefined driverStaff in Support > Trip Log driver dropdown)."
 }
