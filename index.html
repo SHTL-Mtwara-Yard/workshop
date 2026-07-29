@@ -1960,7 +1960,10 @@ if('serviceWorker' in navigator){
        and hidden when everything is synced. Self-clears per device once that
        device's pending items are confirmed. -->
   <div class="card" id="deviceSyncStatusCard" style="display:none;border-top:3px solid #b45309;margin-bottom:12px">
-    <div class="card-title"><span class="dot" style="background:#b45309"></span>⏳ Devices With Unsynced Updates</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0"><span class="dot" style="background:#b45309"></span>⏳ Devices With Unsynced Updates</div>
+      <button class="btn btn-ghost btn-sm" onclick="clearAllDeviceSyncStatus()">🧹 Clear All</button>
+    </div>
     <div class="text-xs text2 mb-8">These devices have made a change (e.g. a Ground Team exit punch) that hasn't reached the server yet — usually a weak connection. It will sync and disappear from this list automatically; nothing is lost in the meantime.</div>
     <div id="deviceSyncStatusList"></div>
   </div>
@@ -4088,7 +4091,7 @@ function _computePendingSummary(){
     (S[c.key]||[]).forEach(function(item){
       var key=item[c.idField];
       var wasSynced=syncedMap[key];
-      var unchanged = wasSynced!==undefined && JSON.stringify(item)===wasSynced;
+      var unchanged = wasSynced!==undefined && stableStringify(item)===wasSynced;
       if(!unchanged) pending.push(c.label(item));
     });
   });
@@ -4138,7 +4141,7 @@ function refreshDeviceSyncStatus(){
   var list=document.getElementById('deviceSyncStatusList');
   if(!card||!list) return;
   var statuses=S.deviceSyncStatus||{};
-  var entries=Object.keys(statuses).map(function(id){ return statuses[id]; }).filter(function(s){ return s && s.pendingCount>0; });
+  var entries=Object.keys(statuses).map(function(id){ return Object.assign({_id:id}, statuses[id]); }).filter(function(s){ return s && s.pendingCount>0; });
   if(!entries.length){ card.style.display='none'; return; }
   card.style.display='block';
   entries.sort(function(a,b){ return new Date(b.lastUpdate)-new Date(a.lastUpdate); });
@@ -4150,9 +4153,25 @@ function refreshDeviceSyncStatus(){
     }catch(e){}
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.25);border-radius:8px;margin-bottom:6px">'
       +'<div><strong>'+s.label+'</strong> <span class="text2 text-xs">— last update '+ago+'</span></div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
       +'<span class="tag" style="background:#b45309;color:#fff">'+s.pendingCount+' pending</span>'
-      +'</div>';
+      +'<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="clearDeviceSyncStatus(\''+s._id+'\')">🧹 Clear</button>'
+      +'</div></div>';
   }).join('');
+}
+// Manual dismiss for a stuck/incorrect entry — a plain direct write to just
+// that device's own key (never routed through the general S/save() cycle,
+// same as the device's own broadcast — see _updateDeviceSyncStatus), so it
+// can't race with anything else. The device itself will recompute and
+// re-broadcast its real count next time it saves, so this is safe even if
+// it turns out something genuinely was pending.
+function clearDeviceSyncStatus(deviceId){
+  fbRoot.child('deviceSyncStatus/'+deviceId).set(null).catch(function(){});
+  toast('🧹 Cleared','ok');
+}
+function clearAllDeviceSyncStatus(){
+  fbRoot.child('deviceSyncStatus').set(null).catch(function(){});
+  toast('🧹 Cleared all — devices will re-report their real status if anything is genuinely pending','ok');
 }
 
 var _saving=false;
@@ -4162,6 +4181,20 @@ var _lastSyncedEntries={};
 var _lastSyncedSupportJobs={};
 var _lastSyncedDeptETDs={};
 var _lastSyncedKnownIssues={};
+// Order-independent stringify — used everywhere the app compares "is this
+// record actually different from what was last confirmed synced". Plain
+// JSON.stringify is NOT safe for that: its output depends on the order
+// object keys were set in, which can differ between a record freshly
+// parsed from Firebase, one built by local edits, and one round-tripped
+// through localStorage — even when the DATA is identical. That mismatch
+// was the cause of devices showing wildly inflated "pending" counts
+// (hundreds of records that were never actually unsynced).
+function stableStringify(obj){
+  if(obj===null || typeof obj!=='object') return JSON.stringify(obj);
+  if(Array.isArray(obj)) return '['+obj.map(stableStringify).join(',')+']';
+  var keys=Object.keys(obj).sort();
+  return '{'+keys.map(function(k){ return JSON.stringify(k)+':'+stableStringify(obj[k]); }).join(',')+'}';
+}
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
@@ -4187,7 +4220,7 @@ const _doSave=()=>{
     serverEntries.forEach(e=>{ if(e) merged[e.id]=e; });
     (S.entries||[]).forEach(e=>{
       const lastSynced=_lastSyncedEntries[e.id];
-      const localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
+      const localUnchanged = lastSynced!==undefined && stableStringify(e)===lastSynced;
       if(!localUnchanged) merged[e.id]=e;
     });
     // Honor deletions this device made since its last sync (Manager delete,
@@ -4206,7 +4239,7 @@ const _doSave=()=>{
     serverInsp.forEach(ins=>{ if(ins) merged[ins.entryId]=ins; });
     (S.inspections||[]).forEach(ins=>{
       const lastSynced=_lastSyncedInspections[ins.entryId];
-      const localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
+      const localUnchanged = lastSynced!==undefined && stableStringify(ins)===lastSynced;
       if(!localUnchanged) merged[ins.entryId]=ins;
     });
     Object.keys(_lastSyncedInspections).forEach(key=>{
@@ -4235,7 +4268,7 @@ const _doSave=()=>{
     serverJobs.forEach(j=>{ if(j) merged[j.id]=j; });
     (S.supportJobs||[]).forEach(j=>{
       const lastSynced=_lastSyncedSupportJobs[j.id];
-      const localUnchanged = lastSynced!==undefined && JSON.stringify(j)===lastSynced;
+      const localUnchanged = lastSynced!==undefined && stableStringify(j)===lastSynced;
       if(!localUnchanged) merged[j.id]=j;
     });
     Object.keys(_lastSyncedSupportJobs).forEach(key=>{
@@ -4271,7 +4304,7 @@ const _doSave=()=>{
     serverKI.forEach(k=>{ if(k) merged[k.id]=k; });
     (S.knownIssues||[]).forEach(k=>{
       const lastSynced=_lastSyncedKnownIssues[k.id];
-      const localUnchanged = lastSynced!==undefined && JSON.stringify(k)===lastSynced;
+      const localUnchanged = lastSynced!==undefined && stableStringify(k)===lastSynced;
       if(!localUnchanged) merged[k.id]=k;
     });
     Object.keys(_lastSyncedKnownIssues).forEach(key=>{
@@ -4362,7 +4395,7 @@ function _doFreshResync(){
     (S.entries||[]).forEach(function(e){
       var existing=mergedEntries[e.id];
       var lastSynced=_lastSyncedEntries[e.id];
-      var localUnchanged = lastSynced!==undefined && JSON.stringify(e)===lastSynced;
+      var localUnchanged = lastSynced!==undefined && stableStringify(e)===lastSynced;
       if(!existing || !localUnchanged) mergedEntries[e.id]=e;
     });
     var mergedInspections={};
@@ -4370,7 +4403,7 @@ function _doFreshResync(){
     (S.inspections||[]).forEach(function(ins){
       var existing=mergedInspections[ins.entryId];
       var lastSynced=_lastSyncedInspections[ins.entryId];
-      var localUnchanged = lastSynced!==undefined && JSON.stringify(ins)===lastSynced;
+      var localUnchanged = lastSynced!==undefined && stableStringify(ins)===lastSynced;
       if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
     });
     S.entries=Object.values(mergedEntries);
@@ -4461,13 +4494,13 @@ fbRoot.on('value', snapshot=>{
     // (local wins). This is what stops a Ground Team device's unrelated save
     // from silently reverting a bay allocation or exit punch made elsewhere.
     _lastSyncedInspections = {};
-    (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = JSON.stringify(ins); });
+    (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = stableStringify(ins); });
     _lastSyncedEntries = {};
-    (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = JSON.stringify(e); });
+    (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = stableStringify(e); });
     _lastSyncedSupportJobs = {};
-    (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = JSON.stringify(j); });
+    (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = stableStringify(j); });
     _lastSyncedKnownIssues = {};
-    (S.knownIssues||[]).forEach(k=>{ _lastSyncedKnownIssues[k.id] = JSON.stringify(k); });
+    (S.knownIssues||[]).forEach(k=>{ _lastSyncedKnownIssues[k.id] = stableStringify(k); });
 
     // ── OFFLINE-WRITE RECOVERY: reapply on first snapshot ─────────────
     // Runs once, only on the very first real Firebase snapshot after load
@@ -4488,7 +4521,7 @@ fbRoot.on('value', snapshot=>{
         localArr.forEach(function(item){
           var key = item[c.idField];
           var wasSynced = syncedMap[key];
-          var stillUnchanged = wasSynced!==undefined && JSON.stringify(item)===wasSynced;
+          var stillUnchanged = wasSynced!==undefined && stableStringify(item)===wasSynced;
           if(!stillUnchanged){ freshMap[key] = item; _recovered = true; }
         });
         S[c.key] = Object.values(freshMap);
@@ -4500,7 +4533,7 @@ fbRoot.on('value', snapshot=>{
         var syncedMap = (_recoveredSyncSnapshot && _recoveredSyncSnapshot[k]) || {};
         Object.keys(localMap).forEach(function(key){
           var wasSynced = syncedMap[key];
-          var stillUnchanged = wasSynced!==undefined && JSON.stringify(localMap[key])===JSON.stringify(wasSynced);
+          var stillUnchanged = wasSynced!==undefined && stableStringify(localMap[key])===stableStringify(wasSynced);
           if(!stillUnchanged){ S[k][key] = localMap[key]; _recovered = true; }
         });
       });
