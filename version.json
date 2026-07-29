@@ -1,5 +1,5 @@
 {
-  "v": "v330",
-  "deployed": "2026-07-29T08:22:44Z",
-  "change": "Added icons to the repair-action quick-pick chips (Ground Team job completion) to match the original mockup — was showing plain text only."
+  "v": "v331",
+  "deployed": "2026-07-29T09:15:04Z",
+  "change": "Known Issues, extended: Ground Team can now mark a job 'Can't Complete' directly on the checklist mid-repair (no parts / no manpower / needs replacement), naming the part needed \u2014 collapses to one line, creates a truck-level Known Issue. Reminder banner now also shows on Ground Team (not just Supervisor) every time that truck is worked on, so it can be cross-checked before loading. New Stores tab: 'Field-Reported Parts Needed' with its own download, for ordering ahead of the next breakdown."
 }
