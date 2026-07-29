@@ -1484,6 +1484,14 @@ if('serviceWorker' in navigator){
         </div>
         <button class="btn btn-ghost btn-sm mt-8" id="supPostponeBtn" onclick="openSupPostpone()" style="display:none">⏸️ Postpone this truck</button>
       </div>
+
+      <!-- KNOWN ISSUES REMINDER — deferred/unresolved complaints carried over
+           from this truck's previous visits (no parts, no manpower, temp
+           repair, etc.). Populated by renderSupKnownIssues() in loadTruckForSup(). -->
+      <div id="supKnownIssuesPanel" style="display:none;background:#fff2e8;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⚠️ Known Unresolved Issues From Previous Visits</div>
+        <div id="supKnownIssuesList"></div>
+      </div>
       <div class="form-row cols-2">
         <div><label>🚌 Trailer No</label><input type="text" id="supTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()"></div>
         <div><label>🔧 Job Type</label><select id="supJobType"><option value="">-- Select Job Type --</option><option>Running Repair</option><option>PM Maintenance</option><option>Accidental</option><option>Minor Job</option><option>Major Job</option></select></div>
@@ -1499,6 +1507,18 @@ if('serviceWorker' in navigator){
       <div style="margin-bottom:14px">
         <label>🔍 Defects / Jobs by Department</label>
         <div id="jobDeptBlocks"></div>
+      </div>
+      <div class="card" style="background:#fff2e8;border:1px solid #fdba74;padding:12px 14px;margin-bottom:14px">
+        <div class="fw-700 mb-8" style="font-size:13px;color:#92400e">🗂 Found something you're deferring? (no parts / no manpower / temporary fix)</div>
+        <div class="text-xs text2 mb-8">This is for issues you're NOT adding to this visit's job card. It's saved against the truck and will remind you next time it's inspected — instead of just getting forgotten.</div>
+        <div class="form-row cols-2" style="margin-bottom:8px">
+          <select id="kiDept"><option value="mech">Mechanical</option><option value="elec">Electrical</option><option value="tyre">Tyre</option><option value="weld">Welding</option><option value="pneumatic">Pneumatic</option><option value="suspension">Suspension</option></select>
+          <select id="kiReason"><option value="No parts available">No parts available</option><option value="No manpower available">No manpower available</option><option value="Temporary repair only">Temporary repair only</option><option value="Not critical right now">Not critical right now</option></select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="kiDesc" placeholder="e.g. Fuel tank bent, V-stay excessive play" style="flex:1">
+          <button class="btn btn-ghost btn-sm" onclick="addKnownIssue()">+ Add</button>
+        </div>
       </div>
       <div class="card" style="background:var(--surface3);border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
         <div class="fw-700 mb-12" style="font-size:13px">🅿️ Bay Allocation</div>
@@ -2060,6 +2080,7 @@ if('serviceWorker' in navigator){
         <span class="text-xs text2">to</span>
         <input type="date" id="rhToDate" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
         <button class="btn btn-ghost btn-sm" onclick="exportRepairHistory()">📥 Download Repair History</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportKnownIssues()">📥 Download Known Issues (Deferred Repairs)</button>
       </div>
     </div>
     <div class="card">
@@ -3879,7 +3900,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{} };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -3936,7 +3957,7 @@ function cacheLocally(){
     localStorage.setItem('shtl_v3_lastSynced', JSON.stringify({
       entries:_lastSyncedEntries||{}, inspections:_lastSyncedInspections||{},
       supportJobs:_lastSyncedSupportJobs||{}, bayAssignments:_lastSyncedBayAssignments||{},
-      deptETDs:_lastSyncedDeptETDs||{}
+      deptETDs:_lastSyncedDeptETDs||{}, knownIssues:_lastSyncedKnownIssues||{}
     }));
   }catch(e){}
 }
@@ -4119,6 +4140,7 @@ var _lastSyncedInspections={};
 var _lastSyncedEntries={};
 var _lastSyncedSupportJobs={};
 var _lastSyncedDeptETDs={};
+var _lastSyncedKnownIssues={};
 const _doSave=()=>{
   cacheLocally();
   _saving=true;
@@ -4217,15 +4239,36 @@ const _doSave=()=>{
     return merged;
   });
 
+  // knownIssues — deferred/unresolved complaints that must persist across a
+  // truck's visits (e.g. "fuel tank bent, no parts available"), surfaced as
+  // a reminder to Supervisor next time that truck is inspected. Same
+  // disappearing-record risk as entries/inspections if written the old way,
+  // so same transaction-merge treatment.
+  const knownIssuesTxn = fbRoot.child('knownIssues').transaction(serverKI=>{
+    serverKI = serverKI || [];
+    const merged = {};
+    serverKI.forEach(k=>{ if(k) merged[k.id]=k; });
+    (S.knownIssues||[]).forEach(k=>{
+      const lastSynced=_lastSyncedKnownIssues[k.id];
+      const localUnchanged = lastSynced!==undefined && JSON.stringify(k)===lastSynced;
+      if(!localUnchanged) merged[k.id]=k;
+    });
+    Object.keys(_lastSyncedKnownIssues).forEach(key=>{
+      const stillLocal=(S.knownIssues||[]).some(k=>String(k.id)===String(key));
+      if(!stillLocal) delete merged[key];
+    });
+    return Object.values(merged);
+  });
+
   // Everything else in S (staffRoster, notifications, etc.) — these haven't
   // shown the same concurrent-conflict pattern, so keep the simpler direct
   // write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus');
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus' && k!=='knownIssues');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
-  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, restWrite]).then(()=>{
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, knownIssuesTxn, restWrite]).then(()=>{
     _saving=false;
     if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   }).catch(err=>{
@@ -4381,7 +4424,8 @@ fbRoot.on('value', snapshot=>{
       secQrAccess: data.secQrAccess || {},
       workshopClosedDate: data.workshopClosedDate || '',
       broadcastAnnouncement: data.broadcastAnnouncement || null,
-      deviceSyncStatus: data.deviceSyncStatus || {}
+      deviceSyncStatus: data.deviceSyncStatus || {},
+      knownIssues: data.knownIssues || []
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -4401,6 +4445,8 @@ fbRoot.on('value', snapshot=>{
     (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = JSON.stringify(e); });
     _lastSyncedSupportJobs = {};
     (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = JSON.stringify(j); });
+    _lastSyncedKnownIssues = {};
+    (S.knownIssues||[]).forEach(k=>{ _lastSyncedKnownIssues[k.id] = JSON.stringify(k); });
 
     // ── OFFLINE-WRITE RECOVERY: reapply on first snapshot ─────────────
     // Runs once, only on the very first real Firebase snapshot after load
@@ -4413,7 +4459,7 @@ fbRoot.on('value', snapshot=>{
     // used live in _doSave()'s transactions — then pushed again via save().
     if(_recoveredLocalS && !_fbReady){
       var _recovered = false;
-      [{key:'entries',idField:'id'},{key:'inspections',idField:'entryId'},{key:'supportJobs',idField:'id'}].forEach(function(c){
+      [{key:'entries',idField:'id'},{key:'inspections',idField:'entryId'},{key:'supportJobs',idField:'id'},{key:'knownIssues',idField:'id'}].forEach(function(c){
         var localArr = _recoveredLocalS[c.key] || [];
         var syncedMap = (_recoveredSyncSnapshot && _recoveredSyncSnapshot[c.key]) || {};
         var freshMap = {};
@@ -6539,6 +6585,68 @@ function addJobRow(d){
   c.appendChild(row);
 }
 
+// ── KNOWN ISSUES (deferred repairs that persist across a truck's visits) ──
+function renderSupKnownIssues(truckNo){
+  const panel=document.getElementById('supKnownIssuesPanel');
+  const list=document.getElementById('supKnownIssuesList');
+  if(!panel||!list) return;
+  const open=(S.knownIssues||[]).filter(k=>!k.resolved && fmtTruck(k.truckNo)===fmtTruck(truckNo));
+  if(!open.length){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  list.innerHTML=open.map(k=>`
+    <div style="background:#fff;border:1px solid #fdba74;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:600">${k.desc}</div>
+      <div style="font-size:10.5px;color:#92400e;margin-top:2px">${deptNames[k.dept]||k.dept} · ${k.reason} · logged ${new Date(k.addedAt).toLocaleDateString('en-GB')}</div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px" onclick="addKnownIssueToInspection('${k.id}')">+ Add to This Job Card</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:var(--green)" onclick="resolveKnownIssue('${k.id}')">✅ Already Fixed / Resolve</button>
+      </div>
+    </div>`).join('');
+}
+function addKnownIssue(){
+  const truckId=document.getElementById('supTruckSelect').value;
+  const e=S.entries.find(x=>x.id==truckId);
+  if(!e) return toast('⚠️ Select a truck first','warn');
+  const desc=document.getElementById('kiDesc').value.trim();
+  if(!desc) return toast('⚠️ Enter a description','warn');
+  const dept=document.getElementById('kiDept').value;
+  const reason=document.getElementById('kiReason').value;
+  if(!S.knownIssues) S.knownIssues=[];
+  S.knownIssues.push({
+    id:'ki_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    truckNo:e.truckNo, dept:dept, desc:desc, reason:reason,
+    addedBy:'Supervisor', addedAt:new Date().toISOString(),
+    resolved:false
+  });
+  document.getElementById('kiDesc').value='';
+  save();
+  toast('🗂 Saved as a known issue — will remind next visit','ok');
+}
+function addKnownIssueToInspection(kiId){
+  const ki=(S.knownIssues||[]).find(k=>k.id===kiId);
+  if(!ki) return;
+  if(!document.getElementById('rows-'+ki.dept)){
+    toast('⚠️ That department isn\'t on this truck\'s job card — add it manually','warn');
+    return;
+  }
+  addJobRow(ki.dept);
+  const rows=document.getElementById('rows-'+ki.dept).children;
+  const lastRow=rows[rows.length-1];
+  if(lastRow) lastRow.querySelector('input[type="text"]').value=ki.desc+' (deferred: '+ki.reason+')';
+  toast('✅ Added to job card — mark it Resolved once actually fixed','ok');
+}
+function resolveKnownIssue(kiId){
+  const ki=(S.knownIssues||[]).find(k=>k.id===kiId);
+  if(!ki) return;
+  ki.resolved=true;
+  ki.resolvedAt=new Date().toISOString();
+  ki.resolvedBy='Supervisor';
+  save();
+  const e=S.entries.find(x=>x.id==document.getElementById('supTruckSelect').value);
+  if(e) renderSupKnownIssues(e.truckNo);
+  toast('✅ Marked resolved','ok');
+}
+
 function refreshSupervisorPage(){
   // Always recompute strictly from current entries+inspections so this never lags
   const uninsp=S.entries.filter(e=>!e.exitTime&&!S.inspections.some(i=>i.entryId===e.id));
@@ -6604,16 +6712,17 @@ function loadTruckForSup(){
   const apt=S.appointments&&S.appointments.find(a=>
     (()=>{const n=s=>(s||'').toUpperCase().replace(/[\s-]/g,'');return n(a.truckNo)===n(e.truckNo)&&(a.status==='reported'||a.status==='pending')&&!a.supVerdict;})()
   );
-  const panel=document.getElementById('supInchargeComplaintsPanel');
+  const panel=document.getElementById('supAptRefPanel');
   if(apt && apt.complaints){
     panel.style.display='block';
-    document.getElementById('supAptSubmittedBy').textContent=apt.submittedBy||'Incharge';
+    document.getElementById('supAptRefComplaints').innerHTML='<div style="font-weight:700;margin-bottom:4px">From: '+(apt.submittedBy||'Incharge')+'</div>';
     renderComplaintVerdicts(apt);
   } else {
     panel.style.display='none';
   }
   document.getElementById('supSendBackSection').style.display='none';
   document.getElementById('supPostponeSection').style.display='none';
+  renderSupKnownIssues(e.truckNo);
 }
 
 // Render each complaint line with Confirmed / Not Found / Different Issue verdict buttons
@@ -6697,7 +6806,7 @@ function sendTruckBackNoWork(){
   save();
   refreshDropdowns();
   refreshSupervisorPage();
-  document.getElementById('supInchargeComplaintsPanel').style.display='none';
+  document.getElementById('supAptRefPanel').style.display='none';
   toast('🚫 Truck marked No Work Required — Security can now punch gate-out','ok');
 }
 
@@ -6865,6 +6974,8 @@ function saveSupervisorEntry(){
   // Clear job dept blocks and photos
   const jdb=document.getElementById('jobDeptBlocks'); if(jdb) jdb.innerHTML='';
   resetPhotoSlots();
+  const kiPanel=document.getElementById('supKnownIssuesPanel'); if(kiPanel) kiPanel.style.display='none';
+  const kiDescEl=document.getElementById('kiDesc'); if(kiDescEl) kiDescEl.value='';
   // Hide print button
   const pbBtn=document.getElementById('supPrintBtn'); if(pbBtn) pbBtn.style.display='none';
 }
@@ -14426,6 +14537,41 @@ function exportRepairHistory(){
     toast('📥 Repair History downloaded ('+rows.length+' jobs)','ok');
   } else {
     exportCSV('SHTL_RepairHistory_'+new Date().toISOString().slice(0,10)+'.csv', headers, rows);
+  }
+}
+
+// Fleet-wide backlog of deferred repairs — every truck, every known issue
+// still open (or resolved, for history), regardless of whether that truck
+// happens to be in the yard right now. Complements the Supervisor-side
+// reminder, which only surfaces when the truck is actually re-inspected.
+function exportKnownIssues(){
+  var issues=(S.knownIssues||[]).slice().sort(function(a,b){
+    if(!!a.resolved!==!!b.resolved) return a.resolved?1:-1; // open ones first
+    return new Date(b.addedAt)-new Date(a.addedAt);
+  });
+  if(!issues.length){ toast('ℹ️ No known issues logged yet','info'); return; }
+  var deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
+  var headers=['Status','Truck','Dept','Issue','Reason Deferred','Logged','Logged By','Resolved','Resolved By'];
+  var data=issues.map(function(k){ return [
+    k.resolved?'Resolved':'OPEN',
+    k.truckNo||'—',
+    deptLabels[k.dept]||k.dept||'—',
+    k.desc||'—',
+    k.reason||'—',
+    k.addedAt?new Date(k.addedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—',
+    k.addedBy||'—',
+    k.resolvedAt?new Date(k.resolvedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—',
+    k.resolvedBy||'—'
+  ]; });
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
+    ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:36},{wch:20},{wch:16},{wch:14},{wch:16},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Known Issues');
+    XLSX.writeFile(wb, 'SHTL_KnownIssues_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('📥 Known Issues downloaded ('+issues.filter(function(k){return !k.resolved;}).length+' still open)','ok');
+  } else {
+    exportCSV('SHTL_KnownIssues_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
   }
 }
 
