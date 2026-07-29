@@ -1,5 +1,5 @@
 {
-  "v": "v326",
-  "deployed": "2026-07-28T20:06:20Z",
-  "change": "Optional repair-action quick-pick when a Ground Team job is marked done (one-tap chips per department, or type your own words, or skip — never blocks completion). New Manager > Daily Report > Repair History export: one row per completed job (Truck/Dept/Complaint/Repair Action/Mechanic/Time) with a date range, for recurring-failure and most-replaced-part analysis."
+  "v": "v327",
+  "deployed": "2026-07-29T05:54:01Z",
+  "change": "Fix Revisit Tracker km-bucket counts (5,000/10,000/incentive cards) — was counting individual job/issue rows, not trucks, so one truck with several logged issues inflated the number well past the real truck count. Now shows actual truck count, with issue count shown alongside in the detail table headers. Also removed dead duplicate refreshRevisit code."
 }
