@@ -1,5 +1,5 @@
 {
-  "v": "v333",
-  "deployed": "2026-07-29T13:26:53Z",
-  "change": "Fix: Edit Records search silently crashed (no results shown, no error visible) for any truck with a job in Pneumatic or Suspension department, due to a department map that only had 4 of 6 departments \u2014 this is why T213 EHF's search appeared to do nothing. Also fixed an unrelated pre-existing bug spamming console errors on every page refresh (undefined driverStaff in Support > Trip Log driver dropdown)."
+  "v": "v334",
+  "deployed": "2026-07-29T13:40:52Z",
+  "change": "Fix root cause of wildly inflated 'X pending' counts on the Device Sync Status panel: the dirty-record comparison used plain JSON.stringify, whose output depends on object key order \u2014 identical records built via different code paths could look permanently 'different' even when nothing changed. Replaced with an order-independent comparison everywhere this check happens (sync banner, device broadcast, save merge, offline recovery). Also added a manual Clear / Clear All button on the Manager panel."
 }
