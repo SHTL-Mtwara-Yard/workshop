@@ -1,5 +1,5 @@
 {
-  "v": "v334",
-  "deployed": "2026-07-29T13:40:52Z",
-  "change": "Fix root cause of wildly inflated 'X pending' counts on the Device Sync Status panel: the dirty-record comparison used plain JSON.stringify, whose output depends on object key order \u2014 identical records built via different code paths could look permanently 'different' even when nothing changed. Replaced with an order-independent comparison everywhere this check happens (sync banner, device broadcast, save merge, offline recovery). Also added a manual Clear / Clear All button on the Manager panel."
+  "v": "v335",
+  "deployed": "2026-07-29T14:12:30Z",
+  "change": "New: Combined Report download (Manager > Daily Report) \u2014 one Excel file with 3 tabs (Daily Report, Repair History, Known Issues), matching the earlier example format. Individual downloads still work exactly as before."
 }
