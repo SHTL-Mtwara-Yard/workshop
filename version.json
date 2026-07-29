@@ -1,5 +1,5 @@
 {
-  "v": "v327",
-  "deployed": "2026-07-29T05:54:01Z",
-  "change": "Fix Revisit Tracker km-bucket counts (5,000/10,000/incentive cards) — was counting individual job/issue rows, not trucks, so one truck with several logged issues inflated the number well past the real truck count. Now shows actual truck count, with issue count shown alongside in the detail table headers. Also removed dead duplicate refreshRevisit code."
+  "v": "v328",
+  "deployed": "2026-07-29T06:02:30Z",
+  "change": "Incharge Monthly Report: added a summary line above the truck chip list showing unique truck count and a breakdown of how many had 1 visit vs 2 vs 3+, so you don't have to count the x1 chips by hand."
 }
