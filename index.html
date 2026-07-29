@@ -8324,12 +8324,12 @@ function resolveSendBackToBay(){
 // the box. Never blocks completion; skipping is always one tap away.
 var _awaitingNotePrompt={};
 var REPAIR_ACTION_CHIPS={
-  mech:['Replaced part','Adjusted','Tightened','Topped up','Repaired'],
-  elec:['Replaced part','Rewired','Reset/Reprogrammed','Cleaned contact'],
-  tyre:['Replaced tyre','Repaired puncture','Balanced/Aligned','Retorqued'],
-  weld:['Welded/Repaired','Replaced part','Straightened'],
-  pneumatic:['Replaced part','Repaired leak','Adjusted'],
-  suspension:['Replaced part','Adjusted','Tightened','Repaired']
+  mech:['🔧 Replaced part','🔩 Adjusted','🛠 Tightened','🧴 Topped up','🔨 Repaired'],
+  elec:['🔧 Replaced part','🔌 Rewired','🔄 Reset/Reprogrammed','🧽 Cleaned contact'],
+  tyre:['🛞 Replaced tyre','🩹 Repaired puncture','⚖️ Balanced/Aligned','🔩 Retorqued'],
+  weld:['🔥 Welded/Repaired','🔧 Replaced part','📏 Straightened'],
+  pneumatic:['🔧 Replaced part','💧 Repaired leak','🔩 Adjusted'],
+  suspension:['🔧 Replaced part','🔩 Adjusted','🛠 Tightened','🔨 Repaired']
 };
 function pickRepairNote(insId,dept,idx,note){
   var key=insId+'_'+dept+'_'+idx;
