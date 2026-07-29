@@ -1,5 +1,5 @@
 {
-  "v": "v328",
-  "deployed": "2026-07-29T06:02:30Z",
-  "change": "Incharge Monthly Report: added a summary line above the truck chip list showing unique truck count and a breakdown of how many had 1 visit vs 2 vs 3+, so you don't have to count the x1 chips by hand."
+  "v": "v329",
+  "deployed": "2026-07-29T06:22:09Z",
+  "change": "Added 'Download 3+ Visits' button to Incharge Monthly Report — one row per appointment (Truck, Visits This Month, Ref No, Planned Visit, Submitted By, Complaint) for every truck with 3 or more visits that month, downloaded as Excel."
 }
