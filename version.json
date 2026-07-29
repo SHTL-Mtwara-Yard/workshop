@@ -1,5 +1,5 @@
 {
-  "v": "v335",
-  "deployed": "2026-07-29T14:12:30Z",
-  "change": "New: Combined Report download (Manager > Daily Report) \u2014 one Excel file with 3 tabs (Daily Report, Repair History, Known Issues), matching the earlier example format. Individual downloads still work exactly as before."
+  "v": "v336",
+  "deployed": "2026-07-29T14:22:10Z",
+  "change": "Daily Report ('Download for Boss'): 'All Faults' column now shows the repair action inline, matching the earlier example format \u2014 'Complaint \u2192 Repaired action', '(pending)' for unfinished jobs, or 'Deferred: reason' for Known Issues. Previously this only existed in the separate Repair History export."
 }
