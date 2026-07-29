@@ -1,5 +1,5 @@
 {
-  "v": "v341",
-  "deployed": "2026-07-29T15:53:33Z",
-  "change": "New: Fuel Request on Support > Drivers \u2014 tap \u26fd Fuel on either vehicle, Current Reading auto-fills from the vehicle's own Main ODO (no retyping dashboard numbers), enter litres requested and it computes km-since-last-fill + mileage automatically, builds the exact WhatsApp message format already in use, with one-tap Copy or Send via WhatsApp. Logged to a new Fuel Request Log table."
+  "v": "v342",
+  "deployed": "2026-07-29T16:04:44Z",
+  "change": "Added proper app icons and a web manifest so the workshop system can be installed as a real app icon on the home screen from Android/Chrome/Desktop (not just iOS Safari) \u2014 look for 'Install App' in the browser menu, or an install prompt may appear automatically."
 }
