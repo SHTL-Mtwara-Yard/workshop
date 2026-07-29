@@ -1,5 +1,5 @@
 {
-  "v": "v339",
-  "deployed": "2026-07-29T15:24:36Z",
-  "change": "Support > Drivers: tracked vehicles renamed to your actual two \u2014 'Bus \u2014 T968 ENE' and 'Pickup \u2014 T273 ELL'."
+  "v": "v340",
+  "deployed": "2026-07-29T15:36:35Z",
+  "change": "Support > Drivers: 'Other Vehicle' one-off trips now use the same punch-based Start/End flow as the two tracked vehicles \u2014 no more typing Departure/Return Time. Supports multiple one-off trips out at once. Added optional Delay Reason field on End Trip (only fill in if a trip ran long) \u2014 shown in the Trip Log."
 }
