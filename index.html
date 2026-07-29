@@ -11362,7 +11362,7 @@ function refreshSupportPage(){
   var boomTrailerEl=document.getElementById('boomActionTrailer');
   if(boomTrailerEl) boomTrailerEl.innerHTML='<option value="">-- No trailer / select --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
   renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog();
-  const ds=document.getElementById('tripDriver'); if(ds) ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaff.map(n=>`<option>${n}</option>`).join('');
+  const ds=document.getElementById('tripDriver'); if(ds){ const driverStaffList=[...(STAFF['busdriver']||[]), ...(STAFF['pickupdriver']||[])]; ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaffList.map(n=>`<option>${n}</option>`).join(''); }
 
   refreshGreasingLog();
   refreshSupportLogs();
@@ -15401,7 +15401,7 @@ function renderInspectionEditPanel(ins){
 
   // ── Mechanic assignments — Manager-only override. Ground Team's dropdown locks once
   // a name is set; this panel is the one place that can always reassign, regardless of lock state.
-  const dInfo2={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'}};
+  const dInfo2={mech:{l:'⚙️ Mechanical',c:'blue'},elec:{l:'⚡ Electrician',c:'yellow'},tyre:{l:'🔵 Tyre',c:'green'},weld:{l:'🔥 Welding',c:'purple'},pneumatic:{l:'🔩 Pneumatic',c:'purple'},suspension:{l:'🔧 Suspension',c:'yellow'}};
   let staffHtml='';
   ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
     const jobs=(ins.jobs||{})[d]||[];
