@@ -1,5 +1,5 @@
 {
-  "v": "v336",
-  "deployed": "2026-07-29T14:22:10Z",
-  "change": "Daily Report ('Download for Boss'): 'All Faults' column now shows the repair action inline, matching the earlier example format \u2014 'Complaint \u2192 Repaired action', '(pending)' for unfinished jobs, or 'Deferred: reason' for Known Issues. Previously this only existed in the separate Repair History export."
+  "v": "v337",
+  "deployed": "2026-07-29T14:39:03Z",
+  "change": "Fix Job Cards register: Mechanic column was showing the department's assigned staff for EVERY job in that dept, not who actually completed each specific job \u2014 now shows the real per-job doneBy once complete. Also fixed Bay column showing 'undefined' once a truck's bay was freed after completion (now falls back to last bay used)."
 }
