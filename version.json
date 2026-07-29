@@ -1,5 +1,5 @@
 {
-  "v": "v329",
-  "deployed": "2026-07-29T08:06:00Z",
-  "change": "New: Known Issues tracker \u2014 Supervisor can defer a found problem (no parts/no manpower/temp fix) as a note tied to the truck instead of an active job; it auto-reminds next time that truck is inspected, with one-tap 'Add to Job Card' or 'Resolve'. New Manager download: Known Issues (Deferred Repairs) export, fleet-wide. Also fixed a pre-existing bug where the Incharge complaint-verdict panel silently failed to render for trucks with a matched appointment (mismatched element IDs)."
+  "v": "v330",
+  "deployed": "2026-07-29T08:22:44Z",
+  "change": "Added icons to the repair-action quick-pick chips (Ground Team job completion) to match the original mockup — was showing plain text only."
 }
