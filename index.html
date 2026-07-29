@@ -2085,6 +2085,7 @@ if('serviceWorker' in navigator){
         <input type="date" id="rhToDate" style="padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface3);color:var(--text1);font-size:13px">
         <button class="btn btn-ghost btn-sm" onclick="exportRepairHistory()">📥 Download Repair History</button>
         <button class="btn btn-ghost btn-sm" onclick="exportKnownIssues()">📥 Download Known Issues (Deferred Repairs)</button>
+        <button class="btn btn-primary btn-sm" onclick="exportCombinedReport()">📊 Download Combined Report (All Sheets)</button>
       </div>
     </div>
     <div class="card">
@@ -14746,6 +14747,69 @@ function exportRepairHistory(){
   } else {
     exportCSV('SHTL_RepairHistory_'+new Date().toISOString().slice(0,10)+'.csv', headers, rows);
   }
+}
+
+// One workbook, three tabs — Daily Report / Repair History / Known Issues —
+// matching the combined mockup example. Reuses the exact same row-building
+// logic as the three individual downloads above, so the numbers can never
+// disagree between the combined file and the standalone ones.
+function exportCombinedReport(){
+  if(typeof XLSX==='undefined'){ toast('⚠️ Excel library not loaded — try again once the page has fully loaded','warn'); return; }
+  const deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Daily Report (same rows as "Download for Boss")
+  const drRows=getDailyReportRows();
+  const drHeaders=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
+  const drData=drRows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
+  const ws1=XLSX.utils.aoa_to_sheet([drHeaders].concat(drData));
+  ws1['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Daily Report');
+
+  // Sheet 2: Repair History (same rows as "Download Repair History", uses
+  // the same date-range fields if set — otherwise all-time)
+  const fromVal=document.getElementById('rhFromDate')?document.getElementById('rhFromDate').value:'';
+  const toVal=document.getElementById('rhToDate')?document.getElementById('rhToDate').value:'';
+  const fromMs = fromVal ? new Date(fromVal+'T00:00:00').getTime() : -Infinity;
+  const toMs = toVal ? new Date(toVal+'T23:59:59').getTime() : Infinity;
+  const rhRows=[];
+  (S.inspections||[]).forEach(function(ins){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+i]||{};
+        var isDone=upd.done||j.done;
+        if(!isDone) return;
+        var doneDateMs = upd.date ? new Date(upd.date).getTime() : (ins.inspectedAt?new Date(ins.inspectedAt).getTime():0);
+        if(isNaN(doneDateMs) || doneDateMs<fromMs || doneDateMs>toMs) return;
+        rhRows.push([
+          upd.date || (ins.inspectedAt?new Date(ins.inspectedAt).toDateString():'—'),
+          ins.truckNo||'—', deptLabels[d]||d, j.desc||'—', upd.note||'—', upd.doneBy||'—', upd.time||'—'
+        ]);
+      });
+    });
+  });
+  const ws2=XLSX.utils.aoa_to_sheet([['Date','Truck','Dept','Complaint','Repair Action','Mechanic','Time Done']].concat(rhRows));
+  ws2['!cols']=[{wch:14},{wch:12},{wch:14},{wch:36},{wch:26},{wch:22},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Repair History');
+
+  // Sheet 3: Known Issues (same rows as "Download Known Issues")
+  const kiIssues=(S.knownIssues||[]).slice().sort(function(a,b){
+    if(!!a.resolved!==!!b.resolved) return a.resolved?1:-1;
+    return new Date(b.addedAt)-new Date(a.addedAt);
+  });
+  const kiData=kiIssues.map(function(k){ return [
+    k.resolved?'Resolved':'OPEN', k.truckNo||'—', deptLabels[k.dept]||k.dept||'—', k.desc||'—', k.partName||'—', k.reason||'—',
+    k.addedAt?new Date(k.addedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', k.addedBy||'—',
+    k.resolvedAt?new Date(k.resolvedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', k.resolvedBy||'—'
+  ]; });
+  const ws3=XLSX.utils.aoa_to_sheet([['Status','Truck','Dept','Issue','Part Name','Reason Deferred','Logged','Logged By','Resolved','Resolved By']].concat(kiData));
+  ws3['!cols']=[{wch:10},{wch:12},{wch:14},{wch:36},{wch:22},{wch:20},{wch:16},{wch:14},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Known Issues');
+
+  const dateStr=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, 'SHTL_CombinedReport_'+dateStr+'.xlsx');
+  toast('📊 Combined report downloaded — 3 sheets (Daily Report, Repair History, Known Issues)','ok');
 }
 
 // Fleet-wide backlog of deferred repairs — every truck, every known issue
