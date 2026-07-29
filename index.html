@@ -1513,12 +1513,13 @@ if('serviceWorker' in navigator){
         <div class="text-xs text2 mb-8">This is for issues you're NOT adding to this visit's job card. It's saved against the truck and will remind you next time it's inspected — instead of just getting forgotten.</div>
         <div class="form-row cols-2" style="margin-bottom:8px">
           <select id="kiDept"><option value="mech">Mechanical</option><option value="elec">Electrical</option><option value="tyre">Tyre</option><option value="weld">Welding</option><option value="pneumatic">Pneumatic</option><option value="suspension">Suspension</option></select>
-          <select id="kiReason"><option value="No parts available">No parts available</option><option value="No manpower available">No manpower available</option><option value="Temporary repair only">Temporary repair only</option><option value="Not critical right now">Not critical right now</option></select>
+          <select id="kiReason"><option value="No parts available">No parts available</option><option value="No manpower available">No manpower available</option><option value="Needs replacement — not repairable">Needs replacement — not repairable</option><option value="Temporary repair only">Temporary repair only</option><option value="Not critical right now">Not critical right now</option></select>
         </div>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="kiDesc" placeholder="e.g. Fuel tank bent, V-stay excessive play" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="addKnownIssue()">+ Add</button>
+        <div class="form-row cols-2" style="margin-bottom:8px">
+          <input type="text" id="kiDesc" placeholder="e.g. Fuel tank bent, V-stay excessive play">
+          <input type="text" id="kiPart" placeholder="Part name if known (e.g. Fuel tank)">
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="addKnownIssue()">+ Add</button>
       </div>
       <div class="card" style="background:var(--surface3);border:1px solid var(--border);padding:12px 14px;margin-bottom:10px">
         <div class="fw-700 mb-12" style="font-size:13px">🅿️ Bay Allocation</div>
@@ -3384,6 +3385,7 @@ if('serviceWorker' in navigator){
     <button class="subtab" id="stab-ready" onclick="showStoresTab('ready',this)">✅ Ready to Issue</button>
     <button class="subtab" id="stab-issued" onclick="showStoresTab('issued',this)">📦 Issued Log</button>
     <button class="subtab" id="stab-requisition" onclick="showStoresTab('requisition',this)" style="color:#1a6fb5">📋 Requisition Slip</button>
+    <button class="subtab" id="stab-partsneeded" onclick="showStoresTab('partsneeded',this)" style="color:#c2410c">🔧 Field-Reported Parts Needed</button>
   </div>
 
   <!-- PENDING REQUESTS -->
@@ -3579,6 +3581,25 @@ if('serviceWorker' in navigator){
     <div class="card" style="margin-top:12px">
       <div class="card-title"><span class="dot" style="background:#1a6fb5"></span>📁 Requisition History</div>
       <div id="req-history-list"><div style="color:var(--text2);font-size:13px">No requisitions yet.</div></div>
+    </div>
+  </div>
+
+  <!-- FIELD-REPORTED PARTS NEEDED — items Ground Team/Supervisor flagged as
+       "can't complete, need this part" during actual repair work. Distinct
+       from the Requisition Slip above (which is a specific formal request
+       tied to one job); this is the standing fleet-wide backlog so Stores
+       can order ahead of the next breakdown instead of reacting to it. -->
+  <div id="stores-partsneeded" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#c2410c"></span>🔧 Field-Reported Parts Needed</div>
+        <button class="btn btn-ghost btn-sm" onclick="exportPartsNeeded()">📥 Download for Ordering</button>
+      </div>
+      <div class="text-xs text2 mb-12">Flagged by Ground Team or Supervisor when a job can't be completed — no part in stock, or the part needs replacing rather than repairing. Stays here until marked fixed, whether or not the truck is currently in the yard.</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Truck</th><th>Part Needed</th><th>Dept</th><th>Reason</th><th>Issue</th><th>Flagged</th><th>By</th></tr></thead>
+        <tbody id="partsNeededTable"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">Loading…</td></tr></tbody>
+      </table></div>
     </div>
   </div>
 
@@ -6595,8 +6616,8 @@ function renderSupKnownIssues(truckNo){
   panel.style.display='block';
   list.innerHTML=open.map(k=>`
     <div style="background:#fff;border:1px solid #fdba74;border-radius:8px;padding:8px 10px;margin-bottom:6px">
-      <div style="font-size:13px;font-weight:600">${k.desc}</div>
-      <div style="font-size:10.5px;color:#92400e;margin-top:2px">${deptNames[k.dept]||k.dept} · ${k.reason} · logged ${new Date(k.addedAt).toLocaleDateString('en-GB')}</div>
+      <div style="font-size:13px;font-weight:600">${k.desc}${k.partName?' <span style="color:#92400e;font-weight:700">— '+k.partName+'</span>':''}</div>
+      <div style="font-size:10.5px;color:#92400e;margin-top:2px">${deptNames[k.dept]||k.dept} · ${k.reason} · logged ${new Date(k.addedAt).toLocaleDateString('en-GB')} by ${k.addedBy||'—'}</div>
       <div style="display:flex;gap:6px;margin-top:6px">
         <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px" onclick="addKnownIssueToInspection('${k.id}')">+ Add to This Job Card</button>
         <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:var(--green)" onclick="resolveKnownIssue('${k.id}')">✅ Already Fixed / Resolve</button>
@@ -6611,14 +6632,16 @@ function addKnownIssue(){
   if(!desc) return toast('⚠️ Enter a description','warn');
   const dept=document.getElementById('kiDept').value;
   const reason=document.getElementById('kiReason').value;
+  const partName=document.getElementById('kiPart').value.trim();
   if(!S.knownIssues) S.knownIssues=[];
   S.knownIssues.push({
     id:'ki_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    truckNo:e.truckNo, dept:dept, desc:desc, reason:reason,
-    addedBy:'Supervisor', addedAt:new Date().toISOString(),
+    truckNo:e.truckNo, dept:dept, desc:desc, reason:reason, partName:partName,
+    addedBy:'Supervisor', addedAt:new Date().toISOString(), source:'supervisor',
     resolved:false
   });
   document.getElementById('kiDesc').value='';
+  document.getElementById('kiPart').value='';
   save();
   toast('🗂 Saved as a known issue — will remind next visit','ok');
 }
@@ -6647,6 +6670,48 @@ function resolveKnownIssue(kiId){
   toast('✅ Marked resolved','ok');
 }
 
+// Shared HTML for the "known unresolved issues" reminder — used on both
+// Supervisor (DOM panel, see renderSupKnownIssues) and Ground Team (inline
+// string, built into loadBayJobs' jHtml). context is 'ground' or 'supervisor'
+// only to pick which action buttons make sense for that role.
+function knownIssuesBannerHtml(truckNo, insId, context){
+  const open=(S.knownIssues||[]).filter(k=>!k.resolved && fmtTruck(k.truckNo)===fmtTruck(truckNo));
+  if(!open.length) return '';
+  const items=open.map(k=>{
+    const addBtn = context==='ground'
+      ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px" onclick="addKnownIssueAsGroundJob('${k.id}','${insId}')">+ Add as Job Here</button>`
+      : `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px" onclick="addKnownIssueToInspection('${k.id}')">+ Add to This Job Card</button>`;
+    return `<div style="background:#fff;border:1px solid #fdba74;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+      <div style="font-size:13px;font-weight:600">${k.desc}${k.partName?' <span style="color:#92400e;font-weight:700">— '+k.partName+'</span>':''}</div>
+      <div style="font-size:10.5px;color:#92400e;margin-top:2px">${deptNames[k.dept]||k.dept} · ${k.reason} · logged ${new Date(k.addedAt).toLocaleDateString('en-GB')} by ${k.addedBy||'—'}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        ${addBtn}
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 10px;color:var(--green)" onclick="resolveKnownIssue('${k.id}');${context==='ground'?'loadBayJobs()':''}">✅ Already Fixed / Resolve</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="background:#fff2e8;border:1px solid #fdba74;border-radius:var(--radius);padding:10px 14px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px">⚠️ Known Unresolved Issues From Previous Visits — Check Before Loading</div>
+    ${items}
+  </div>`;
+}
+function addKnownIssueAsGroundJob(kiId, insId){
+  const ki=(S.knownIssues||[]).find(k=>k.id===kiId);
+  const ins=S.inspections.find(i=>i.id==insId);
+  if(!ki||!ins) return;
+  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[],pneumatic:[],suspension:[]};
+  if(!ins.jobs[ki.dept]) ins.jobs[ki.dept]=[];
+  const nextSno=ins.jobs[ki.dept].length+1;
+  ins.jobs[ki.dept].push({
+    sno:nextSno, desc:ki.desc+(ki.partName?' ('+ki.partName+')':''), priority:'Normal',
+    source:'ground', done:false, doneBy:null, doneTime:null,
+    addedBy:'Ground Team', addedAt:new Date().toISOString()
+  });
+  checkAutoCompletion(insId);
+  save();
+  loadBayJobs();
+  toast('✅ Added to job card','ok');
+}
 function refreshSupervisorPage(){
   // Always recompute strictly from current entries+inspections so this never lags
   const uninsp=S.entries.filter(e=>!e.exitTime&&!S.inspections.some(i=>i.entryId===e.id));
@@ -6976,6 +7041,7 @@ function saveSupervisorEntry(){
   resetPhotoSlots();
   const kiPanel=document.getElementById('supKnownIssuesPanel'); if(kiPanel) kiPanel.style.display='none';
   const kiDescEl=document.getElementById('kiDesc'); if(kiDescEl) kiDescEl.value='';
+  const kiPartEl=document.getElementById('kiPart'); if(kiPartEl) kiPartEl.value='';
   // Hide print button
   const pbBtn=document.getElementById('supPrintBtn'); if(pbBtn) pbBtn.style.display='none';
 }
@@ -7736,6 +7802,7 @@ function loadBayJobs(){
   const hasPhotos = ins.photos && Object.keys(ins.photos).length>0;
   const assisters=(S.assistingWorkers && S.assistingWorkers[bay]) || [];
   let jHtml=`<div class="mb-12 flex items-center gap-8 flex-wrap"><span class="fw-700" style="font-size:15px">${displayTruck}</span><span class="tag tag-blue">${bay}</span><span class="tag tag-${ins.priority==='Critical'?'red':ins.priority==='Urgent'?'yellow':'green'}">${ins.priority}</span>${alreadyReady?'<span class="tag" style="background:rgba(57,211,83,.15);color:#39d353;border:1px solid rgba(57,211,83,.3)">✓ FLAGGED READY</span>':''}${hasPhotos?`<button class="btn btn-ghost btn-sm" onclick="openPhotoViewer('${ins.id}')">📷 View Photos</button>`:''}</div>`;
+  jHtml+=knownIssuesBannerHtml(displayTruck, ins.id, 'ground');
   if(assisters.length){
     const label=a=>typeof a==='string' ? a : `${a.name} (${assistDeptLabel(a.dept)})`;
     jHtml+=`<div class="text-xs text2 mb-12">🤝 Assisting this bay: ${assisters.map(label).join(', ')}</div>`;
@@ -7767,6 +7834,25 @@ function loadBayJobs(){
     jobs.forEach((j,i)=>{
       const key=`${ins.id}_${d}_${i}`;const upd=S.jobUpdates[key]||{};const isDone=upd.done||j.done;
       const addedTag = j.addedBy==='Ground Team' ? '<span class="tag" style="background:#ffedd5;color:var(--accent);border:1px solid #fdba74">+ Added by Ground</span>' : '';
+
+      // ── DEFERRED (Can't Complete): collapsed to one line, per Raghava's
+      // request — Ground Team discovers mid-repair a job can't be finished
+      // (no parts, no manpower, needs replacement), punches it here instead
+      // of leaving it silently unticked. Also creates a truck-level Known
+      // Issue (see saveDeferGroundJob) so it survives to the truck's next
+      // visit and shows in the reminder banner above, for BOTH Ground Team
+      // and Supervisor.
+      if(upd.deferred){
+        jHtml+=`<div class="jc-item" style="background:#fff2e8;border-radius:8px;padding:6px 8px">
+          <span style="font-size:14px">⚠️</span>
+          <div class="jc-item-text" style="font-weight:600">${j.sno}. ${j.desc} — <span style="color:#92400e">Deferred: ${upd.deferReason}${upd.deferPart?' — '+upd.deferPart:''}</span></div>
+          <span class="jc-done-by">by ${upd.deferredBy||'Ground Team'} at ${upd.deferredAt?new Date(upd.deferredAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span>
+          <span style="font-size:11px;color:var(--blue);cursor:pointer;text-decoration:underline dotted;margin-left:8px" onclick="reactivateGroundJob('${ins.id}','${d}',${i})">↩ Retry Now</span>
+          <span style="font-size:11px;color:var(--green);cursor:pointer;text-decoration:underline dotted;margin-left:8px" onclick="fixedNowGroundJob('${ins.id}','${d}',${i})">✅ Fixed Now</span>
+        </div>`;
+        return;
+      }
+
       // Optional repair-action note: shows a small badge once picked; shows a
       // one-tap quick-pick row just once, right after this job is ticked done
       // (see _awaitingNotePrompt) — never blocks completion, never repeats.
@@ -7786,6 +7872,18 @@ function loadBayJobs(){
           </div>
         </div>`;
       }
+      const cantCompleteHtml = !isDone ? `
+        <span style="font-size:11px;color:#c2410c;cursor:pointer;text-decoration:underline dotted;margin-left:6px" onclick="showDeferGroundForm('${ins.id}','${d}',${i})">⚠️ Can't Complete</span>
+        <div id="deferForm_${d}_${i}" style="display:none;margin-top:6px;width:100%;background:var(--surface2);border-radius:8px;padding:8px">
+          <div class="form-row cols-2" style="margin-bottom:6px">
+            <select id="deferReason_${d}_${i}"><option value="No parts available">No parts available</option><option value="No manpower available">No manpower available</option><option value="Needs replacement — not repairable">Needs replacement — not repairable</option><option value="Temporary repair only">Temporary repair only</option></select>
+            <input type="text" id="deferPart_${d}_${i}" placeholder="Part name (e.g. Fuel tank)">
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="saveDeferGroundJob('${ins.id}','${d}',${i})">Save — Can't Complete</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('deferForm_${d}_${i}').style.display='none'">Cancel</button>
+          </div>
+        </div>` : '';
       jHtml+=`<div class="jc-item ${isDone?'done':''}">
         <input type="checkbox" ${isDone?'checked':''} ${etdMissing&&!isDone?'disabled title="Set department ETD first"':''} onchange="toggleJobGround('${ins.id}','${d}',${i},this)">
         <div class="jc-item-text ${isDone?'struck':''}">${j.sno}. ${j.desc}</div>
@@ -7795,6 +7893,7 @@ function loadBayJobs(){
         ${isDone?`<span class="jc-done-by">✅ Done by: ${upd.doneBy||'Team'} at ${upd.time||''}</span>`:''}
         ${noteBadge}
         ${promptHtml}
+        ${cantCompleteHtml}
       </div>`;
     });
     jHtml+='</div>';
@@ -8352,6 +8451,71 @@ function saveRepairNoteInput(insId,dept,idx){
   var val=el?el.value.trim():'';
   if(!val) return;
   pickRepairNote(insId,dept,idx,val);
+}
+
+// ── CAN'T COMPLETE (Ground Team defer, mid-repair) ─────────────────────
+// Raghava's scenario: mechanic is already inside the job when they discover
+// it genuinely can't be finished — no part in stock, no manpower right now,
+// or the part itself needs replacing rather than repairing. Punched right
+// where the checkbox already is, not routed through Supervisor first.
+// Collapses to one line (see loadBayJobs' upd.deferred branch) and creates a
+// truck-level Known Issue so it survives to the truck's next visit and
+// shows in the reminder banner for both Ground Team and Supervisor.
+function showDeferGroundForm(insId,dept,idx){
+  var el=document.getElementById('deferForm_'+dept+'_'+idx);
+  if(el) el.style.display='block';
+}
+function saveDeferGroundJob(insId,dept,idx){
+  var reason=document.getElementById('deferReason_'+dept+'_'+idx).value;
+  var partName=document.getElementById('deferPart_'+dept+'_'+idx).value.trim();
+  var ins=S.inspections.find(i=>i.id==insId);
+  var job=ins && ins.jobs && ins.jobs[dept] && ins.jobs[dept][idx];
+  if(!job) return;
+  var key=insId+'_'+dept+'_'+idx;
+  var now=new Date().toISOString();
+  S.jobUpdates[key]=Object.assign({}, S.jobUpdates[key]||{}, {
+    deferred:true, deferReason:reason, deferPart:partName,
+    deferredBy:'Ground Team', deferredAt:now
+  });
+  // Truck-level Known Issue — this is what actually survives to the next
+  // visit and gets exported for Stores (see exportPartsNeeded).
+  if(!S.knownIssues) S.knownIssues=[];
+  S.knownIssues.push({
+    id:'ki_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    truckNo:(ins.truckNo||(S.entries.find(e=>e.id===ins.entryId)||{}).truckNo||''),
+    dept:dept, desc:job.desc, reason:reason, partName:partName,
+    addedBy:'Ground Team', addedAt:now, source:'ground',
+    sourceJobKey:key, resolved:false
+  });
+  save();
+  loadBayJobs();
+  toast('⚠️ Marked Can\'t Complete — saved as a known issue for next visit','warn');
+}
+function reactivateGroundJob(insId,dept,idx){
+  var key=insId+'_'+dept+'_'+idx;
+  if(S.jobUpdates[key]){
+    delete S.jobUpdates[key].deferred;
+    delete S.jobUpdates[key].deferReason;
+    delete S.jobUpdates[key].deferPart;
+  }
+  save();
+  loadBayJobs();
+}
+function fixedNowGroundJob(insId,dept,idx){
+  var key=insId+'_'+dept+'_'+idx;
+  var upd=S.jobUpdates[key]||{};
+  S.jobUpdates[key]=Object.assign({}, upd, {
+    deferred:false, done:true, doneBy:'Ground Team',
+    time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    date:new Date().toDateString()
+  });
+  // Resolve the linked Known Issue too, so it drops off the reminder banner
+  // and the Parts Needed export, instead of lingering as still-open.
+  var linked=(S.knownIssues||[]).find(k=>k.sourceJobKey===key && !k.resolved);
+  if(linked){ linked.resolved=true; linked.resolvedAt=new Date().toISOString(); linked.resolvedBy='Ground Team'; }
+  save();
+  loadBayJobs();
+  toast('✅ Marked fixed','ok');
 }
 // Required check before any job can be marked done: that department's ETD must
 // already be set, so T2 timestamps are always present and SLA reporting is reliable
@@ -11971,13 +12135,14 @@ function logTrip(){
 // ══════════════════════════════════════════
 
 function showStoresTab(tab, btn){
-  ['pending','ready','issued','raise','requisition'].forEach(t=>{
+  ['pending','ready','issued','raise','requisition','partsneeded'].forEach(t=>{
     const el=document.getElementById('stores-'+t);
     if(el) el.style.display=t===tab?'block':'none';
     const b=document.getElementById('stab-'+t);
     if(b){b.classList.toggle('active',t===tab);}
   });
   if(tab==='requisition') initRequisitionForm();
+  else if(tab==='partsneeded') refreshPartsNeeded();
   else refreshStoresPage();
 }
 
@@ -14551,12 +14716,13 @@ function exportKnownIssues(){
   });
   if(!issues.length){ toast('ℹ️ No known issues logged yet','info'); return; }
   var deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
-  var headers=['Status','Truck','Dept','Issue','Reason Deferred','Logged','Logged By','Resolved','Resolved By'];
+  var headers=['Status','Truck','Dept','Issue','Part Name','Reason Deferred','Logged','Logged By','Resolved','Resolved By'];
   var data=issues.map(function(k){ return [
     k.resolved?'Resolved':'OPEN',
     k.truckNo||'—',
     deptLabels[k.dept]||k.dept||'—',
     k.desc||'—',
+    k.partName||'—',
     k.reason||'—',
     k.addedAt?new Date(k.addedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—',
     k.addedBy||'—',
@@ -14566,12 +14732,56 @@ function exportKnownIssues(){
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
-    ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:36},{wch:20},{wch:16},{wch:14},{wch:16},{wch:14}];
+    ws['!cols']=[{wch:10},{wch:12},{wch:14},{wch:36},{wch:22},{wch:20},{wch:16},{wch:14},{wch:16},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws, 'Known Issues');
     XLSX.writeFile(wb, 'SHTL_KnownIssues_'+new Date().toISOString().slice(0,10)+'.xlsx');
     toast('📥 Known Issues downloaded ('+issues.filter(function(k){return !k.resolved;}).length+' still open)','ok');
   } else {
     exportCSV('SHTL_KnownIssues_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
+  }
+}
+
+// ── PARTS NEEDED (Stores-facing subset of Known Issues) ────────────────
+// Only issues where a specific part was actually named — this is the list
+// Stores can act on directly (place an order), as opposed to the full Known
+// Issues backlog which also includes "no manpower" / "not critical" items
+// with nothing to procure.
+function refreshPartsNeeded(){
+  var tbody=document.getElementById('partsNeededTable');
+  if(!tbody) return;
+  var deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
+  var open=(S.knownIssues||[]).filter(function(k){ return !k.resolved && k.partName; })
+    .sort(function(a,b){ return new Date(b.addedAt)-new Date(a.addedAt); });
+  if(!open.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No parts currently flagged as needed 🎉</td></tr>';
+    return;
+  }
+  tbody.innerHTML=open.map(function(k){
+    return '<tr><td><b>'+(k.truckNo||'—')+'</b></td><td style="color:#c2410c;font-weight:700">'+k.partName+'</td>'
+      +'<td>'+(deptLabels[k.dept]||k.dept||'—')+'</td><td>'+(k.reason||'—')+'</td><td>'+(k.desc||'—')+'</td>'
+      +'<td class="text2 text-xs">'+(k.addedAt?new Date(k.addedAt).toLocaleDateString('en-GB'):'—')+'</td>'
+      +'<td class="text2 text-xs">'+(k.addedBy||'—')+'</td></tr>';
+  }).join('');
+}
+function exportPartsNeeded(){
+  var deptLabels={mech:'Mechanical',elec:'Electrical',tyre:'Tyre',weld:'Welding',pneumatic:'Pneumatic',suspension:'Suspension'};
+  var open=(S.knownIssues||[]).filter(function(k){ return !k.resolved && k.partName; })
+    .sort(function(a,b){ return new Date(b.addedAt)-new Date(a.addedAt); });
+  if(!open.length){ toast('ℹ️ No parts currently flagged as needed','info'); return; }
+  var headers=['Truck','Part Needed','Dept','Reason','Issue Description','Date Flagged','Flagged By'];
+  var data=open.map(function(k){ return [
+    k.truckNo||'—', k.partName||'—', deptLabels[k.dept]||k.dept||'—', k.reason||'—', k.desc||'—',
+    k.addedAt?new Date(k.addedAt).toLocaleDateString('en-GB'):'—', k.addedBy||'—'
+  ]; });
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
+    ws['!cols']=[{wch:12},{wch:24},{wch:14},{wch:22},{wch:36},{wch:14},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Parts Needed');
+    XLSX.writeFile(wb, 'SHTL_PartsNeeded_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    toast('📥 Parts Needed downloaded ('+open.length+' items)','ok');
+  } else {
+    exportCSV('SHTL_PartsNeeded_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
   }
 }
 
