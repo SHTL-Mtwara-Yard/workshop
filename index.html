@@ -3219,6 +3219,34 @@ if('serviceWorker' in navigator){
       <button class="btn btn-ghost btn-sm" onclick="openStartTrip(null)">➕ Start One-Off Trip (other vehicle)</button>
     </div>
 
+    <!-- FUEL REQUEST — auto-pulls Current Reading from the vehicle's own Main
+         ODO (already tracked from every trip), so nobody retypes numbers off
+         the dashboard. Generates the exact message format already used on
+         WhatsApp, ready to copy or send with one tap — no more typing it out
+         by hand each time. -->
+    <div class="card" id="fuelRequestCard" style="display:none;border-top:3px solid #0891b2">
+      <div class="card-title" style="margin:0">⛽ Request Fuel — <span id="fuelVehicleLabel"></span></div>
+      <div class="form-row cols-2">
+        <div><label>Fuel Type</label><select id="fuelType"><option>Diesel</option><option>Petrol</option></select></div>
+        <div><label>Fuel Station</label><input type="text" id="fuelStation" placeholder="e.g. S Energies (Mtwara)"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Last Reading (km)</label><input type="number" id="fuelLastReading" min="0"></div>
+        <div><label>Current Reading (km) — from Main ODO</label><input type="number" id="fuelCurrentReading" min="0" oninput="updateFuelPreview()"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Request Qty (Litres)</label><input type="number" id="fuelQty" min="0" oninput="updateFuelPreview()"></div>
+        <div><label class="text2">Auto-calculated</label><div class="text-xs" id="fuelCalcPreview" style="padding:9px 0;font-weight:700">—</div></div>
+      </div>
+      <div class="card" style="background:var(--surface2);font-family:monospace;font-size:12px;white-space:pre-wrap;padding:12px;margin:10px 0" id="fuelMessagePreview"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="confirmFuelRequest()">✅ Log Request</button>
+        <button class="btn btn-ghost" onclick="copyFuelMessage()">📋 Copy Message</button>
+        <button class="btn btn-ghost" onclick="sendFuelWhatsApp()">📤 Send via WhatsApp</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('fuelRequestCard').style.display='none'">Cancel</button>
+      </div>
+    </div>
+
     <!-- START TRIP FORM — appears when a vehicle with no active trip is tapped,
          or for a one-off vehicle (vehicle name typed in). -->
     <div class="card" id="startTripCard" style="display:none;border-top:3px solid var(--accent)">
@@ -3264,6 +3292,11 @@ if('serviceWorker' in navigator){
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Trip Log</div>
       <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>ODO After</th><th>Passengers</th><th>Delay Reason</th></tr></thead>
       <tbody id="tripLog"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
+    </div>
+
+    <div class="card"><div class="card-title"><span class="dot" style="background:#0891b2"></span>⛽ Fuel Request Log</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Vehicle</th><th>Type</th><th>Last</th><th>Current</th><th>KM</th><th>Qty (L)</th><th>Mileage</th><th>Station</th></tr></thead>
+      <tbody id="fuelLog"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No fuel requests logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -3956,7 +3989,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{} };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{}, vehicleFuel:{}, fuelRequests:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -4513,7 +4546,9 @@ fbRoot.on('value', snapshot=>{
       deviceSyncStatus: data.deviceSyncStatus || {},
       knownIssues: data.knownIssues || [],
       vehicleOdo: data.vehicleOdo || {},
-      activeTrips: data.activeTrips || {}
+      activeTrips: data.activeTrips || {},
+      vehicleFuel: data.vehicleFuel || {},
+      fuelRequests: data.fuelRequests || []
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -12217,7 +12252,10 @@ function renderVehicleStatusCards(){
           <div class="text-xs text2" style="margin-top:3px">${active.driver} · ${active.dest} · out ${ago} (since ${new Date(active.departTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})})</div>
           <div class="text-xs text2">Main ODO: ${odo.toLocaleString()} km</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openEndTrip('${v}')">🏁 End Trip</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="openFuelRequest('${v}')">⛽ Fuel</button>
+          <button class="btn btn-primary btn-sm" onclick="openEndTrip('${v}')">🏁 End Trip</button>
+        </div>
       </div>`;
     }
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.25);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
@@ -12226,7 +12264,10 @@ function renderVehicleStatusCards(){
           <span style="color:var(--blue);cursor:pointer;text-decoration:underline dotted;margin-left:6px" onclick="editVehicleOdo('${v}')">✏️ correct</span>
         </div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="openStartTrip('${v}')">🚀 Start Trip</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="openFuelRequest('${v}')">⛽ Fuel</button>
+        <button class="btn btn-primary btn-sm" onclick="openStartTrip('${v}')">🚀 Start Trip</button>
+      </div>
     </div>`;
   }).join('');
   renderOtherActiveTripsCards();
@@ -12251,6 +12292,7 @@ function renderOtherActiveTripsCards(){
 function openStartTrip(vehicle){
   _pendingTripVehicle=vehicle;
   document.getElementById('endTripCard').style.display='none';
+  document.getElementById('fuelRequestCard').style.display='none';
   document.getElementById('startTripVehicleLabel').textContent=vehicle||'One-Off Vehicle';
   document.getElementById('startTripOtherVehicleRow').style.display=vehicle?'none':'flex';
   document.getElementById('tripVehicleOther').value='';
@@ -12283,6 +12325,7 @@ function openEndTrip(vehicle, otherId){
   _pendingTripVehicle=vehicle;
   _pendingOtherTripId=otherId||null;
   document.getElementById('startTripCard').style.display='none';
+  document.getElementById('fuelRequestCard').style.display='none';
   const active = vehicle ? (S.activeTrips||{})[vehicle]
     : ((S.activeTrips&&S.activeTrips._other)||[]).find(o=>o.id===otherId);
   if(!active) return;
@@ -12347,6 +12390,101 @@ function saveVehicleOdo(vehicle){
   save();
   renderVehicleStatusCards();
   toast('✅ Main ODO corrected to '+num.toLocaleString()+' km','ok');
+}
+
+// ── FUEL REQUEST ─────────────────────────────────────────────────────
+// Pulls Current Reading straight from the vehicle's own Main ODO (already
+// tracked from every trip via Start/End) instead of asking anyone to read
+// and retype it off the dashboard. Builds the exact message format already
+// used on WhatsApp, ready to copy or send with one tap.
+let _pendingFuelVehicle=null;
+function vehicleKey(v){ return v.replace(/[^A-Za-z]/g,''); }
+
+function openFuelRequest(vehicle){
+  _pendingFuelVehicle=vehicle;
+  document.getElementById('startTripCard').style.display='none';
+  document.getElementById('endTripCard').style.display='none';
+  if(!S.vehicleFuel) S.vehicleFuel={};
+  const vf=S.vehicleFuel[vehicle]||{type:'Diesel',lastOdo:0};
+  const currentOdo=(S.vehicleOdo||{})[vehicle]||0;
+  document.getElementById('fuelVehicleLabel').textContent=vehicle;
+  document.getElementById('fuelType').value=vf.type||'Diesel';
+  document.getElementById('fuelStation').value=vf.lastStation||'';
+  document.getElementById('fuelLastReading').value=vf.lastOdo||0;
+  document.getElementById('fuelCurrentReading').value=currentOdo;
+  document.getElementById('fuelQty').value='';
+  document.getElementById('fuelRequestCard').style.display='block';
+  updateFuelPreview();
+  document.getElementById('fuelRequestCard').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function buildFuelMessage(){
+  const vehicle=_pendingFuelVehicle;
+  const type=document.getElementById('fuelType').value;
+  const station=document.getElementById('fuelStation').value.trim();
+  const last=parseInt(document.getElementById('fuelLastReading').value)||0;
+  const current=parseInt(document.getElementById('fuelCurrentReading').value)||0;
+  const qty=parseFloat(document.getElementById('fuelQty').value)||0;
+  const km=current-last;
+  const mileage=qty>0 ? (km/qty).toFixed(1) : '—';
+  const vehicleLabel = vehicle.includes('Bus') ? vehicle.replace('Bus — ','')+' (STAFF BUS)' : vehicle.replace('Pickup — ','')+' (TATA pickup)';
+  const msg='User Name: workshop Mtwara ('+(vehicle.includes('Bus')?'bus':'pickup')+')\n'
+    +'Vehicle No - '+vehicleLabel+'\n'
+    +'Fuel Type  - '+type.toUpperCase()+'\n'
+    +'Last reading -'+last+'\n'
+    +'Current Reading - '+current+' ('+km+'km)\n'
+    +'Mileage - '+mileage+' km/ litre\n'
+    +'Request Qty - '+qty+' liters\n'
+    +'Fuel Station  - '+(station||'—')+'\n'
+    +'@~erpshtl kindly arrange order';
+  return {msg, km, mileage, qty, station, last, current, type, vehicle};
+}
+function updateFuelPreview(){
+  const d=buildFuelMessage();
+  document.getElementById('fuelCalcPreview').textContent = d.qty>0 ? (d.km+' km ÷ '+d.qty+' L = '+d.mileage+' km/L') : (d.km+' km since last fill');
+  document.getElementById('fuelMessagePreview').textContent=d.msg;
+}
+function copyFuelMessage(){
+  const d=buildFuelMessage();
+  navigator.clipboard.writeText(d.msg).then(()=>{
+    toast('📋 Message copied — paste it into WhatsApp','ok');
+  }).catch(()=>{
+    toast('⚠️ Could not copy — select the text above manually','warn');
+  });
+}
+function sendFuelWhatsApp(){
+  const d=buildFuelMessage();
+  window.open('https://wa.me/?text='+encodeURIComponent(d.msg), '_blank');
+}
+function confirmFuelRequest(){
+  const d=buildFuelMessage();
+  if(d.qty<=0) return toast('⚠️ Enter request quantity','warn');
+  if(!S.vehicleFuel) S.vehicleFuel={};
+  if(!S.fuelRequests) S.fuelRequests=[];
+  S.fuelRequests.push({
+    id:Date.now(), vehicle:d.vehicle, type:d.type, last:d.last, current:d.current,
+    km:d.km, qty:d.qty, mileage:d.mileage, station:d.station,
+    date:new Date().toDateString(), loggedAt:new Date().toISOString()
+  });
+  // Assume it'll be topped up — next request's "Last Reading" starts from here
+  S.vehicleFuel[d.vehicle]={type:d.type, lastOdo:d.current, lastStation:d.station};
+  save();
+  document.getElementById('fuelRequestCard').style.display='none';
+  refreshFuelLog();
+  toast('⛽ Fuel request logged for '+d.vehicle,'ok');
+}
+function refreshFuelLog(){
+  const tb=document.getElementById('fuelLog');
+  if(!tb) return;
+  const reqs=(S.fuelRequests||[]).slice().reverse();
+  if(!reqs.length){ tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No fuel requests logged yet</td></tr>'; return; }
+  tb.innerHTML=reqs.map(r=>`<tr>
+    <td style="font-size:11px">${new Date(r.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
+    <td>${r.vehicle}</td><td>${r.type}</td>
+    <td>${r.last.toLocaleString()}</td><td>${r.current.toLocaleString()}</td>
+    <td>${r.km} km</td><td>${r.qty} L</td>
+    <td>${r.mileage} km/L</td><td class="text-xs">${r.station||'—'}</td>
+  </tr>`).join('');
 }
 
 // ══════════════════════════════════════════
@@ -12725,6 +12863,7 @@ function deleteSupportRecord(id){
 
 function refreshTripLog(){
   renderVehicleStatusCards();
+  refreshFuelLog();
   const today=new Date().toDateString();
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
