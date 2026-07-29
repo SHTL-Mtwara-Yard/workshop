@@ -14580,8 +14580,18 @@ function getDailyReportRows(){
     var faults=[];
     var parts=[];
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
-      ((ins.jobs||{})[d]||[]).forEach(function(j){
-        faults.push(j.desc);
+      ((ins.jobs||{})[d]||[]).forEach(function(j,i){
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+i]||{};
+        var isDone=upd.done||j.done;
+        var line=j.desc;
+        if(upd.deferred){
+          line+=' — Deferred: '+upd.deferReason+(upd.deferPart?' — '+upd.deferPart:'');
+        } else if(isDone && upd.note){
+          line+=' → '+upd.note;
+        } else if(!isDone){
+          line+=' (pending)';
+        }
+        faults.push(line);
         if(j.partPending){ parts.push(j.partName+(j.partNotes?' ('+j.partNotes+')':'')); }
       });
     });
