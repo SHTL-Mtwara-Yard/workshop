@@ -1,5 +1,5 @@
 {
-  "v": "v338",
-  "deployed": "2026-07-29T14:58:42Z",
-  "change": "Support > Drivers redesigned: Staff Bus and Pickup now show live status (Available/Out) with one-tap Start Trip / End Trip \u2014 departure and return times are captured automatically, never typed. Each vehicle has a running Main ODO that adds itself up from each trip's KMs (correctable by tapping the odometer). 'Other' vehicles keep the old simple manual-entry form for one-off trips."
+  "v": "v339",
+  "deployed": "2026-07-29T15:24:36Z",
+  "change": "Support > Drivers: tracked vehicles renamed to your actual two \u2014 'Bus \u2014 T968 ENE' and 'Pickup \u2014 T273 ELL'."
 }
