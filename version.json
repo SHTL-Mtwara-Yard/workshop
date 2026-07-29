@@ -1,5 +1,5 @@
 {
-  "v": "v340",
-  "deployed": "2026-07-29T15:36:35Z",
-  "change": "Support > Drivers: 'Other Vehicle' one-off trips now use the same punch-based Start/End flow as the two tracked vehicles \u2014 no more typing Departure/Return Time. Supports multiple one-off trips out at once. Added optional Delay Reason field on End Trip (only fill in if a trip ran long) \u2014 shown in the Trip Log."
+  "v": "v341",
+  "deployed": "2026-07-29T15:53:33Z",
+  "change": "New: Fuel Request on Support > Drivers \u2014 tap \u26fd Fuel on either vehicle, Current Reading auto-fills from the vehicle's own Main ODO (no retyping dashboard numbers), enter litres requested and it computes km-since-last-fill + mileage automatically, builds the exact WhatsApp message format already in use, with one-tap Copy or Send via WhatsApp. Logged to a new Fuel Request Log table."
 }
