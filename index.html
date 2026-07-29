@@ -1814,8 +1814,9 @@ if('serviceWorker' in navigator){
     <div class="card" style="border-top:3px solid var(--accent)">
       <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report</div>
       <div id="monthlyReportContent"><div style="color:var(--text2);font-size:13px">Loading...</div></div>
-      <div style="margin-top:14px">
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="printMonthlyReport()">🖨️ Print Report</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadRepeatVisitsCSV()">📥 Download 3+ Visits</button>
       </div>
     </div>
   </div>
@@ -5743,6 +5744,43 @@ function refreshMonthlyReport(){
   html+='</div>';
 
   el.innerHTML=html;
+}
+
+// One row per appointment, for every truck that visited 3+ times this month —
+// same month/logic as the report above, so it always matches what's on screen.
+function downloadRepeatVisitsCSV(){
+  var now=new Date();
+  var month=now.getMonth(); var year=now.getFullYear();
+  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var apts=(S.appointments||[]).filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  var byTruck={};
+  apts.forEach(function(a){ var t=a.truckNo||'Unknown'; (byTruck[t]=byTruck[t]||[]).push(a); });
+  var repeatTrucks=Object.keys(byTruck).filter(function(t){ return byTruck[t].length>=3; });
+  if(!repeatTrucks.length){ toast('ℹ️ No trucks with 3+ visits this month','info'); return; }
+
+  var rows=[['Truck','Visits This Month','Ref No','Planned Visit','Submitted By','Complaint']];
+  repeatTrucks.sort(function(a,b){ return byTruck[b].length-byTruck[a].length; }).forEach(function(t){
+    byTruck[t].slice().sort(function(a,b){ return new Date(a.plannedVisit)-new Date(b.plannedVisit); }).forEach(function(a){
+      rows.push([t, byTruck[t].length, a.refNo||'—', a.plannedVisit?new Date(a.plannedVisit).toLocaleDateString('en-GB'):'—', a.submittedBy||'—', a.complaints||'—']);
+    });
+  });
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:12},{wch:14},{wch:18},{wch:14},{wch:16},{wch:50}];
+    XLSX.utils.book_append_sheet(wb, ws, '3+ Visits');
+    XLSX.writeFile(wb, 'SHTL_3PlusVisits_'+monthName.replace(' ','_')+'.xlsx');
+    toast('📥 Downloaded — '+repeatTrucks.length+' trucks with 3+ visits','ok');
+  } else {
+    var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+    var a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+    a.download='SHTL_3PlusVisits_'+monthName.replace(' ','_')+'.csv';
+    a.click();
+  }
 }
 
 function openCloseApt(id){
