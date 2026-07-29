@@ -5720,7 +5720,18 @@ function refreshMonthlyReport(){
   html+='</div>';
 
   // Truck table
+  var truckCounts=Object.keys(byTruck).map(function(t){ return byTruck[t]; });
+  var uniqueTruckCount=truckCounts.length;
+  var singleVisitCount=truckCounts.filter(function(c){ return c===1; }).length;
+  var twiceCount=truckCounts.filter(function(c){ return c===2; }).length;
+  var thriceOrMoreCount=truckCounts.filter(function(c){ return c>=3; }).length;
   html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue)">🚛 By Truck (visits this month)</div>';
+  html+='<div style="font-size:11.5px;color:var(--text2);margin-bottom:10px">'
+    +uniqueTruckCount+' unique trucks — '
+    +'<span style="color:var(--green);font-weight:700">'+singleVisitCount+' truck'+(singleVisitCount===1?'':'s')+' with 1 visit</span>, '
+    +'<span style="color:var(--yellow);font-weight:700">'+twiceCount+' with 2</span>, '
+    +'<span style="color:var(--red);font-weight:700">'+thriceOrMoreCount+' with 3+</span>'
+    +'</div>';
   html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
   Object.keys(byTruck).sort(function(a,b){return byTruck[b]-byTruck[a];}).forEach(function(truck){
     var count=byTruck[truck];
