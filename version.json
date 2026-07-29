@@ -1,5 +1,5 @@
 {
-  "v": "v337",
-  "deployed": "2026-07-29T14:39:03Z",
-  "change": "Fix Job Cards register: Mechanic column was showing the department's assigned staff for EVERY job in that dept, not who actually completed each specific job \u2014 now shows the real per-job doneBy once complete. Also fixed Bay column showing 'undefined' once a truck's bay was freed after completion (now falls back to last bay used)."
+  "v": "v338",
+  "deployed": "2026-07-29T14:58:42Z",
+  "change": "Support > Drivers redesigned: Staff Bus and Pickup now show live status (Available/Out) with one-tap Start Trip / End Trip \u2014 departure and return times are captured automatically, never typed. Each vehicle has a running Main ODO that adds itself up from each trip's KMs (correctable by tapping the odometer). 'Other' vehicles keep the old simple manual-entry form for one-off trips."
 }
