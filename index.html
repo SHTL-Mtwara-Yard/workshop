@@ -9236,13 +9236,14 @@ function refreshMgrJobCards(){
     const t1=r.ins.t1_allocated?new Date(r.ins.t1_allocated).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     const t2=S.deptETDs[`${r.ins.id}_${r.d}`]?new Date(S.deptETDs[`${r.ins.id}_${r.d}`]).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     const t4=r.ins.t4_qcDone?new Date(r.ins.t4_qcDone).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
-    const mechanic=(r.ins.deptStaff||{})[r.d]||'—';
+    const upd=S.jobUpdates[r.key]||{};
+    const mechanic = r.isDone ? (upd.doneBy || r.j.doneBy || (r.ins.deptStaff||{})[r.d] || '—') : ((r.ins.deptStaff||{})[r.d] || '—');
     const source = r.j.addedBy==='Ground Team' ? '<span class="tag" style="background:#ffedd5;color:var(--accent);border:1px solid #fdba74">+ Ground</span>' : '<span class="text2 text-xs">Inspection</span>';
     return `<tr>
       <td>JC-${String(idx+1).padStart(3,'0')}</td>
       <td>${r.e?new Date(r.e.entryTime).toLocaleDateString('en-GB'):'—'}</td>
       <td class="fw-700">${r.ins.truckNo}</td>
-      <td><span class="tag tag-blue">${r.ins.bayNo}</span></td>
+      <td><span class="tag tag-blue">${r.ins.bayNo || r.ins.lastBayNo || '—'}</span></td>
       <td class="text-xs">${r.ins.jobType||'—'}</td>
       <td><span class="tag tag-${dC(r.d)}">${dInfo[r.d]}</span></td>
       <td class="text-xs">${mechanic}</td>
