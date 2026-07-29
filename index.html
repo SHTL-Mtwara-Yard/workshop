@@ -3206,22 +3206,63 @@ if('serviceWorker' in navigator){
 
   <!-- DRIVERS -->
   <div class="support-subpage" id="ssub-drivers">
+    <!-- VEHICLE STATUS — punch-based: tap Start when leaving, tap End when
+         back. Departure/return times are captured automatically from the
+         clock, never typed — same reasoning as everywhere else in this app
+         that replaced manual time entry with a punch (fewer typos, always
+         accurate). Main ODO updates itself from each trip's KMs, so nobody
+         has to read and retype the full odometer number every trip. -->
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log New Trip</div>
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>🚍 Vehicles</div>
+      <div id="vehicleStatusCards"></div>
+    </div>
+
+    <!-- START TRIP FORM — appears when a vehicle with no active trip is tapped -->
+    <div class="card" id="startTripCard" style="display:none;border-top:3px solid var(--accent)">
+      <div class="card-title" style="margin:0">🚀 Start Trip — <span id="startTripVehicleLabel"></span></div>
       <div class="form-row cols-2">
         <div><label>Driver</label><select id="tripDriver"><option value="">-- Select driver --</option></select></div>
-        <div><label>Vehicle</label><select id="tripVehicle"><option>Staff Bus</option><option>Pickup / Company Car</option><option>Other</option></select></div>
-      </div>
-      <div class="form-row cols-2">
-        <div><label>Departure Time</label><input type="time" id="tripDepart"></div>
-        <div><label>Return Time</label><input type="time" id="tripReturn" placeholder="Leave blank if ongoing"></div>
-      </div>
-      <div class="form-row cols-2">
         <div><label>Destination / Purpose</label><input type="text" id="tripDest" placeholder="e.g. Airport — collect Manager"></div>
-        <div><label>KMs Travelled</label><input type="number" id="tripKm" placeholder="e.g. 42" min="0"></div>
       </div>
       <div class="form-row"><div><label>Passengers (optional)</label><input type="text" id="tripPass" placeholder="e.g. Mr. Jai Srimannarayana"></div></div>
-      <button class="btn btn-primary" onclick="logTrip()"><i class="ti ti-plus" aria-hidden="true"></i> Log Trip</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="confirmStartTrip()">🚀 Start Trip Now</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('startTripCard').style.display='none'">Cancel</button>
+      </div>
+    </div>
+
+    <!-- END TRIP FORM — appears when an out vehicle is tapped -->
+    <div class="card" id="endTripCard" style="display:none;border-top:3px solid var(--green)">
+      <div class="card-title" style="margin:0">🏁 End Trip — <span id="endTripVehicleLabel"></span></div>
+      <div class="text-xs text2 mb-8" id="endTripSummary"></div>
+      <div class="form-row cols-2">
+        <div><label>KMs Travelled This Trip</label><input type="number" id="tripKmEnd" placeholder="e.g. 42" min="0"></div>
+        <div><label>Passengers (optional — update if needed)</label><input type="text" id="tripPassEnd" placeholder="e.g. Mr. Jai Srimannarayana"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="confirmEndTrip()">🏁 End Trip Now</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('endTripCard').style.display='none'">Cancel</button>
+      </div>
+    </div>
+
+    <!-- OTHER / AD-HOC VEHICLE — not tracked with a running odometer, so
+         keep the simple manual-entry form for one-off cases -->
+    <div class="card" style="border-top:3px dashed var(--border)">
+      <div class="card-title" style="margin:0">📝 Other Vehicle (one-off / not tracked)</div>
+      <div class="text-xs text2 mb-8">For a vehicle outside the two tracked above — no running odometer, just a simple log entry.</div>
+      <div class="form-row cols-2">
+        <div><label>Driver</label><select id="tripDriverOther"><option value="">-- Select driver --</option></select></div>
+        <div><label>Vehicle</label><input type="text" id="tripVehicleOther" placeholder="e.g. Rented pickup"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Departure Time</label><input type="time" id="tripDepartOther"></div>
+        <div><label>Return Time</label><input type="time" id="tripReturnOther" placeholder="Leave blank if ongoing"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label>Destination / Purpose</label><input type="text" id="tripDestOther" placeholder="e.g. Airport — collect Manager"></div>
+        <div><label>KMs Travelled</label><input type="number" id="tripKmOther" placeholder="e.g. 42" min="0"></div>
+      </div>
+      <button class="btn btn-ghost" onclick="logTripOther()"><i class="ti ti-plus" aria-hidden="true"></i> Log Trip</button>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
@@ -3231,8 +3272,8 @@ if('serviceWorker' in navigator){
     </div>
 
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Trip Log</div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>Passengers</th></tr></thead>
-      <tbody id="tripLog"><tr><td colspan="8" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>ODO After</th><th>Passengers</th></tr></thead>
+      <tbody id="tripLog"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -3925,7 +3966,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[] };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{} };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -4480,7 +4521,9 @@ fbRoot.on('value', snapshot=>{
       workshopClosedDate: data.workshopClosedDate || '',
       broadcastAnnouncement: data.broadcastAnnouncement || null,
       deviceSyncStatus: data.deviceSyncStatus || {},
-      knownIssues: data.knownIssues || []
+      knownIssues: data.knownIssues || [],
+      vehicleOdo: data.vehicleOdo || {},
+      activeTrips: data.activeTrips || {}
     };
     // Snapshot of bayAssignments exactly as received from the server just now.
     // Used by save() to tell the difference between "this key is missing
@@ -11397,7 +11440,7 @@ function refreshSupportPage(){
   var boomTrailerEl=document.getElementById('boomActionTrailer');
   if(boomTrailerEl) boomTrailerEl.innerHTML='<option value="">-- No trailer / select --</option>'+inYard.map(function(e){return '<option value="'+e.id+'">'+e.truckNo+'</option>';}).join('');
   renderBoomTargetsGrid(); renderBoomDashboard(); renderBoomRepairLog();
-  const ds=document.getElementById('tripDriver'); if(ds){ const driverStaffList=[...(STAFF['busdriver']||[]), ...(STAFF['pickupdriver']||[])]; ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaffList.map(n=>`<option>${n}</option>`).join(''); }
+  const ds=document.getElementById('tripDriver'); if(ds){ const driverStaffList=[...(STAFF['busdriver']||[]), ...(STAFF['pickupdriver']||[])]; ds.innerHTML='<option value="">-- Select driver --</option>'+driverStaffList.map(n=>`<option>${n}</option>`).join(''); const dso=document.getElementById('tripDriverOther'); if(dso) dso.innerHTML=ds.innerHTML; }
 
   refreshGreasingLog();
   refreshSupportLogs();
@@ -12153,26 +12196,143 @@ function refreshWashLog(){ refreshSupportLogs(); } // unified refresh
 
 
 // ── DRIVER TRIP LOG ──
-function logTrip(){
-  const driver=document.getElementById('tripDriver').value;
-  const vehicle=document.getElementById('tripVehicle').value;
-  const depart=document.getElementById('tripDepart').value;
-  const ret=document.getElementById('tripReturn').value;
-  const dest=document.getElementById('tripDest').value.trim();
-  const km=parseInt(document.getElementById('tripKm').value)||0;
-  const pass=document.getElementById('tripPass').value.trim();
+function logTripOther(){
+  const driver=document.getElementById('tripDriverOther').value;
+  const vehicle=document.getElementById('tripVehicleOther').value.trim();
+  const depart=document.getElementById('tripDepartOther').value;
+  const ret=document.getElementById('tripReturnOther').value;
+  const dest=document.getElementById('tripDestOther').value.trim();
+  const km=parseInt(document.getElementById('tripKmOther').value)||0;
   if(!driver) return toast('⚠️ Select driver','warn');
+  if(!vehicle) return toast('⚠️ Enter vehicle','warn');
   if(!dest) return toast('⚠️ Enter destination','warn');
   if(!depart) return toast('⚠️ Enter departure time','warn');
   if(!S.tripLog) S.tripLog=[];
-  S.tripLog.push({id:Date.now(),driver,vehicle,depart,return:ret,dest,km,passengers:pass,date:new Date().toDateString(),loggedAt:new Date().toISOString()});
+  S.tripLog.push({id:Date.now(),driver,vehicle,depart,return:ret,dest,km,passengers:'',date:new Date().toDateString(),loggedAt:new Date().toISOString()});
   save();
-  document.getElementById('tripDest').value='';
-  document.getElementById('tripKm').value='';
-  document.getElementById('tripReturn').value='';
-  document.getElementById('tripPass').value='';
+  ['tripVehicleOther','tripDestOther','tripKmOther','tripReturnOther','tripDepartOther'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   refreshTripLog();
   toast('🚗 Trip logged for '+driver,'ok');
+}
+
+// ── PUNCH-BASED TRIP TRACKING (Staff Bus / Pickup) ──────────────────────
+// Start captures departure time automatically the moment it's tapped; End
+// captures return time the same way — never typed, so it can't be wrong the
+// way a manually-typed clock time can. Main ODO is a running total that
+// updates itself from each trip's KMs, so nobody has to read and retype the
+// full odometer every trip — only ever set once at initial setup, and
+// occasionally corrected by Manager if it drifts from the real dashboard.
+const TRACKED_VEHICLES=['Staff Bus','Pickup / Company Car'];
+let _pendingTripVehicle=null;
+
+function renderVehicleStatusCards(){
+  const wrap=document.getElementById('vehicleStatusCards');
+  if(!wrap) return;
+  if(!S.activeTrips) S.activeTrips={};
+  if(!S.vehicleOdo) S.vehicleOdo={};
+  wrap.innerHTML=TRACKED_VEHICLES.map(v=>{
+    const active=S.activeTrips[v];
+    const odo=S.vehicleOdo[v]||0;
+    if(active){
+      const mins=Math.round((Date.now()-new Date(active.departTime).getTime())/60000);
+      const ago = mins<60 ? mins+'m' : Math.floor(mins/60)+'h '+(mins%60)+'m';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.25);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div><strong>🚍 ${v}</strong> <span class="tag" style="background:var(--red);color:#fff;margin-left:6px">OUT</span>
+          <div class="text-xs text2" style="margin-top:3px">${active.driver} · ${active.dest} · out ${ago} (since ${new Date(active.departTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})})</div>
+          <div class="text-xs text2">Main ODO: ${odo.toLocaleString()} km</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openEndTrip('${v}')">🏁 End Trip</button>
+      </div>`;
+    }
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.25);border-radius:10px;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div><strong>🚍 ${v}</strong> <span class="tag" style="background:var(--green);color:#fff;margin-left:6px">AVAILABLE</span>
+        <div class="text-xs text2" style="margin-top:3px" id="odoRow_${v.replace(/[^A-Za-z]/g,'')}">Main ODO: <span id="odoDisplay_${v.replace(/[^A-Za-z]/g,'')}">${odo.toLocaleString()}</span> km
+          <span style="color:var(--blue);cursor:pointer;text-decoration:underline dotted;margin-left:6px" onclick="editVehicleOdo('${v}')">✏️ correct</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openStartTrip('${v}')">🚀 Start Trip</button>
+    </div>`;
+  }).join('');
+}
+
+function openStartTrip(vehicle){
+  _pendingTripVehicle=vehicle;
+  document.getElementById('endTripCard').style.display='none';
+  document.getElementById('startTripVehicleLabel').textContent=vehicle;
+  document.getElementById('tripDest').value='';
+  document.getElementById('tripPass').value='';
+  document.getElementById('startTripCard').style.display='block';
+}
+function confirmStartTrip(){
+  const vehicle=_pendingTripVehicle;
+  if(!vehicle) return;
+  const driver=document.getElementById('tripDriver').value;
+  const dest=document.getElementById('tripDest').value.trim();
+  const pass=document.getElementById('tripPass').value.trim();
+  if(!driver) return toast('⚠️ Select driver','warn');
+  if(!dest) return toast('⚠️ Enter destination','warn');
+  if(!S.activeTrips) S.activeTrips={};
+  S.activeTrips[vehicle]={driver,dest,passengers:pass,departTime:new Date().toISOString()};
+  save();
+  document.getElementById('startTripCard').style.display='none';
+  renderVehicleStatusCards();
+  toast('🚀 Trip started for '+driver+' — '+vehicle,'ok');
+}
+function openEndTrip(vehicle){
+  _pendingTripVehicle=vehicle;
+  document.getElementById('startTripCard').style.display='none';
+  const active=(S.activeTrips||{})[vehicle];
+  if(!active) return;
+  document.getElementById('endTripVehicleLabel').textContent=vehicle;
+  document.getElementById('endTripSummary').textContent=active.driver+' · '+active.dest+' · left at '+new Date(active.departTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('tripKmEnd').value='';
+  document.getElementById('tripPassEnd').value=active.passengers||'';
+  document.getElementById('endTripCard').style.display='block';
+}
+function confirmEndTrip(){
+  const vehicle=_pendingTripVehicle;
+  const active=(S.activeTrips||{})[vehicle];
+  if(!vehicle||!active) return;
+  const km=parseInt(document.getElementById('tripKmEnd').value)||0;
+  if(km<=0) return toast('⚠️ Enter KMs travelled for this trip','warn');
+  const pass=document.getElementById('tripPassEnd').value.trim();
+  if(!S.vehicleOdo) S.vehicleOdo={};
+  const newOdo=(S.vehicleOdo[vehicle]||0)+km;
+  S.vehicleOdo[vehicle]=newOdo;
+  if(!S.tripLog) S.tripLog=[];
+  S.tripLog.push({
+    id:Date.now(), driver:active.driver, vehicle, dest:active.dest,
+    depart:new Date(active.departTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    return:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    km, odoAfter:newOdo, passengers:pass,
+    date:new Date().toDateString(), loggedAt:new Date().toISOString()
+  });
+  delete S.activeTrips[vehicle];
+  save();
+  document.getElementById('endTripCard').style.display='none';
+  renderVehicleStatusCards();
+  refreshTripLog();
+  toast('🏁 Trip ended — '+km+' km logged, Main ODO now '+newOdo.toLocaleString()+' km','ok');
+}
+function editVehicleOdo(vehicle){
+  const rowId='odoRow_'+vehicle.replace(/[^A-Za-z]/g,'');
+  const row=document.getElementById(rowId);
+  if(!row) return;
+  if(!S.vehicleOdo) S.vehicleOdo={};
+  const current=S.vehicleOdo[vehicle]||0;
+  row.innerHTML=`Main ODO: <input type="number" id="odoEditInput" value="${current}" style="width:110px;padding:3px 8px;font-size:12px;display:inline-block" min="0"> km
+    <button class="btn btn-primary btn-sm" style="font-size:11px;padding:3px 8px;margin-left:6px" onclick="saveVehicleOdo('${vehicle}')">Save</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="renderVehicleStatusCards()">Cancel</button>`;
+}
+function saveVehicleOdo(vehicle){
+  const el=document.getElementById('odoEditInput');
+  const num=parseInt(el?el.value:'');
+  if(isNaN(num)||num<0) return toast('⚠️ Enter a valid number','warn');
+  if(!S.vehicleOdo) S.vehicleOdo={};
+  S.vehicleOdo[vehicle]=num;
+  save();
+  renderVehicleStatusCards();
+  toast('✅ Main ODO corrected to '+num.toLocaleString()+' km','ok');
 }
 
 // ══════════════════════════════════════════
@@ -12550,6 +12710,7 @@ function deleteSupportRecord(id){
 }
 
 function refreshTripLog(){
+  renderVehicleStatusCards();
   const today=new Date().toDateString();
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
@@ -12561,12 +12722,14 @@ function refreshTripLog(){
   const ckEl=document.getElementById('tripKmToday'); if(ckEl) ckEl.textContent=todayKm+' km';
   const cmEl=document.getElementById('tripCountMonth'); if(cmEl) cmEl.textContent=monthTrips.length;
   const tb=document.getElementById('tripLog'); if(!tb) return;
-  if(!allTrips.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:12px">No trips logged yet</td></tr>';return;}
+  if(!allTrips.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:12px">No trips logged yet</td></tr>';return;}
   tb.innerHTML=[...allTrips].reverse().map(t=>`<tr>
     <td style="font-size:11px">${new Date(t.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
     <td>${t.driver}</td><td>${t.vehicle}</td><td>${t.dest}</td>
     <td>${t.depart||'—'}</td><td>${t.return||'<span style="color:var(--accent)">Active</span>'}</td>
-    <td>${t.km||'—'}${t.km?' km':''}</td><td style="font-size:11px">${t.passengers||'—'}</td>
+    <td>${t.km||'—'}${t.km?' km':''}</td>
+    <td style="font-size:11px">${t.odoAfter?t.odoAfter.toLocaleString()+' km':'—'}</td>
+    <td style="font-size:11px">${t.passengers||'—'}</td>
   </tr>`).join('');
 }
 var _lbDay='today';
