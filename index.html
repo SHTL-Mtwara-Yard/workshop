@@ -8199,6 +8199,16 @@ function checkAutoCompletion(insId){
     else delete S.assistingWorkers[ins.bayNo];
   }
 
+  // Everything below (parking flow, reopen flow, Supervisor alert) is about
+  // deciding what happens to a truck's BAY — but a truck that has already
+  // physically exited through Security has no bay to free or reopen, and no
+  // parking decision left for Supervisor to make. Without this guard, simply
+  // completing a leftover deferred job (see Known Issues) on an
+  // already-exited truck would look like "freshly completed" and re-fire
+  // the whole "Truck Ready — Action Required" popup for a truck that's gone.
+  // Job done/not-done tracking above (for reports) still happens regardless.
+  if(e && e.exitTime) return;
+
   if(allDone && !ins.completedAt){
     // Freshly completed — auto-flag for Supervisor, free the bay
     ins.completedAt=new Date().toISOString();
@@ -8306,12 +8316,12 @@ function showCompletionAlert(insId){
   const displayTruck = (e && e.truckNo) || ins.truckNo || '—'; // Use entry truck number
   _completionAlertCurrentId=insId;
   document.getElementById('caTruckNo').textContent=displayTruck;
-  document.getElementById('caBayNo').textContent=ins.bayNo+' — now free';
+  document.getElementById('caBayNo').textContent=(ins.lastBayNo||ins.bayNo||'—')+' — now free';
   document.getElementById('caReason').value='';
   document.getElementById('caNote').value='';
   document.getElementById('caReworkReason').value='';
   document.getElementById('caReworkNote').value='';
-  document.getElementById('caReworkBay').value=ins.bayNo; // defaults to the bay it just left — Supervisor can override if taken
+  document.getElementById('caReworkBay').value=ins.lastBayNo||ins.bayNo||''; // defaults to the bay it just left — Supervisor can override if taken
   switchCompletionAlertTab('parking'); // always opens on the normal path by default
   const queueNote=document.getElementById('caQueueNote');
   if(_completionAlertQueue.length>1){
