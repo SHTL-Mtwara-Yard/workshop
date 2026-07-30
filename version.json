@@ -1,5 +1,5 @@
 {
-  "v": "v344",
-  "deployed": "2026-07-30T12:23:07Z",
-  "change": "New: Edit link on each Trip Log row to correct a wrong KM/ODO entry (e.g. from the version-changeover mix-up). If the trip being corrected is the vehicle's most recent one, its live Main ODO is corrected to match automatically."
+  "v": "v345",
+  "deployed": "2026-07-30T12:32:33Z",
+  "change": "Trip Log 'Edit' is now locked behind the existing Support > Edit Records Manager-only unlock (name-gated, auto-locks after 10 minutes) \u2014 shows as a locked icon until that's unlocked, same protection as other record corrections."
 }
