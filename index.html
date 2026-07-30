@@ -12809,6 +12809,7 @@ function unlockSupportEdit(){
   document.getElementById('supportEditNameInput').value='';
   if(_supportEditLockTimer) clearTimeout(_supportEditLockTimer);
   _supportEditLockTimer=setTimeout(lockSupportEdit, 10*60*1000);
+  if(typeof refreshTripLog==='function') refreshTripLog();
   toast('🔓 Support Edit unlocked — auto-locks in 10 minutes','ok');
 }
 
@@ -12818,6 +12819,7 @@ function lockSupportEdit(){
   document.getElementById('supportEditPanel').style.display='none';
   document.getElementById('supportEditRecordsList').innerHTML='';
   if(_supportEditLockTimer){clearTimeout(_supportEditLockTimer);_supportEditLockTimer=null;}
+  if(typeof refreshTripLog==='function') refreshTripLog();
   toast('🔒 Support Edit locked','info');
 }
 
@@ -12921,7 +12923,7 @@ function refreshTripLog(){
     <td id="tripOdoCell_${t.id}" style="font-size:11px">${t.odoAfter?t.odoAfter.toLocaleString()+' km':'—'}</td>
     <td style="font-size:11px">${t.passengers||'—'}</td>
     <td style="font-size:11px;color:${t.delayReason?'var(--red)':'var(--text2)'}">${t.delayReason||'—'}</td>
-    <td><span style="font-size:11px;color:var(--blue);cursor:pointer;text-decoration:underline dotted" onclick="editTripLogRow(${t.id})">✏️ Edit</span></td>
+    <td><span style="font-size:11px;color:${_supportEditUnlocked?'var(--blue)':'var(--text2)'};cursor:pointer;text-decoration:underline dotted" onclick="editTripLogRow(${t.id})">${_supportEditUnlocked?'✏️ Edit':'🔒 Edit'}</span></td>
   </tr>`).join('');
 }
 // Correct a past trip's KM/ODO if a wrong number was typed (e.g. an
@@ -12930,6 +12932,10 @@ function refreshTripLog(){
 // vehicle's live Main ODO to match — otherwise only the historical record
 // is corrected, since a newer trip has already moved the real ODO on.
 function editTripLogRow(tripId){
+  if(!_supportEditUnlocked){
+    toast('🔒 Locked — unlock Support > Edit Records first (Manager name required)','warn');
+    return;
+  }
   const t=(S.tripLog||[]).find(x=>x.id===tripId);
   if(!t) return;
   const kmCell=document.getElementById('tripKmCell_'+tripId);
