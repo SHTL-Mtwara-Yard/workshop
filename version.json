@@ -1,5 +1,5 @@
 {
   "v": "v343",
-  "deployed": "2026-07-30T12:12:40Z",
-  "change": "End Trip: for the two tracked vehicles (Bus/Pickup), you now enter the actual current odometer reading instead of a manual KM figure \u2014 it shows the starting reading and computes the distance travelled live as you type, same pattern as Fuel Request. One-off vehicles keep manual KM entry since they have no tracked starting reading."
+  "deployed": "2026-07-30T12:14:59Z",
+  "change": "End Trip (Bus/Pickup): now asks for the new odometer reading instead of KMs travelled \u2014 KM is computed automatically live as you type, so drivers just read the dashboard number and enter it, no mental subtraction. One-off vehicles unchanged (still enter KM directly, no baseline odometer to work from)."
 }
