@@ -1,5 +1,5 @@
 {
-  "v": "v342",
-  "deployed": "2026-07-29T16:04:44Z",
-  "change": "Added proper app icons and a web manifest so the workshop system can be installed as a real app icon on the home screen from Android/Chrome/Desktop (not just iOS Safari) \u2014 look for 'Install App' in the browser menu, or an install prompt may appear automatically."
+  "v": "v343",
+  "deployed": "2026-07-30T12:12:40Z",
+  "change": "End Trip: for the two tracked vehicles (Bus/Pickup), you now enter the actual current odometer reading instead of a manual KM figure \u2014 it shows the starting reading and computes the distance travelled live as you type, same pattern as Fuel Request. One-off vehicles keep manual KM entry since they have no tracked starting reading."
 }
