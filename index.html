@@ -3295,8 +3295,8 @@ if('serviceWorker' in navigator){
     </div>
 
     <div class="card"><div class="card-title"><span class="dot" style="background:var(--blue)"></span>Trip Log</div>
-      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>ODO After</th><th>Passengers</th><th>Delay Reason</th></tr></thead>
-      <tbody id="tripLog"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Driver</th><th>Vehicle</th><th>Destination</th><th>Depart</th><th>Return</th><th>KMs</th><th>ODO After</th><th>Passengers</th><th>Delay Reason</th><th></th></tr></thead>
+      <tbody id="tripLog"><tr><td colspan="11" style="text-align:center;color:var(--text2);padding:16px">No trips logged yet</td></tr></tbody></table></div>
     </div>
 
     <div class="card"><div class="card-title"><span class="dot" style="background:#0891b2"></span>⛽ Fuel Request Log</div>
@@ -12912,16 +12912,52 @@ function refreshTripLog(){
   const ckEl=document.getElementById('tripKmToday'); if(ckEl) ckEl.textContent=todayKm+' km';
   const cmEl=document.getElementById('tripCountMonth'); if(cmEl) cmEl.textContent=monthTrips.length;
   const tb=document.getElementById('tripLog'); if(!tb) return;
-  if(!allTrips.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:12px">No trips logged yet</td></tr>';return;}
-  tb.innerHTML=[...allTrips].reverse().map(t=>`<tr>
+  if(!allTrips.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:12px">No trips logged yet</td></tr>';return;}
+  tb.innerHTML=[...allTrips].reverse().map(t=>`<tr id="tripRow_${t.id}">
     <td style="font-size:11px">${new Date(t.loggedAt).toLocaleDateString('en-GB',{dateStyle:'short'})}</td>
     <td>${t.driver}</td><td>${t.vehicle}</td><td>${t.dest}</td>
     <td>${t.depart||'—'}</td><td>${t.return||'<span style="color:var(--accent)">Active</span>'}</td>
-    <td>${t.km||'—'}${t.km?' km':''}</td>
-    <td style="font-size:11px">${t.odoAfter?t.odoAfter.toLocaleString()+' km':'—'}</td>
+    <td id="tripKmCell_${t.id}">${t.km||'—'}${t.km?' km':''}</td>
+    <td id="tripOdoCell_${t.id}" style="font-size:11px">${t.odoAfter?t.odoAfter.toLocaleString()+' km':'—'}</td>
     <td style="font-size:11px">${t.passengers||'—'}</td>
     <td style="font-size:11px;color:${t.delayReason?'var(--red)':'var(--text2)'}">${t.delayReason||'—'}</td>
+    <td><span style="font-size:11px;color:var(--blue);cursor:pointer;text-decoration:underline dotted" onclick="editTripLogRow(${t.id})">✏️ Edit</span></td>
   </tr>`).join('');
+}
+// Correct a past trip's KM/ODO if a wrong number was typed (e.g. an
+// odometer reading typed into an old KM field during a version changeover).
+// If this trip is the vehicle's most recent one, also updates that
+// vehicle's live Main ODO to match — otherwise only the historical record
+// is corrected, since a newer trip has already moved the real ODO on.
+function editTripLogRow(tripId){
+  const t=(S.tripLog||[]).find(x=>x.id===tripId);
+  if(!t) return;
+  const kmCell=document.getElementById('tripKmCell_'+tripId);
+  const odoCell=document.getElementById('tripOdoCell_'+tripId);
+  if(!kmCell||!odoCell) return;
+  kmCell.innerHTML=`<input type="number" id="editKm_${tripId}" value="${t.km||0}" style="width:70px;padding:3px 6px;font-size:12px">`;
+  odoCell.innerHTML=`<input type="number" id="editOdo_${tripId}" value="${t.odoAfter||''}" style="width:90px;padding:3px 6px;font-size:12px">
+    <button class="btn btn-primary btn-sm" style="font-size:10px;padding:2px 8px;margin-left:4px" onclick="saveTripLogEdit(${tripId})">Save</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:2px 8px" onclick="refreshTripLog()">Cancel</button>`;
+}
+function saveTripLogEdit(tripId){
+  const t=(S.tripLog||[]).find(x=>x.id===tripId);
+  if(!t) return;
+  const newKm=parseInt(document.getElementById('editKm_'+tripId).value)||0;
+  const odoInput=document.getElementById('editOdo_'+tripId).value;
+  const newOdo=odoInput===''?null:parseInt(odoInput);
+  const wasCurrent = t.odoAfter && (S.vehicleOdo||{})[t.vehicle]===t.odoAfter;
+  t.km=newKm;
+  t.odoAfter=newOdo;
+  if(wasCurrent && newOdo!==null){
+    if(!S.vehicleOdo) S.vehicleOdo={};
+    S.vehicleOdo[t.vehicle]=newOdo;
+    toast('✅ Trip corrected — Main ODO for '+t.vehicle+' updated to '+newOdo.toLocaleString()+' km too','ok');
+  } else {
+    toast('✅ Trip corrected','ok');
+  }
+  save();
+  refreshTripLog();
 }
 var _lbDay='today';
 
