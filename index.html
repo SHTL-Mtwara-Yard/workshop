@@ -3274,9 +3274,10 @@ if('serviceWorker' in navigator){
       <div class="card-title" style="margin:0">🏁 End Trip — <span id="endTripVehicleLabel"></span></div>
       <div class="text-xs text2 mb-8" id="endTripSummary"></div>
       <div class="form-row cols-2">
-        <div><label>KMs Travelled This Trip</label><input type="number" id="tripKmEnd" placeholder="e.g. 42" min="0"></div>
+        <div><label>Current Odometer Reading (km)</label><input type="number" id="tripOdoEnd" placeholder="e.g. 49219" min="0" oninput="updateEndTripKmPreview()"></div>
         <div><label>Passengers (optional — update if needed)</label><input type="text" id="tripPassEnd" placeholder="e.g. Mr. Jai Srimannarayana"></div>
       </div>
+      <div class="text-xs mb-8" id="endTripKmPreview" style="font-weight:700;color:var(--accent)"></div>
       <div class="form-row"><div><label>Delay Reason (only if it took longer than expected)</label><input type="text" id="tripDelayReason" placeholder="e.g. Traffic at ferry, waited for Manager"></div></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="confirmEndTrip()">🏁 End Trip Now</button>
@@ -12322,6 +12323,7 @@ function confirmStartTrip(){
   renderVehicleStatusCards();
   toast('🚀 Trip started for '+driver+(vehicle?' — '+vehicle:''),'ok');
 }
+let _endTripStartOdo=null; // baseline ODO for the vehicle being ended — null for one-off (no baseline exists)
 function openEndTrip(vehicle, otherId){
   _pendingTripVehicle=vehicle;
   _pendingOtherTripId=otherId||null;
@@ -12332,10 +12334,32 @@ function openEndTrip(vehicle, otherId){
   if(!active) return;
   document.getElementById('endTripVehicleLabel').textContent=vehicle||active.vehicle;
   document.getElementById('endTripSummary').textContent=active.driver+' · '+active.dest+' · left at '+new Date(active.departTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('tripKmEnd').value='';
+  const odoField=document.getElementById('tripOdoEnd');
+  const odoLabel=odoField.previousElementSibling;
+  if(vehicle){
+    _endTripStartOdo=(S.vehicleOdo||{})[vehicle]||0;
+    odoLabel.textContent='Current Odometer Reading (km)';
+    odoField.placeholder='e.g. '+(_endTripStartOdo+20);
+  } else {
+    _endTripStartOdo=null;
+    odoLabel.textContent='KMs Travelled This Trip';
+    odoField.placeholder='e.g. 42';
+  }
+  odoField.value='';
   document.getElementById('tripPassEnd').value=active.passengers||'';
   document.getElementById('tripDelayReason').value='';
+  document.getElementById('endTripKmPreview').textContent='';
   document.getElementById('endTripCard').style.display='block';
+}
+function updateEndTripKmPreview(){
+  const el=document.getElementById('endTripKmPreview');
+  const val=parseInt(document.getElementById('tripOdoEnd').value)||0;
+  if(_endTripStartOdo===null){ el.textContent=''; return; } // one-off: value IS the km, nothing to compute
+  if(!val){ el.textContent=''; return; }
+  const km=val-_endTripStartOdo;
+  if(km<0){ el.textContent='⚠️ That\'s less than the starting reading ('+_endTripStartOdo.toLocaleString()+' km) — check the number'; el.style.color='var(--red)'; return; }
+  el.style.color='var(--accent)';
+  el.textContent='= '+km.toLocaleString()+' km travelled (from '+_endTripStartOdo.toLocaleString()+' km)';
 }
 function confirmEndTrip(){
   const vehicle=_pendingTripVehicle;
@@ -12343,16 +12367,20 @@ function confirmEndTrip(){
   const active = vehicle ? (S.activeTrips||{})[vehicle]
     : ((S.activeTrips&&S.activeTrips._other)||[]).find(o=>o.id===otherId);
   if(!active) return;
-  const km=parseInt(document.getElementById('tripKmEnd').value)||0;
-  if(km<=0) return toast('⚠️ Enter KMs travelled for this trip','warn');
+  const entered=parseInt(document.getElementById('tripOdoEnd').value)||0;
+  let km, newOdo=null;
+  if(vehicle){
+    if(entered<=_endTripStartOdo) return toast('⚠️ Current reading must be higher than the starting reading ('+_endTripStartOdo.toLocaleString()+' km)','warn');
+    km=entered-_endTripStartOdo;
+    if(!S.vehicleOdo) S.vehicleOdo={};
+    newOdo=entered;
+    S.vehicleOdo[vehicle]=newOdo;
+  } else {
+    km=entered;
+    if(km<=0) return toast('⚠️ Enter KMs travelled for this trip','warn');
+  }
   const pass=document.getElementById('tripPassEnd').value.trim();
   const delayReason=document.getElementById('tripDelayReason').value.trim();
-  let newOdo=null;
-  if(vehicle){
-    if(!S.vehicleOdo) S.vehicleOdo={};
-    newOdo=(S.vehicleOdo[vehicle]||0)+km;
-    S.vehicleOdo[vehicle]=newOdo;
-  }
   if(!S.tripLog) S.tripLog=[];
   S.tripLog.push({
     id:Date.now(), driver:active.driver, vehicle:vehicle||active.vehicle, dest:active.dest,
