@@ -1,5 +1,5 @@
 {
-  "v": "v343",
-  "deployed": "2026-07-30T12:14:59Z",
-  "change": "End Trip (Bus/Pickup): now asks for the new odometer reading instead of KMs travelled \u2014 KM is computed automatically live as you type, so drivers just read the dashboard number and enter it, no mental subtraction. One-off vehicles unchanged (still enter KM directly, no baseline odometer to work from)."
+  "v": "v344",
+  "deployed": "2026-07-30T12:23:07Z",
+  "change": "New: Edit link on each Trip Log row to correct a wrong KM/ODO entry (e.g. from the version-changeover mix-up). If the trip being corrected is the vehicle's most recent one, its live Main ODO is corrected to match automatically."
 }
