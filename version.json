@@ -1,5 +1,5 @@
 {
-  "v": "v346",
-  "deployed": "2026-07-31T07:05:23Z",
-  "change": "Fix root cause of large 'X pending' counts and slow Supervisor saves: three different places in the code initialized a truck's job list with different sets of departments (some missing Pneumatic/Suspension), making identical inspections look permanently 'changed' between devices and dragging every save through a huge, mostly-fake changed-records payload. Devices should self-correct after reloading to this version."
+  "v": "v322",
+  "deployed": "2026-07-31T11:06:43Z",
+  "change": "Format Daily Report All Faults as numbered list (screen + Excel exports)"
 }
