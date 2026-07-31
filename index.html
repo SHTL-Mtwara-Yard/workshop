@@ -14969,6 +14969,29 @@ function dateStamp(){
 
 // ═══ EXPORT: ALL JOB CARDS ═══
 // ═══ DAILY REPORT: Date, Truck, Bay, Status, Faults — pending & left-today ═══
+// Formats a list of faults as a numbered list — "1. xxx\n2. yyy" for Excel
+// cells (real newlines, needs wrapText on the cell to display properly), or
+// "1. xxx<br>2. yyy" for on-screen HTML tables.
+function numberedFaultsText(faults){
+  if(!faults || !faults.length) return '—';
+  return faults.map(function(f,i){ return (i+1)+'. '+f; }).join('\n');
+}
+function numberedFaultsHtml(faults){
+  if(!faults || !faults.length) return '—';
+  return faults.map(function(f,i){ return (i+1)+'. '+f; }).join('<br>');
+}
+// Applies wrap-text + top-vertical-alignment styling to a column of cells in
+// a SheetJS worksheet, so multi-line numbered fault lists actually display
+// as separate lines instead of Excel collapsing them into one row.
+function applyWrapTextToColumn(ws, colIndex, rowCount){
+  for(var r=1; r<=rowCount; r++){
+    var addr=XLSX.utils.encode_cell({r:r, c:colIndex});
+    if(ws[addr]){
+      ws[addr].s = { alignment: { wrapText: true, vertical: 'top' } };
+    }
+  }
+}
+
 function getDailyReportRows(){
   var picker=document.getElementById('drDatePicker');
   var targetDate = picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
@@ -15061,7 +15084,7 @@ function renderDailyReport(){
     return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td><td>'+r.etd+'</td>'+
       '<td>'+r.timeIn+'</td><td>'+r.timeOut+'</td>'+
       '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
-      '<td>'+(r.faults.join('; ')||'—')+'</td>'+
+      '<td>'+numberedFaultsHtml(r.faults)+'</td>'+
       '<td style="color:'+partsColor+'">'+partsStr+'</td></tr>';
   }).join('');
 }
@@ -15108,11 +15131,12 @@ function exportDailyReportCSV(){
 function _generateDailyReportFile(){
   var rows=getDailyReportRows();
   var headers=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
-  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
+  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
     ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+    applyWrapTextToColumn(ws, 8, data.length); // "All Faults" is column index 8
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
     var picker=document.getElementById('drDatePicker');
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
@@ -15185,9 +15209,10 @@ function exportCombinedReport(){
   // Sheet 1: Daily Report (same rows as "Download for Boss")
   const drRows=getDailyReportRows();
   const drHeaders=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
-  const drData=drRows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, r.faults.join('; ')||'—', r.parts.join('; ')||'—']; });
+  const drData=drRows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
   const ws1=XLSX.utils.aoa_to_sheet([drHeaders].concat(drData));
   ws1['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+  applyWrapTextToColumn(ws1, 8, drData.length); // "All Faults" is column index 8
   XLSX.utils.book_append_sheet(wb, ws1, 'Daily Report');
 
   // Sheet 2: Repair History (same rows as "Download Repair History", uses
