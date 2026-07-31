@@ -4161,7 +4161,7 @@ function _computePendingSummary(){
     (S[c.key]||[]).forEach(function(item){
       var key=item[c.idField];
       var wasSynced=syncedMap[key];
-      var unchanged = wasSynced!==undefined && stableStringify(item)===wasSynced;
+      var unchanged = wasSynced!==undefined && stableStringify(c.key==='inspections'?normalizeInspectionShape(item):item)===wasSynced;
       if(!unchanged) pending.push(c.label(item));
     });
   });
@@ -4259,6 +4259,23 @@ var _lastSyncedKnownIssues={};
 // through localStorage — even when the DATA is identical. That mismatch
 // was the cause of devices showing wildly inflated "pending" counts
 // (hundreds of records that were never actually unsynced).
+// Different code paths have, at various points, initialized an inspection's
+// jobs object with different sets of department keys (some only seeded
+// mech/elec/tyre/weld, missing pneumatic/suspension entirely). That's not
+// a data problem — an inspection with no pneumatic jobs is the same real
+// thing whether it has "pneumatic: []" or no pneumatic key at all — but it
+// IS a comparison problem: two copies of the same inspection that merely
+// differ in which empty keys happen to be present would look "changed"
+// forever, none of the actual writes ever catching up. This normalizes
+// shape ONLY for comparison purposes — never for what actually gets saved.
+function normalizeInspectionShape(ins){
+  if(!ins || typeof ins!=='object') return ins;
+  var jobs=ins.jobs||{};
+  return Object.assign({}, ins, {jobs:{
+    mech:jobs.mech||[], elec:jobs.elec||[], tyre:jobs.tyre||[],
+    weld:jobs.weld||[], pneumatic:jobs.pneumatic||[], suspension:jobs.suspension||[]
+  }});
+}
 function stableStringify(obj){
   if(obj===null || typeof obj!=='object') return JSON.stringify(obj);
   if(Array.isArray(obj)) return '['+obj.map(stableStringify).join(',')+']';
@@ -4309,7 +4326,7 @@ const _doSave=()=>{
     serverInsp.forEach(ins=>{ if(ins) merged[ins.entryId]=ins; });
     (S.inspections||[]).forEach(ins=>{
       const lastSynced=_lastSyncedInspections[ins.entryId];
-      const localUnchanged = lastSynced!==undefined && stableStringify(ins)===lastSynced;
+      const localUnchanged = lastSynced!==undefined && stableStringify(normalizeInspectionShape(ins))===lastSynced;
       if(!localUnchanged) merged[ins.entryId]=ins;
     });
     Object.keys(_lastSyncedInspections).forEach(key=>{
@@ -4473,7 +4490,7 @@ function _doFreshResync(){
     (S.inspections||[]).forEach(function(ins){
       var existing=mergedInspections[ins.entryId];
       var lastSynced=_lastSyncedInspections[ins.entryId];
-      var localUnchanged = lastSynced!==undefined && stableStringify(ins)===lastSynced;
+      var localUnchanged = lastSynced!==undefined && stableStringify(normalizeInspectionShape(ins))===lastSynced;
       if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
     });
     S.entries=Object.values(mergedEntries);
@@ -4568,7 +4585,7 @@ fbRoot.on('value', snapshot=>{
     // (local wins). This is what stops a Ground Team device's unrelated save
     // from silently reverting a bay allocation or exit punch made elsewhere.
     _lastSyncedInspections = {};
-    (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = stableStringify(ins); });
+    (S.inspections||[]).forEach(ins=>{ _lastSyncedInspections[ins.entryId] = stableStringify(normalizeInspectionShape(ins)); });
     _lastSyncedEntries = {};
     (S.entries||[]).forEach(e=>{ _lastSyncedEntries[e.id] = stableStringify(e); });
     _lastSyncedSupportJobs = {};
@@ -4595,7 +4612,7 @@ fbRoot.on('value', snapshot=>{
         localArr.forEach(function(item){
           var key = item[c.idField];
           var wasSynced = syncedMap[key];
-          var stillUnchanged = wasSynced!==undefined && stableStringify(item)===wasSynced;
+          var stillUnchanged = wasSynced!==undefined && stableStringify(c.key==='inspections'?normalizeInspectionShape(item):item)===wasSynced;
           if(!stillUnchanged){ freshMap[key] = item; _recovered = true; }
         });
         S[c.key] = Object.values(freshMap);
@@ -9038,7 +9055,7 @@ function addGroundJob(insId,dept){
     S.inspections.push(ins);
     toast('ℹ️ No supervisor inspection found — auto-created job record','warn');
   }
-  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[]};
+  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[],pneumatic:[],suspension:[]};
   if(!ins.jobs[dept]) ins.jobs[dept]=[];
   const nextSno=ins.jobs[dept].length+1;
   ins.jobs[dept].push({
@@ -14828,7 +14845,7 @@ function mechAddJob(insId){
   if(!desc){ inp.style.border='1px solid #ef4444'; return; }
   var ins = S.inspections.find(function(i){ return String(i.id)===String(insId); });
   if(!ins) return;
-  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[]};
+  if(!ins.jobs) ins.jobs={mech:[],elec:[],tyre:[],weld:[],pneumatic:[],suspension:[]};
   if(!ins.jobs.mech) ins.jobs.mech=[];
   ins.jobs.mech.push({
     desc:desc, done:false, addedBy:_mechPwaName,
