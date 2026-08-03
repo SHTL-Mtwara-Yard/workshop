@@ -15058,7 +15058,9 @@ function getDailyReportRows(){
           line+=' — Deferred: '+upd.deferReason+(upd.deferPart?' — '+upd.deferPart:'');
         } else if(isDone && upd.note){
           line+=' → '+upd.note;
-        } else if(!isDone){
+        } else if(isDone){
+          line+=' (done)';
+        } else {
           line+=' (pending)';
         }
         faults.push(line);
