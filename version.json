@@ -1,5 +1,5 @@
 {
-  "v": "v323",
-  "deployed": "2026-08-03T12:48:52Z",
-  "change": "CRITICAL FIX: stop periodic resync from force-navigating users off Bay Work to Punch Status every 3 min"
+  "v": "v324",
+  "deployed": "2026-08-03T14:12:22Z",
+  "change": "Show Gate In time + elapsed hours since entry in Setting ETD For panel on Ground page"
 }
