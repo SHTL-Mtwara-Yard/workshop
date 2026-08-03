@@ -4251,6 +4251,7 @@ var _lastSyncedEntries={};
 var _lastSyncedSupportJobs={};
 var _lastSyncedDeptETDs={};
 var _lastSyncedKnownIssues={};
+var _lastSyncedJobUpdates={};
 // Order-independent stringify — used everywhere the app compares "is this
 // record actually different from what was last confirmed synced". Plain
 // JSON.stringify is NOT safe for that: its output depends on the order
@@ -4401,15 +4402,33 @@ const _doSave=()=>{
     return Object.values(merged);
   });
 
+  // jobUpdates — {insId_dept_idx: {done, doneBy, time, note, ...}} — every
+  // job checkbox toggle, repair note, and "done by" across EVERY truck and
+  // department, written by EVERY Ground Team device. This is likely the
+  // single highest-frequency, most-concurrently-edited field in the whole
+  // app, yet it was never given the same transaction protection as
+  // entries/inspections/bayAssignments/supportJobs/deptETDs/knownIssues —
+  // meaning a repair note or completed-job mark could be silently erased by
+  // another device's unrelated save moments later. Same fix as bayAssignments
+  // and deptETDs: union merge, with deliberate local deletions honored.
+  const jobUpdatesTxn = fbRoot.child('jobUpdates').transaction(serverJU=>{
+    serverJU = serverJU || {};
+    const merged = Object.assign({}, serverJU, S.jobUpdates||{});
+    Object.keys(_lastSyncedJobUpdates).forEach(key=>{
+      if(!(key in (S.jobUpdates||{}))) delete merged[key];
+    });
+    return merged;
+  });
+
   // Everything else in S (staffRoster, notifications, etc.) — these haven't
   // shown the same concurrent-conflict pattern, so keep the simpler direct
   // write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus' && k!=='knownIssues');
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus' && k!=='knownIssues' && k!=='jobUpdates');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
-  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, knownIssuesTxn, restWrite]).then(()=>{
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, knownIssuesTxn, jobUpdatesTxn, restWrite]).then(()=>{
     _saving=false;
     if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   }).catch(err=>{
@@ -4592,6 +4611,7 @@ fbRoot.on('value', snapshot=>{
     (S.supportJobs||[]).forEach(j=>{ _lastSyncedSupportJobs[j.id] = stableStringify(j); });
     _lastSyncedKnownIssues = {};
     (S.knownIssues||[]).forEach(k=>{ _lastSyncedKnownIssues[k.id] = stableStringify(k); });
+    _lastSyncedJobUpdates = Object.assign({}, S.jobUpdates||{});
 
     // ── OFFLINE-WRITE RECOVERY: reapply on first snapshot ─────────────
     // Runs once, only on the very first real Firebase snapshot after load
