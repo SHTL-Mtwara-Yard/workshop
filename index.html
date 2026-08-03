@@ -9791,6 +9791,8 @@ function refreshFleet(){
 // name, never this sanitized version.
 function safeKey(s){ return String(s||'').replace(/[.#$\[\]\/]/g,'_'); }
 var _etdAnnouncementsEnabled=false;
+var _hasDoneInitialPageRestore=false;
+var _hasRegisteredAutoCleanInterval=false;
 var _lastHeardBroadcastId=null;
 var _hasSeenFirstBroadcastSnapshot=false;
 var _etdAnnounceInterval=null;
@@ -18774,7 +18776,15 @@ function runInitialRender(){
     refreshReqHistory();
     if(_mechPwaName) renderMechPwa();
     if(_viewPwaName) renderViewPwa();
-    // Restore last active page
+    // Restore last active page -- ONLY on the true first call after page load.
+    // This function also gets called again by the periodic background resync
+    // (every 3 min, see _doFreshResync) to refresh data on long-open tabs.
+    // Without this guard, that resync would silently force-navigate anyone
+    // back to their last-saved page every 3 minutes, e.g. yanking Ground
+    // Team off Bay Work mid-task back to Punch Status, since showPage()
+    // always resets Ground's sub-tab to Punch Status by default.
+    if(!_hasDoneInitialPageRestore){
+    _hasDoneInitialPageRestore = true;
     try{
       var lastPage = localStorage.getItem('shtl_lastPage');
       if(lastPage && document.getElementById('page-'+lastPage) && !_mechPwaName && !_viewPwaName && !_secPwaName){
@@ -18788,10 +18798,16 @@ function runInitialRender(){
       var secBtn2 = document.querySelector('.nav-tab[onclick*="\'security\'"]');
       showPage('security', secBtn2);
     }
+    }
   }catch(e){ console.warn('Initial render error:',e); }
-  // Auto-clean stale punches: run on load + every hour
-  try{ autoCleanStalePunches(); }catch(e){}
-  setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
+  // Auto-clean stale punches: run on load + every hour -- registered only
+  // once (guarded), since runInitialRender can now be called repeatedly by
+  // the periodic resync and would otherwise stack a new interval every time.
+  if(!_hasRegisteredAutoCleanInterval){
+    _hasRegisteredAutoCleanInterval = true;
+    try{ autoCleanStalePunches(); }catch(e){}
+    setInterval(function(){ try{ autoCleanStalePunches(); }catch(e){} }, 3600000);
+  }
   // DISABLED per Manager instruction: Off Day is now reference-only information,
   // shown as a visual hint on the sheet, and must NEVER be auto-written into the
   // actual daily attendance record. Manager updates Present/Absent/Sick/Leave/OFF
