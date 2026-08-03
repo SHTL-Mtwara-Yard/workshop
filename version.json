@@ -1,5 +1,5 @@
 {
-  "v": "v325",
-  "deployed": "2026-08-03T15:06:04Z",
-  "change": "CRITICAL: protect jobUpdates (repair notes, job done marks) with same transaction fix as other volatile fields"
+  "v": "v326",
+  "deployed": "2026-08-03T15:09:11Z",
+  "change": "Daily Report All Faults always shows explicit status per line (was blank for done-no-note jobs)"
 }
