@@ -1,5 +1,5 @@
 {
-  "v": "v324",
-  "deployed": "2026-08-03T14:12:22Z",
-  "change": "Show Gate In time + elapsed hours since entry in Setting ETD For panel on Ground page"
+  "v": "v325",
+  "deployed": "2026-08-03T15:06:04Z",
+  "change": "CRITICAL: protect jobUpdates (repair notes, job done marks) with same transaction fix as other volatile fields"
 }
