@@ -1,5 +1,5 @@
 {
-  "v": "v322",
-  "deployed": "2026-07-31T11:06:43Z",
-  "change": "Format Daily Report All Faults as numbered list (screen + Excel exports)"
+  "v": "v323",
+  "deployed": "2026-08-03T12:48:52Z",
+  "change": "CRITICAL FIX: stop periodic resync from force-navigating users off Bay Work to Punch Status every 3 min"
 }
