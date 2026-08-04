@@ -8004,12 +8004,12 @@ function loadBayJobs(){
       const showPrompt = isDone && !upd.note && _awaitingNotePrompt[key];
       let promptHtml='';
       if(showPrompt){
-        const chips=(REPAIR_ACTION_CHIPS[d]||[]).map(c=>`<span class="tag" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);font-weight:600" onclick="pickRepairNote('${ins.id}','${d}',${i},'${c.replace(/'/g,"\\'")}')">${c}</span>`).join(' ');
+        const chips=(REPAIR_ACTION_CHIPS[d]||[]).map(c=>`<span class="tag" style="cursor:pointer;background:#1d4ed8;color:#fff;border:2px solid #1e40af;font-weight:800;font-size:12.5px;padding:6px 12px" onclick="pickRepairNote('${ins.id}','${d}',${i},'${c.replace(/'/g,"\\'")}')">${c}</span>`).join(' ');
         promptHtml=`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          <span style="font-size:10px;color:var(--text2);width:100%">What was done? (optional)</span>
+          <span style="font-size:12.5px;color:#1e293b;font-weight:800;width:100%">What was done? (optional)</span>
           ${chips}
-          <span class="tag" style="cursor:pointer;color:var(--text2)" onclick="skipRepairNote('${ins.id}','${d}',${i})">Skip</span>
-          <span style="font-size:10.5px;color:var(--blue);cursor:pointer;text-decoration:underline dotted" onclick="showRepairNoteInput('${ins.id}','${d}',${i})">own words</span>
+          <span class="tag" style="cursor:pointer;background:#64748b;color:#fff;font-weight:700;border:2px solid #475569" onclick="skipRepairNote('${ins.id}','${d}',${i})">Skip</span>
+          <span style="font-size:12px;color:#1d4ed8;font-weight:700;cursor:pointer;text-decoration:underline" onclick="showRepairNoteInput('${ins.id}','${d}',${i})">own words</span>
           <div id="rnInput_${d}_${i}" style="display:none;gap:6px;width:100%;margin-top:4px">
             <input type="text" id="rnText_${d}_${i}" placeholder="e.g. Fabricated new bracket" style="flex:1;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:8px">
             <button class="btn btn-primary btn-sm" onclick="saveRepairNoteInput('${ins.id}','${d}',${i})">Save</button>
