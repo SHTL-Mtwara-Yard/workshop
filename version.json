@@ -1,5 +1,5 @@
 {
-  "v": "v326",
-  "deployed": "2026-08-03T15:09:11Z",
-  "change": "Daily Report All Faults always shows explicit status per line (was blank for done-no-note jobs)"
+  "v": "v327",
+  "deployed": "2026-08-04T05:19:18Z",
+  "change": "Boost contrast on What was done chips for daylight/outdoor visibility"
 }
