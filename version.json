@@ -1,5 +1,5 @@
 {
-  "v": "v341",
-  "deployed": "2026-08-05T16:21:26Z",
-  "change": "Merge End-of-Day Balance reasons into Daily Report / Download for Boss"
+  "v": "v342",
+  "deployed": "2026-08-05T16:30:17Z",
+  "change": "Fix timezone bug causing EOD Balance reasons to never match today's date in Daily Report"
 }
