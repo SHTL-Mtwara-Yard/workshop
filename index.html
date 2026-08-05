@@ -16311,10 +16311,10 @@ function renderEaToolChecklistDrawer(savedChecklist){
       var safeId=(cat+'_'+toolName).replace(/[^a-zA-Z0-9]/g,'_');
       html+='<div style="display:grid;grid-template-columns:2fr repeat(4,1fr);gap:6px;align-items:center;margin-bottom:4px">';
       html+='<div style="font-size:12px">'+toolName+'</div>';
-      html+='<input type="number" placeholder="Req" id="eatc_'+safeId+'_required" value="'+(d.required!=null?d.required:'')+'" style="font-size:11px;padding:4px 5px">';
-      html+='<input type="number" placeholder="Avail" id="eatc_'+safeId+'_available" value="'+(d.available!=null?d.available:'')+'" style="font-size:11px;padding:4px 5px">';
-      html+='<input type="number" placeholder="Dmgd" id="eatc_'+safeId+'_damaged" value="'+(d.damaged!=null?d.damaged:'')+'" style="font-size:11px;padding:4px 5px">';
-      html+='<input type="number" placeholder="Miss" id="eatc_'+safeId+'_missing" value="'+(d.missing!=null?d.missing:'')+'" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Req" id="eatc_'+safeId+'_required" value="'+(d.required!=null?d.required:'')+'" oninput="recalcEaAutoStatus()" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Avail" id="eatc_'+safeId+'_available" value="'+(d.available!=null?d.available:'')+'" oninput="recalcEaAutoStatus()" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Dmgd" id="eatc_'+safeId+'_damaged" value="'+(d.damaged!=null?d.damaged:'')+'" oninput="recalcEaAutoStatus()" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Miss" id="eatc_'+safeId+'_missing" value="'+(d.missing!=null?d.missing:'')+'" oninput="recalcEaAutoStatus()" style="font-size:11px;padding:4px 5px">';
       html+='</div>';
     });
   });
@@ -16347,6 +16347,38 @@ function collectEaToolChecklist(){
     });
   });
   return result;
+}
+
+// Item #1's status auto-follows whatever's entered in the B-H checklist
+// drawer, live as the Safety Officer types — no need to also tap a status
+// button separately. Rule: any tool short of its required qty, or marked
+// damaged/missing, counts as an issue; if issues affect half or more of the
+// entered items (or any required tool has zero available), status goes to
+// Not Available; any issue at all -> Needs Attention; no issues -> Good.
+// If nothing has been entered yet, leaves item #1's status untouched so a
+// manual tap still works normally.
+function computeEaAutoStatusFromChecklist(checklist){
+  var totalEntered=0, totalIssues=0, severeIssues=0;
+  Object.keys(checklist).forEach(function(cat){
+    Object.keys(checklist[cat]).forEach(function(tool){
+      var d=checklist[cat][tool];
+      var req=parseFloat(d.required)||0, avail=parseFloat(d.available)||0, dmg=parseFloat(d.damaged)||0, miss=parseFloat(d.missing)||0;
+      if(req===0 && avail===0 && dmg===0 && miss===0) return; // not entered, skip
+      totalEntered++;
+      if(avail<req || dmg>0 || miss>0) totalIssues++;
+      if(req>0 && avail===0) severeIssues++;
+    });
+  });
+  if(totalEntered===0) return null;
+  if(severeIssues>0 || (totalIssues/totalEntered)>=0.5) return 'notavail';
+  if(totalIssues>0) return 'attention';
+  return 'good';
+}
+
+function recalcEaAutoStatus(){
+  var checklist=collectEaToolChecklist();
+  var autoStatus=computeEaAutoStatusFromChecklist(checklist);
+  if(autoStatus) setEaStatus(1, autoStatus);
 }
 
 function eaDateInput(slNo,field,label,val){
