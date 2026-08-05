@@ -780,6 +780,7 @@ window.addEventListener('appinstalled', function(){
   <div class="nav-tab" onclick="showPage('stores',this)">🏪 Stores</div>
   <div class="nav-tab" onclick="showPage('fleet',this)">🚚 Fleet</div>
   <div class="nav-tab" onclick="showPage('excellence',this)">🏆 Excellence Audit</div>
+  <div class="nav-tab" onclick="showPage('tools',this)">🔧 Tools</div>
   <div class="nav-right">
     <span class="conn-indicator" id="connIndicator">🟡 Connecting...</span>
     <span class="clock" id="clockDisplay">--:--:--</span>
@@ -3821,6 +3822,48 @@ window.addEventListener('appinstalled', function(){
   <input type="file" id="eaPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleEaPhotoCapture(event)">
 </div>
 
+<!-- ═══════════════ TOOL ISSUANCE & INSPECTION (General Hand Tools) ═══════════════ -->
+<div class="page" id="page-tools">
+  <div class="page-title">🔧 Tool Issuance &amp; Inspection</div>
+  <div class="page-sub mb-12">General Hand Tools · issued by Stores/Supervisor to a mechanic, later inspected by Safety Officer</div>
+
+  <div class="subnav">
+    <button class="subtab active" id="tooltab-issue" onclick="showToolsTab('issue',this)">📤 Issue Tool</button>
+    <button class="subtab" id="tooltab-inspect" onclick="showToolsTab('inspect',this)">🔍 Inspect</button>
+  </div>
+
+  <!-- ISSUE TOOL SUBTAB -->
+  <div id="tools-tab-issue">
+    <div class="card mb-12" style="border-top:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📤 Issue a Tool</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px">
+        <div><label>Tool</label><select id="tiToolSelect"></select></div>
+        <div><label>Mechanic</label><select id="tiMechanicSelect"></select></div>
+        <div><label>Quantity</label><input type="number" id="tiQty" value="1" min="1"></div>
+        <div><label>Issued By</label><input type="text" id="tiIssuedBy" placeholder="Stores/Supervisor name"></div>
+      </div>
+      <button class="btn btn-primary mt-12" onclick="issueTool()">📤 Issue Tool</button>
+    </div>
+
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>📋 Currently Issued Tools</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Tool</th><th>Mechanic</th><th>Qty</th><th>Issued By</th><th>Issued Date</th><th>Status</th><th></th></tr></thead>
+        <tbody id="tiIssuedTable"><tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No tools issued yet</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- INSPECT SUBTAB -->
+  <div id="tools-tab-inspect" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <input type="text" id="tiInspectorName" placeholder="Safety Officer name" style="max-width:260px">
+      <button class="btn btn-ghost btn-sm" onclick="downloadToolInspectionCSV()">📥 Download</button>
+    </div>
+    <div id="tiInspectByMechanic"></div>
+  </div>
+</div>
+
 
 <!-- ════════════════ SPARE PARTS PENDING MODAL ════════════════ -->
 <div class="modal-overlay" id="sparePartModal">
@@ -4087,7 +4130,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{}, vehicleFuel:{}, fuelRequests:[], excellenceAudits:[] };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{}, vehicleFuel:{}, fuelRequests:[], excellenceAudits:[], toolIssuance:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -4678,6 +4721,7 @@ fbRoot.on('value', snapshot=>{
       workshopClosedDate: data.workshopClosedDate || '',
       broadcastAnnouncement: data.broadcastAnnouncement || null,
       excellenceAudits: data.excellenceAudits || [],
+      toolIssuance: data.toolIssuance || [],
       deviceSyncStatus: data.deviceSyncStatus || {},
       knownIssues: data.knownIssues || [],
       vehicleOdo: data.vehicleOdo || {},
@@ -5015,7 +5059,7 @@ function showPage(id,el){
   try{ localStorage.setItem('shtl_lastPage', id); }catch(e){}
   // Clear manager tray when navigating away from manager page
   if(id!=='manager'){ var tray=document.getElementById('managerReadyTray'); if(tray)tray.innerHTML=''; }
-  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage,excellence:refreshExcellenceAudit,
+  const map={supervisor:refreshSupervisorPage,ground:refreshGroundPage,jobcards:refreshJobCards,revisit:refreshRevisit,manager:refreshManager,overview:refreshOverview,fleet:refreshFleet,incharge:refreshInchargePage,support:refreshSupportPage,stores:refreshStoresPage,excellence:refreshExcellenceAudit,tools:refreshToolsPage,
     security:function(){
     try{ refreshSecurityLog(); }catch(e){ console.error('refreshSecurityLog failed:',e); }
     try{ refreshDropdowns(); }catch(e){ console.error('refreshDropdowns failed:',e); }
@@ -16362,6 +16406,161 @@ function downloadExcellenceAuditXLSX(){
   } else {
     exportCSV('SHTL_Excellence_Audit_'+monthVal+'.csv', auditHeaders, auditRows);
   }
+}
+
+// ═══════════════ TOOL ISSUANCE & INSPECTION (General Hand Tools) ═══════════════
+const TOOL_CATEGORY_A_ITEMS = [
+  'Combination spanner set','Ring spanner set','Socket set 1/4"','Socket set 3/8"','Socket set 1/2"','Socket set 3/4"',
+  'Torque wrench','Allen key set','Screwdriver set','Adjustable wrench','Pipe wrench',
+  'Pliers - Combination','Pliers - Long Nose','Pliers - Cutting',
+  'Hammer - Ball Peen','Hammer - Rubber','Hammer - Sledge',
+  'Punch & Chisel set','Feeler gauge','Vernier caliper','Micrometer'
+];
+const TOOL_STATUS_META={
+  notinspected: {label:'Not Inspected', color:'var(--text2)', emoji:'⚪'},
+  good:         {label:'Good',          color:'var(--green)', emoji:'🟢'},
+  damaged:      {label:'Damaged',       color:'var(--yellow)', emoji:'🟠'},
+  missing:      {label:'Missing',       color:'var(--red)', emoji:'🔴'}
+};
+
+function refreshToolsPage(){
+  var toolSel=document.getElementById('tiToolSelect');
+  if(toolSel && !toolSel.dataset.populated){
+    toolSel.innerHTML=TOOL_CATEGORY_A_ITEMS.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+    toolSel.dataset.populated='1';
+  }
+  var mechSel=document.getElementById('tiMechanicSelect');
+  if(mechSel){
+    var names=(typeof ALL_STAFF!=='undefined' && ALL_STAFF.length) ? ALL_STAFF : [];
+    mechSel.innerHTML=names.map(function(n){ return '<option value="'+n+'">'+n+'</option>'; }).join('');
+  }
+  renderIssuedToolsTable();
+  renderInspectByMechanic();
+}
+
+function showToolsTab(tab, el){
+  ['issue','inspect'].forEach(function(t){
+    var d=document.getElementById('tools-tab-'+t);
+    if(d) d.style.display=t===tab?'block':'none';
+    var b=document.getElementById('tooltab-'+t);
+    if(b) b.classList.toggle('active', t===tab);
+  });
+  if(el){
+    document.querySelectorAll('#page-tools .subtab').forEach(function(t){ t.classList.remove('active'); });
+    el.classList.add('active');
+  }
+  if(tab==='inspect') renderInspectByMechanic();
+}
+
+function issueTool(){
+  var tool=document.getElementById('tiToolSelect').value;
+  var mechanic=document.getElementById('tiMechanicSelect').value;
+  var qty=parseInt(document.getElementById('tiQty').value)||1;
+  var issuedBy=document.getElementById('tiIssuedBy').value.trim();
+  if(!mechanic) return toast('⚠️ Select a mechanic','warn');
+  if(!issuedBy) return toast('⚠️ Enter who is issuing the tool','warn');
+
+  if(!S.toolIssuance) S.toolIssuance=[];
+  S.toolIssuance.push({
+    id: Date.now()+Math.random(),
+    tool: tool, mechanic: mechanic, qty: qty,
+    issuedBy: issuedBy, issuedAt: new Date().toISOString(),
+    status: 'notinspected', inspectedBy:'', inspectedAt:'', returned:false
+  });
+  save();
+  document.getElementById('tiIssuedBy').value='';
+  renderIssuedToolsTable();
+  renderInspectByMechanic();
+  toast('📤 '+tool+' issued to '+mechanic,'ok');
+}
+
+function renderIssuedToolsTable(){
+  var tb=document.getElementById('tiIssuedTable');
+  if(!tb) return;
+  var records=(S.toolIssuance||[]).filter(function(r){ return !r.returned; })
+    .slice().sort(function(a,b){ return new Date(b.issuedAt)-new Date(a.issuedAt); });
+  if(!records.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:16px">No tools issued yet</td></tr>';
+    return;
+  }
+  tb.innerHTML=records.map(function(r){
+    var meta=TOOL_STATUS_META[r.status]||TOOL_STATUS_META.notinspected;
+    return '<tr><td>'+r.tool+'</td><td class="fw-700">'+r.mechanic+'</td><td>'+r.qty+'</td>'
+      +'<td>'+r.issuedBy+'</td><td>'+new Date(r.issuedAt).toLocaleDateString('en-GB')+'</td>'
+      +'<td style="color:'+meta.color+';font-weight:700">'+meta.emoji+' '+meta.label+'</td>'
+      +'<td><button class="btn btn-ghost btn-sm" onclick="returnTool(\''+r.id+'\')">↩ Return</button></td></tr>';
+  }).join('');
+}
+
+function returnTool(id){
+  var rec=(S.toolIssuance||[]).find(function(r){ return String(r.id)===String(id); });
+  if(!rec) return;
+  rec.returned=true;
+  rec.returnedAt=new Date().toISOString();
+  save();
+  renderIssuedToolsTable();
+  renderInspectByMechanic();
+  toast('↩ '+rec.tool+' returned from '+rec.mechanic,'ok');
+}
+
+function renderInspectByMechanic(){
+  var container=document.getElementById('tiInspectByMechanic');
+  if(!container) return;
+  var records=(S.toolIssuance||[]).filter(function(r){ return !r.returned; });
+  if(!records.length){
+    container.innerHTML='<div class="card"><div style="text-align:center;color:var(--text2);padding:16px">No tools currently issued to inspect</div></div>';
+    return;
+  }
+  var byMechanic={};
+  records.forEach(function(r){
+    if(!byMechanic[r.mechanic]) byMechanic[r.mechanic]=[];
+    byMechanic[r.mechanic].push(r);
+  });
+  var html='';
+  Object.keys(byMechanic).sort().forEach(function(mech){
+    var items=byMechanic[mech];
+    var goodCount=items.filter(function(r){return r.status==='good';}).length;
+    html+='<div class="card mb-12" style="border-top:3px solid var(--blue)">';
+    html+='<div class="card-title"><span class="dot" style="background:var(--blue)"></span>'+mech+' <span style="float:right;font-size:12px;color:var(--text2)">'+goodCount+'/'+items.length+' inspected good</span></div>';
+    items.forEach(function(r){
+      var meta=TOOL_STATUS_META[r.status]||TOOL_STATUS_META.notinspected;
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding:8px 0">';
+      html+='<div><div style="font-weight:700;font-size:13px">'+r.tool+'</div><div style="font-size:11px;color:var(--text2)">Qty '+r.qty+' · issued '+new Date(r.issuedAt).toLocaleDateString('en-GB')+' by '+r.issuedBy+'</div></div>';
+      html+='<div style="display:flex;gap:6px">';
+      ['good','damaged','missing'].forEach(function(st){
+        var m=TOOL_STATUS_META[st];
+        var active=r.status===st;
+        html+='<button type="button" onclick="setToolInspectionStatus(\''+r.id+'\',\''+st+'\')" style="padding:5px 10px;border-radius:16px;font-weight:700;font-size:11.5px;cursor:pointer;border:2px solid '+m.color+';background:'+(active?m.color:'transparent')+';color:'+(active?'#fff':m.color)+'">'+m.emoji+' '+m.label+'</button>';
+      });
+      html+='</div></div>';
+    });
+    html+='</div>';
+  });
+  container.innerHTML=html;
+}
+
+function setToolInspectionStatus(id, status){
+  var inspector=(document.getElementById('tiInspectorName').value||'').trim();
+  if(!inspector) return toast('⚠️ Enter Safety Officer name first','warn');
+  var rec=(S.toolIssuance||[]).find(function(r){ return String(r.id)===String(id); });
+  if(!rec) return;
+  rec.status=status;
+  rec.inspectedBy=inspector;
+  rec.inspectedAt=new Date().toISOString();
+  save();
+  renderInspectByMechanic();
+  renderIssuedToolsTable();
+}
+
+function downloadToolInspectionCSV(){
+  var records=(S.toolIssuance||[]).filter(function(r){ return !r.returned; });
+  if(!records.length) return toast('ℹ️ No tools currently issued','info');
+  var headers=['Tool','Mechanic','Qty','Issued By','Issued Date','Status','Inspected By','Inspected Date'];
+  var rows=records.map(function(r){
+    var meta=TOOL_STATUS_META[r.status]||TOOL_STATUS_META.notinspected;
+    return [r.tool, r.mechanic, r.qty, r.issuedBy, new Date(r.issuedAt).toLocaleDateString('en-GB'), meta.label, r.inspectedBy||'—', r.inspectedAt?new Date(r.inspectedAt).toLocaleDateString('en-GB'):'—'];
+  });
+  exportCSV('SHTL_Tool_Inspection_'+new Date().toISOString().slice(0,10)+'.csv', headers, rows);
 }
 
 function exportManagerSummaryCSV(){
