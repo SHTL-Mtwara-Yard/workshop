@@ -1,5 +1,5 @@
 {
-  "v": "v332",
-  "deployed": "2026-08-05T13:00:47Z",
-  "change": "Add Workshop Excellence, Asset & 5S Audit module (monthly, 26 items, Dashboard, history, Excel export)"
+  "v": "v333",
+  "deployed": "2026-08-05T13:17:01Z",
+  "change": "Simplify Excellence Audit - status buttons instead of full form, details only when needed"
 }
