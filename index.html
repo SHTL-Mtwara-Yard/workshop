@@ -15418,8 +15418,10 @@ function applyWrapTextToColumn(ws, colIndex, rowCount){
 
 function getDailyReportRows(){
   var picker=document.getElementById('drDatePicker');
-  var targetDate = picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
-  var isToday = targetDate === new Date().toISOString().slice(0,10);
+  var _now=new Date();
+  var _todayLocal=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
+  var targetDate = picker && picker.value ? picker.value : _todayLocal;
+  var isToday = targetDate === _todayLocal;
   var rows=[];
   var truckMap={};
   S.inspections.forEach(function(ins){
@@ -15514,9 +15516,9 @@ function getDailyReportRows(){
   // End-of-Day Balance reasons (Manager tab) — "why is this truck still
   // pending" notes entered separately from the job card — merge them into
   // the same faults list so they show up here and in Download for Boss too.
+  var targetDateLocal = new Date(targetDate+'T00:00:00').toDateString();
   (S.eodBalance||[]).forEach(function(b){
-    var bDateStr = new Date(b.date).toISOString().slice(0,10);
-    if(bDateStr !== targetDate) return;
+    if(new Date(b.date).toDateString() !== targetDateLocal) return;
     var row = truckMap[b.truckNo];
     if(row) row.faults.push('EOD Balance reason: '+(b.reason||''));
   });
