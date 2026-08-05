@@ -1,5 +1,5 @@
 {
-  "v": "v329",
-  "deployed": "2026-08-05T05:54:44Z",
-  "change": "Add Daily Report subtab to Incharge (date picker, download) alongside Monthly Report"
+  "v": "v330",
+  "deployed": "2026-08-05T08:54:03Z",
+  "change": "Add Install App popup on first visit - native prompt on Android, instructions on iOS"
 }
