@@ -15449,7 +15449,7 @@ function getDailyReportRows(){
         if(j.partPending){ parts.push(j.partName+(j.partNotes?' ('+j.partNotes+')':'')); }
       });
     });
-    var status = exitTime ? 'LEFT'+(leftOnTarget?' TODAY':'') : 'PENDING — IN YARD';
+    var status = exitTime ? 'LEFT'+(leftOnTarget?' TODAY':'') : (e.readyToLeave ? 'READY — AWAITING DRIVER' : 'PENDING — IN YARD');
     var bay = ins.bayNo || ins.lastBayNo || '—';
     var etd = ins.etd ? new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}) : '—';
     var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -15478,9 +15478,9 @@ function getDailyReportRows(){
   });
   rows=Object.values(truckMap);
   var filterVal=document.getElementById('drStatusFilter')?document.getElementById('drStatusFilter').value:'all';
-  if(filterVal==='pending') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
+  if(filterVal==='pending') rows=rows.filter(function(r){ return r.status.indexOf('LEFT')!==0; });
   else if(filterVal==='left') rows=rows.filter(function(r){ return r.status.indexOf('LEFT')===0; });
-  else if(filterVal==='inyard') rows=rows.filter(function(r){ return r.status.indexOf('PENDING')===0; });
+  else if(filterVal==='inyard') rows=rows.filter(function(r){ return r.status.indexOf('LEFT')!==0; });
   return rows;
 }
 
@@ -15495,7 +15495,7 @@ function renderDailyReport(){
     return;
   }
   tbody.innerHTML=rows.map(function(r){
-    var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : 'var(--amber)';
+    var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : r.status==='READY — AWAITING DRIVER' ? 'var(--blue)' : 'var(--amber)';
     var partsStr = r.parts.length ? r.parts.join('; ') : '—';
     var partsColor = r.parts.length ? 'var(--red)' : 'var(--text2)';
     return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td><td>'+r.etd+'</td>'+
