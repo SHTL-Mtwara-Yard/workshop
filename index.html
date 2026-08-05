@@ -715,9 +715,37 @@ if('serviceWorker' in navigator){
     });
   });
 }
+
+// ── Install App prompt ──────────────────────────────────────────
+// Captures Android/Chrome's native install prompt as early as possible (it
+// only fires once, before we're ready to use it, if we don't listen now).
+// iOS has no equivalent event — Safari never fires this — so iOS always
+// falls back to showing manual "Add to Home Screen" instructions instead.
+var _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+});
+window.addEventListener('appinstalled', function(){
+  try{ localStorage.setItem('shtl_install_prompt_shown', '1'); }catch(e){}
+});
 </script>
 </head>
 <body>
+
+<!-- INSTALL APP PROMPT — shown once on first visit, per device -->
+<div class="modal-overlay" id="installAppModal">
+  <div class="modal" style="max-width:380px;text-align:center;border-top:4px solid var(--accent)">
+    <div style="font-size:40px;margin-bottom:8px">📲</div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px">Install SHTL Mtwara App</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">For faster access, add this to your home screen — opens like a real app, works offline.</div>
+    <div id="installAppInstructions" style="display:none;text-align:left;background:var(--surface2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.7"></div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-ghost" onclick="dismissInstallPrompt()">Later</button>
+      <button class="btn btn-primary" id="installAppBtn" onclick="triggerInstallApp()">📲 Install Now</button>
+    </div>
+  </div>
+</div>
 
 <!-- MECHANIC PWA PAGE — shown when ?mech= param present -->
 <div id="mechPwaPage" style="display:none; position:fixed; inset:0; background:#0f1117; z-index:9999; overflow-y:auto; font-family:'Segoe UI',sans-serif;">
@@ -19000,6 +19028,56 @@ function downloadAttendanceCSV(){
   toast('✅ Attendance sheet downloaded','ok');
 }
 
+// Shows the Install App popup once, on first visit, on any device that
+// isn't already running as an installed app. Never shows again after the
+// user dismisses it, installs, or it's already running standalone.
+function maybeShowInstallPrompt(){
+  try{
+    var alreadyShown = localStorage.getItem('shtl_install_prompt_shown');
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if(alreadyShown || isStandalone || _mechPwaName || _viewPwaName || _secPwaName) return;
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    var modal = document.getElementById('installAppModal');
+    var instructions = document.getElementById('installAppInstructions');
+    var btn = document.getElementById('installAppBtn');
+    if(!modal) return;
+    if(isIOS){
+      // iOS/Safari never fires beforeinstallprompt — always show manual steps
+      instructions.style.display='block';
+      instructions.innerHTML = '1️⃣ Tap the <b>Share</b> button (square with arrow, bottom of Safari)<br>2️⃣ Scroll down, tap <b>"Add to Home Screen"</b><br>3️⃣ Tap <b>"Add"</b>';
+      btn.style.display='none';
+    } else if(_deferredInstallPrompt){
+      // Android/Chrome — real native install prompt is available
+      instructions.style.display='none';
+      btn.style.display='';
+      btn.textContent='📲 Install Now';
+    } else {
+      // Not iOS, and no native prompt available (unsupported browser, or
+      // criteria not met yet) — show generic manual instructions instead
+      instructions.style.display='block';
+      instructions.innerHTML = 'Tap your browser\'s menu (⋮ or ≡) and look for <b>"Add to Home screen"</b> or <b>"Install app"</b>.';
+      btn.style.display='none';
+    }
+    setTimeout(function(){ modal.classList.add('open'); }, 1200);
+  }catch(e){ console.warn('Install prompt skipped:', e); }
+}
+
+function triggerInstallApp(){
+  if(_deferredInstallPrompt){
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then(function(choice){
+      try{ localStorage.setItem('shtl_install_prompt_shown', '1'); }catch(e){}
+      _deferredInstallPrompt = null;
+    });
+  }
+  closeModal('installAppModal');
+}
+
+function dismissInstallPrompt(){
+  try{ localStorage.setItem('shtl_install_prompt_shown', '1'); }catch(e){}
+  closeModal('installAppModal');
+}
+
 function runInitialRender(){
   try{
     refreshSecurityLog();
@@ -19028,6 +19106,7 @@ function runInitialRender(){
     // always resets Ground's sub-tab to Punch Status by default.
     if(!_hasDoneInitialPageRestore){
     _hasDoneInitialPageRestore = true;
+    maybeShowInstallPrompt();
     try{
       var lastPage = localStorage.getItem('shtl_lastPage');
       if(lastPage && document.getElementById('page-'+lastPage) && !_mechPwaName && !_viewPwaName && !_secPwaName){
