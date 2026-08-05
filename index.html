@@ -1384,6 +1384,10 @@ window.addEventListener('appinstalled', function(){
             <input type="text" id="exitTime" readonly>
           </div>
         </div>
+        <div class="mb-12">
+          <label>📝 Remarks (optional — e.g. quick job, no job card needed)</label>
+          <input type="text" id="exitRemarks" placeholder="e.g. Checked tyre pressure only, 30 min job">
+        </div>
         <button class="btn btn-danger btn-block" onclick="punchExit()">🚪 PUNCH EXIT — GATE OUT</button>
       </div>
 
@@ -7025,6 +7029,9 @@ function punchExit(){
   if(!id)return toast('⚠️ Select a truck','warn');
   const e=S.entries.find(x=>x.id==id);
   if(!e)return;
+  const remarksInput=document.getElementById('exitRemarks');
+  const remarksVal=remarksInput ? remarksInput.value.trim() : '';
+  if(remarksVal) e.exitRemarks=remarksVal; // sticks regardless of which exit path below finalizes the exit, since e is the same shared object reference
   // Warn if truck has active inspection in progress (supervisor working on it)
   const activeIns=S.inspections.find(i=>String(i.entryId)===String(e.id) && !i.parked);
   if(activeIns && !e.readyToLeave){
@@ -7052,6 +7059,7 @@ function punchExit(){
   }
   e.exitTime=new Date().toISOString();e.status='exited';save();
   document.getElementById('exitTime').value=new Date().toLocaleTimeString('en-GB');
+  if(document.getElementById('exitRemarks')) document.getElementById('exitRemarks').value='';
   refreshSecurityLog();refreshDropdowns();updateBadge();
   toast('🚪 '+e.truckNo+' exited','ok');
 }
@@ -9543,6 +9551,7 @@ function confirmGateOut(){
   if(!e)return;
   e.exitTime=new Date().toISOString();e.status='exited';save();
   closeModal('exitConfirmModal');
+  if(document.getElementById('exitRemarks')) document.getElementById('exitRemarks').value='';
   refreshSecurityLog();refreshDropdowns();updateBadge();
   toast('🚪 '+e.truckNo+' exited','ok');
 }
@@ -15465,6 +15474,7 @@ function getDailyReportRows(){
     var refNo='—';
     var linkedApt=(S.appointments||[]).find(function(a){ return a.reportedEntryId===e.id; });
     if(linkedApt && linkedApt.refNo) refNo=linkedApt.refNo;
+    if(e.exitRemarks) faults.push('Exit remarks: '+e.exitRemarks);
     var key=ins.truckNo;
     if(!truckMap[key]){
       truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, etd:etd, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
@@ -15474,6 +15484,31 @@ function getDailyReportRows(){
       if(bay!=='—') truckMap[key].bay=bay;
       if(etd!=='—') truckMap[key].etd=etd;
       if(exitTime){ truckMap[key].status='LEFT'+(leftOnTarget?' TODAY':''); truckMap[key].timeOut=timeOut; }
+    }
+  });
+  // Also include entries that never got a job card / inspection at all — e.g.
+  // a quick job Security exits directly without Supervisor ever opening a
+  // job card for it. Without this, such trucks are invisible in the Daily
+  // Report entirely, which is exactly why exit Remarks needed a home here.
+  S.entries.forEach(function(e){
+    var hasInspection = S.inspections.some(function(ins){ return String(ins.entryId)===String(e.id); });
+    if(hasInspection) return;
+    var exitTime2=e.exitTime;
+    var exitDate2 = exitTime2 ? new Date(exitTime2).toISOString().slice(0,10) : null;
+    var entryDate2=new Date(e.entryTime).toISOString().slice(0,10);
+    var leftOnTarget2 = exitDate2===targetDate;
+    var enteredOnTarget2 = entryDate2===targetDate;
+    var stillPendingToday2 = isToday && !exitTime2;
+    if(!leftOnTarget2 && !enteredOnTarget2 && !stillPendingToday2) return;
+    var status2 = exitTime2 ? 'LEFT'+(leftOnTarget2?' TODAY':'') : (e.readyToLeave ? 'READY — AWAITING DRIVER' : 'PENDING — IN YARD');
+    var timeIn2 = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    var timeOut2 = exitTime2 ? new Date(exitTime2).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
+    var linkedApt2=(S.appointments||[]).find(function(a){ return a.reportedEntryId===e.id; });
+    var refNo2 = (linkedApt2 && linkedApt2.refNo) ? linkedApt2.refNo : '—';
+    var key2=e.truckNo;
+    var faultsForThis = e.exitRemarks ? ['No job card — Exit remarks: '+e.exitRemarks] : ['No job card opened for this visit'];
+    if(!truckMap[key2]){
+      truckMap[key2]={ date:(exitTime2?exitDate2:entryDate2), refNo:refNo2, truck:e.truckNo, bay:'—', etd:'—', status:status2, faults:faultsForThis, parts:[], timeIn:timeIn2, timeOut:timeOut2 };
     }
   });
   rows=Object.values(truckMap);
@@ -15887,11 +15922,13 @@ function exportJobCardsCSV(){
 
 // ═══ EXPORT: TIME STAMPING ═══
 function exportTimeStampingCSV(){
-  const headers=['Truck','Bay','T0 (In)','T1 (Alloc)','T2 (ETD Set)','T4 (QC Done)','T5 (Out)','T1-T0 Hrs','T5-T0 Total Hrs','SLA'];
+  const headers=['Truck','Bay','T0 (In)','T1 (Alloc)','T2 (ETD Set)','T4 (QC Done)','T5 (Out)','T1-T0 Hrs','T5-T0 Total Hrs','SLA','Remarks'];
   const rows=[];
+  const trucksWithInspection=new Set();
   S.inspections.forEach(ins=>{
     const e=S.entries.find(x=>x.id==ins.entryId);
     if(!e)return;
+    trucksWithInspection.add(String(e.id));
     const t0=new Date(e.entryTime);
     const t1=ins.t1_allocated?new Date(ins.t1_allocated):null;
     const t2=ins.t2_etdSet?new Date(ins.t2_etdSet):null;
@@ -15908,8 +15945,17 @@ function exportTimeStampingCSV(){
       t2?t2.toLocaleString('en-GB'):'',
       t4?t4.toLocaleString('en-GB'):'',
       t5?t5.toLocaleString('en-GB'):'',
-      t1t0, t5t0, slaMet
+      t1t0, t5t0, slaMet, e.exitRemarks||''
     ]);
+  });
+  // Trucks that never got a job card / inspection (e.g. quick jobs Security
+  // exits directly) — without this, they'd be entirely absent from this
+  // export, and any exit Remarks noted for them would be lost.
+  S.entries.forEach(e=>{
+    if(trucksWithInspection.has(String(e.id))) return;
+    const t0=new Date(e.entryTime);
+    const t5=e.exitTime?new Date(e.exitTime):null;
+    rows.push([e.truckNo, '—', t0.toLocaleString('en-GB'), '', '', '', t5?t5.toLocaleString('en-GB'):'', '', t5?((t5-t0)/3600000).toFixed(2):'', '', e.exitRemarks||'']);
   });
   exportCSV('SHTL_TimeStamping_'+dateStamp()+'.csv', headers, rows);
 }
