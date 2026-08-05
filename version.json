@@ -1,5 +1,5 @@
 {
-  "v": "v337",
-  "deployed": "2026-08-05T14:09:24Z",
-  "change": "Add locked Manage Checklist Items to B-H Tool Checklist, passphrase SHTL MTWARA"
+  "v": "v338",
+  "deployed": "2026-08-05T14:21:19Z",
+  "change": "Item #1 status now auto-derives live from B-H Tool Checklist entries"
 }
