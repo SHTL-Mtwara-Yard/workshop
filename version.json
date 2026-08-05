@@ -1,5 +1,5 @@
 {
-  "v": "v330",
-  "deployed": "2026-08-05T08:54:03Z",
-  "change": "Add Install App popup on first visit - native prompt on Android, instructions on iOS"
+  "v": "v331",
+  "deployed": "2026-08-05T12:11:08Z",
+  "change": "Add Summary file to Export All Files (now 8 files total)"
 }
