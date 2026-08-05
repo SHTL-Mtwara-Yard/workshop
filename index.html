@@ -838,6 +838,7 @@ if('serviceWorker' in navigator){
   <!-- SUBTABS -->
   <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
     <button class="subtab active" id="itab-queue" onclick="showInchargeTab('queue',this)">📋 Queue</button>
+    <button class="subtab" id="itab-daily" onclick="showInchargeTab('daily',this)">📅 Daily Report</button>
     <button class="subtab" id="itab-monthly" onclick="showInchargeTab('monthly',this)">📊 Monthly Report</button>
   </div>
 
@@ -1830,6 +1831,21 @@ if('serviceWorker' in navigator){
 </div>
 
   </div><!-- end queue subtab -->
+
+  <!-- DAILY REPORT SUBTAB -->
+  <div id="incharge-tab-daily" style="display:none">
+    <div class="card" style="border-top:3px solid var(--blue)">
+      <div class="flex justify-between items-center flex-wrap gap-8">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>📅 Daily Report</div>
+        <input type="date" id="dailyReportDatePicker" onchange="refreshInchargeDailyReport()" style="min-width:160px">
+      </div>
+      <div id="inchargeDailyReportContent"><div style="color:var(--text2);font-size:13px">Loading...</div></div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="printInchargeDailyReport()">🖨️ Print Report</button>
+        <button class="btn btn-primary btn-sm" onclick="downloadInchargeDailyReportCSV()">📥 Download Daily Report</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MONTHLY REPORT SUBTAB -->
   <div id="incharge-tab-monthly" style="display:none">
@@ -5895,6 +5911,113 @@ function renderInchargeStats(){
   if(todayEl) todayEl.textContent='Today: '+todayApts.length+' reported';
   // Monthly report
   refreshMonthlyReport();
+}
+
+function refreshInchargeDailyReport(){
+  var el=document.getElementById('inchargeDailyReportContent');
+  if(!el) return;
+  var picker=document.getElementById('dailyReportDatePicker');
+  if(picker && !picker.value) picker.value=new Date().toISOString().slice(0,10);
+  var dateStr = picker ? picker.value : new Date().toISOString().slice(0,10);
+  var dayLabel = new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var apts=(S.appointments||[]).filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    var dStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return dStr===dateStr;
+  });
+
+  if(!apts.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No appointments on '+dayLabel+'.</div>'; return; }
+
+  var byIncharge={};
+  apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
+  var byTruck={};
+  apts.forEach(function(a){ var t=a.truckNo||'Unknown'; byTruck[t]=(byTruck[t]||0)+1; });
+
+  var html='<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text2)">'+dayLabel+' — '+apts.length+' total appointments</div>';
+
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--accent)">👤 By Incharge</div>';
+  html+='<div style="margin-bottom:14px">';
+  Object.keys(byIncharge).sort(function(a,b){return byIncharge[b]-byIncharge[a];}).forEach(function(name,i){
+    var pct=Math.round(byIncharge[name]/apts.length*100);
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+    html+='<span style="min-width:20px;font-weight:700;color:var(--text2)">'+(i+1)+'.</span>';
+    html+='<span style="flex:1;font-weight:600">'+name+'</span>';
+    html+='<div style="flex:2;background:var(--surface2);border-radius:4px;height:8px">';
+    html+='<div style="width:'+pct+'%;background:var(--accent);height:8px;border-radius:4px"></div></div>';
+    html+='<span style="font-weight:700;min-width:30px;text-align:right">'+byIncharge[name]+'</span>';
+    html+='</div>';
+  });
+  html+='</div>';
+
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--blue)">🚛 Trucks Reported Today</div>';
+  html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  Object.keys(byTruck).sort(function(a,b){return byTruck[b]-byTruck[a];}).forEach(function(truck){
+    var count=byTruck[truck];
+    html+='<div style="padding:4px 10px;border-radius:20px;border:1px solid var(--blue);font-size:12px">';
+    html+='<span style="font-weight:700">'+truck+'</span>';
+    if(count>1) html+='<span style="color:var(--red);font-weight:700;margin-left:6px">×'+count+'</span>';
+    html+='</div>';
+  });
+  html+='</div>';
+
+  el.innerHTML=html;
+}
+
+function printInchargeDailyReport(){
+  var picker=document.getElementById('dailyReportDatePicker');
+  var dateStr = picker ? picker.value : new Date().toISOString().slice(0,10);
+  var dayLabel = new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var content=document.getElementById('inchargeDailyReportContent');
+  if(!content) return;
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>Daily Report — '+dayLabel+'</title>');
+  w.document.write('<style>body{font-family:Arial;padding:30px;font-size:12px}h2{font-size:16px}h3{font-size:13px;margin-top:16px}.truck{display:inline-block;padding:3px 10px;border:1px solid #ccc;border-radius:20px;margin:3px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border:1px solid #ddd}</style></head><body>');
+  w.document.write('<h2>SHTL Mtwara — Daily Incharge Report</h2>');
+  w.document.write('<p>'+dayLabel+' &nbsp;|&nbsp; Printed: '+new Date().toLocaleDateString('en-GB')+'</p>');
+  w.document.write(content.innerHTML);
+  w.document.write('<br><br><p>Incharge: _________________ &nbsp;&nbsp; Manager: _________________ &nbsp;&nbsp; Date: _________</p>');
+  w.document.write('</body></html>');
+  w.document.close();
+  w.print();
+}
+
+function downloadInchargeDailyReportCSV(){
+  var picker=document.getElementById('dailyReportDatePicker');
+  var dateStr = picker ? picker.value : new Date().toISOString().slice(0,10);
+  var dayLabel = new Date(dateStr+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var apts=(S.appointments||[]).filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    var dStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    return dStr===dateStr;
+  });
+  if(!apts.length){ toast('ℹ️ No appointments on '+dayLabel,'info'); return; }
+
+  var byIncharge={};
+  apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
+
+  var summaryRows=[['Daily Report',dayLabel],['Total Appointments',apts.length],[],['By Incharge','Count']];
+  Object.keys(byIncharge).sort(function(a,b){return byIncharge[b]-byIncharge[a];}).forEach(function(n){
+    summaryRows.push([n, byIncharge[n]]);
+  });
+
+  var detailHeaders=['Truck','Ref No','Planned Visit','Submitted By','Status','Complaint'];
+  var detailRows=apts.slice().sort(function(a,b){ return new Date(a.plannedVisit)-new Date(b.plannedVisit); }).map(function(a){
+    return [a.truckNo||'—', a.refNo||'—', a.plannedVisit?new Date(a.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', a.submittedBy||'—', a.status||'—', a.complaints||'—'];
+  });
+
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws1=XLSX.utils.aoa_to_sheet(summaryRows);
+    ws1['!cols']=[{wch:22},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+    var ws2=XLSX.utils.aoa_to_sheet([detailHeaders].concat(detailRows));
+    ws2['!cols']=[{wch:12},{wch:18},{wch:16},{wch:16},{wch:12},{wch:50}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Appointments');
+    XLSX.writeFile(wb, 'SHTL_DailyInchargeReport_'+dateStr+'.xlsx');
+    toast('📥 Daily Report downloaded — '+dayLabel,'ok');
+  } else {
+    exportCSV('SHTL_DailyInchargeReport_'+dateStr+'.csv', detailHeaders, detailRows);
+  }
 }
 
 function refreshMonthlyReport(){
@@ -18286,13 +18409,14 @@ function printSLAReport(){
 
 // ─── INCHARGE TABS ─────────────────────────────────────────────
 function showInchargeTab(tab, el){
-  ['queue','monthly'].forEach(function(t){
+  ['queue','daily','monthly'].forEach(function(t){
     var d=document.getElementById('incharge-tab-'+t);
     if(d) d.style.display=t===tab?'block':'none';
     var b=document.getElementById('itab-'+t);
     if(b) b.classList.toggle('active',t===tab);
   });
   if(tab==='monthly') refreshMonthlyReport();
+  if(tab==='daily') refreshInchargeDailyReport();
 }
 
 function printMonthlyReport(){
