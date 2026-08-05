@@ -3778,12 +3778,12 @@ window.addEventListener('appinstalled', function(){
   </div>
 </div>
 
-<!-- ═══════════════ EXCELLENCE, ASSET & 5S AUDIT ═══════════════ -->
+<!-- ═══════════════ EXCELLENCE, ASSET & 5S AUDIT (simplified) ═══════════════ -->
 <div class="page" id="page-excellence">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
     <div>
       <div class="page-title">🏆 Workshop Excellence, Asset &amp; 5S Audit</div>
-      <div class="page-sub">Monthly audit · Infrastructure, Tools, Housekeeping, Standards, Continuous Improvement</div>
+      <div class="page-sub">Monthly audit · tap a status for each item · details only appear when needed</div>
     </div>
     <div class="flex gap-8" style="flex-wrap:wrap">
       <input type="month" id="eaMonthPicker" onchange="loadExcellenceAudit()">
@@ -3792,20 +3792,16 @@ window.addEventListener('appinstalled', function(){
     </div>
   </div>
 
-  <!-- DASHBOARD -->
+  <!-- DASHBOARD (simplified — 6 KPIs) -->
   <div class="card mb-12" style="border-top:3px solid var(--accent)">
     <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Dashboard</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px">
-      <div class="stat-box"><div class="stat-label">Total Audit Items</div><div class="stat-val" id="ea-totalItems">26</div></div>
-      <div class="stat-box"><div class="stat-label">Total Available</div><div class="stat-val" id="ea-totalAvailable" style="color:var(--blue)">0</div></div>
-      <div class="stat-box"><div class="stat-label">Total Damaged</div><div class="stat-val" id="ea-totalDamaged" style="color:var(--yellow)">0</div></div>
-      <div class="stat-box"><div class="stat-label">Total Missing</div><div class="stat-val" id="ea-totalMissing" style="color:var(--red)">0</div></div>
-      <div class="stat-box"><div class="stat-label">Availability %</div><div class="stat-val" id="ea-availabilityPct" style="color:var(--green)">—</div></div>
-      <div class="stat-box"><div class="stat-label">Overall Score %</div><div class="stat-val" id="ea-overallScorePct" style="color:var(--accent)">—</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px">
-      <div><label>Estimated Repair Cost</label><input type="number" id="ea-repairCost" placeholder="0" oninput="recalcExcellenceDashboard()"></div>
-      <div><label>Estimated Replacement Cost</label><input type="number" id="ea-replacementCost" placeholder="0" oninput="recalcExcellenceDashboard()"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px">
+      <div class="stat-box"><div class="stat-label">Total Items</div><div class="stat-val" id="ea-totalItems">26</div></div>
+      <div class="stat-box"><div class="stat-label">Passed</div><div class="stat-val" id="ea-passed" style="color:var(--green)">0</div></div>
+      <div class="stat-box"><div class="stat-label">Needs Attention</div><div class="stat-val" id="ea-attention" style="color:var(--yellow)">0</div></div>
+      <div class="stat-box"><div class="stat-label">Not Available</div><div class="stat-val" id="ea-failed" style="color:var(--red)">0</div></div>
+      <div class="stat-box"><div class="stat-label">Audit Score %</div><div class="stat-val" id="ea-overallScorePct" style="color:var(--accent)">—</div></div>
+      <div class="stat-box"><div class="stat-label">Open Actions</div><div class="stat-val" id="ea-openActions" style="color:var(--red)">0</div></div>
     </div>
   </div>
 
@@ -3816,11 +3812,15 @@ window.addEventListener('appinstalled', function(){
   <div class="card mt-12" style="border-top:3px solid var(--blue)">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>🗓️ Audit History</div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Month</th><th>Submitted By</th><th>Availability %</th><th>Overall Score %</th><th>Action</th></tr></thead>
+      <thead><tr><th>Month</th><th>Submitted By</th><th>Audit Score %</th><th>Open Actions</th><th>Action</th></tr></thead>
       <tbody id="eaHistoryTable"><tr><td colspan="5" style="text-align:center;color:var(--text2);padding:16px">No audits submitted yet</td></tr></tbody>
     </table></div>
   </div>
+
+  <!-- Hidden file input for photo capture (local preview only, not synced) -->
+  <input type="file" id="eaPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleEaPhotoCapture(event)">
 </div>
+
 
 <!-- ════════════════ SPARE PARTS PENDING MODAL ════════════════ -->
 <div class="modal-overlay" id="sparePartModal">
@@ -16049,7 +16049,7 @@ function exportAllManagerFiles(){
 // One-page headline Summary — month-to-date counts pulled from the same
 // data the other 7 files detail, so Manager/Boss can see the big picture
 // without opening every file.
-// ═══════════════ EXCELLENCE, ASSET & 5S AUDIT ═══════════════
+// ═══════════════ EXCELLENCE, ASSET & 5S AUDIT (simplified) ═══════════════
 const EXCELLENCE_AUDIT_ITEMS = [
   {slNo:1, category:'Workshop Infrastructure', area:'Tools & Equipment', criteria:'All special tools, measuring equipment, general tools & garage equipment should be available'},
   {slNo:2, category:'Workshop Infrastructure', area:'Aggregate Overhaul Room', criteria:'Dedicated room with compressed air facility, aggregate stands & workbench'},
@@ -16078,8 +16078,15 @@ const EXCELLENCE_AUDIT_ITEMS = [
   {slNo:25, category:'Continuous Improvement & Compliance', area:'Success Stories', criteria:'Displayed'},
   {slNo:26, category:'Continuous Improvement & Compliance', area:'Rewards', criteria:'Recognition'}
 ];
-const EA_CONDITION_OPTIONS=['','Good','Fair','Poor','N/A'];
-const EA_REASON_CODE_OPTIONS=['','Not Purchased','Damaged - Needs Repair','Lost/Stolen','Worn Out','Not Budgeted','Other'];
+// Status -> auto Score(0-4) and legacy Condition/Exist mapping (kept so the
+// downloaded Excel still lines up with the original 17-column template).
+const EA_STATUS_META = {
+  good:      {label:'Good',            score:4, condition:'Good', exists:'Y', color:'var(--green)',  emoji:'🟢'},
+  attention: {label:'Needs Attention', score:2, condition:'Fair', exists:'Y', color:'var(--yellow)', emoji:'🟡'},
+  notavail:  {label:'Not Available',   score:0, condition:'Poor', exists:'N', color:'var(--red)',    emoji:'🔴'}
+};
+var _eaPhotos={}; // slNo -> dataURL, LOCAL ONLY (like other photo capture in this app — never synced to Firebase)
+var _eaCurrentPhotoSlot=null;
 
 function refreshExcellenceAudit(){
   var picker=document.getElementById('eaMonthPicker');
@@ -16098,9 +16105,8 @@ function loadExcellenceAudit(){
   var picker=document.getElementById('eaMonthPicker');
   var monthVal=picker ? picker.value : '';
   var existing=getExcellenceAuditForMonth(monthVal);
+  _eaPhotos={};
   renderExcellenceItems(existing);
-  document.getElementById('ea-repairCost').value = existing ? (existing.repairCost||'') : '';
-  document.getElementById('ea-replacementCost').value = existing ? (existing.replacementCost||'') : '';
   recalcExcellenceDashboard();
   renderExcellenceHistory();
 }
@@ -16124,51 +16130,53 @@ function renderExcellenceItems(existing){
     html+='<div id="eaCatBody'+catIdx+'">';
     itemsByCategory[cat].forEach(function(item){
       var d=existingItems[item.slNo]||{};
-      html+='<div style="border-top:1px solid var(--border);padding:10px 0">';
+      var status=d.status||'';
+      html+='<div id="eaItem'+item.slNo+'" style="border-top:1px solid var(--border);padding:10px 0">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">';
+      html+='<div style="flex:1;min-width:200px">';
       html+='<div style="font-weight:700;font-size:13px;margin-bottom:2px">'+item.slNo+'. '+item.area+'</div>';
-      html+='<div style="font-size:11.5px;color:var(--text2);margin-bottom:8px">'+item.criteria+'</div>';
-      html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:6px">';
+      html+='<div style="font-size:11.5px;color:var(--text2)">'+item.criteria+'</div>';
+      html+='</div>';
+      html+='<button class="btn btn-ghost btn-sm" onclick="capturePhotoForEaItem('+item.slNo+')" title="Add photo">📷'+(d.hasPhoto?' ✓':'')+'</button>';
+      html+='</div>';
+      html+='<div style="display:flex;gap:6px;margin:8px 0;flex-wrap:wrap" id="eaStatusBtns'+item.slNo+'">';
+      ['good','attention','notavail'].forEach(function(st){
+        var meta=EA_STATUS_META[st];
+        var active=status===st;
+        html+='<button type="button" onclick="setEaStatus('+item.slNo+',\''+st+'\')" style="padding:6px 14px;border-radius:20px;font-weight:700;font-size:12.5px;cursor:pointer;border:2px solid '+meta.color+';background:'+(active?meta.color:'transparent')+';color:'+(active?'#fff':meta.color)+'">'+meta.emoji+' '+meta.label+'</button>';
+      });
+      html+='</div>';
+      html+='<input type="text" id="ea_'+item.slNo+'_remarks" placeholder="Remarks (optional)" value="'+(d.remarks?String(d.remarks).replace(/"/g,'&quot;'):'')+'" style="font-size:12px;padding:6px 8px;margin-bottom:6px">';
+      html+='<div id="eaDetail'+item.slNo+'" style="display:'+(status==='attention'||status==='notavail'?'block':'none')+';background:var(--surface2);border-radius:8px;padding:10px;margin-top:4px">';
+      html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;margin-bottom:6px">';
       html+=eaNumInput(item.slNo,'requiredQty','Required Qty',d.requiredQty);
       html+=eaNumInput(item.slNo,'availableQty','Available Qty',d.availableQty);
       html+=eaNumInput(item.slNo,'damagedQty','Damaged Qty',d.damagedQty);
       html+=eaNumInput(item.slNo,'missingQty','Missing Qty',d.missingQty);
       html+='</div>';
-      html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:6px">';
-      html+=eaSelectInput(item.slNo,'condition','Condition',EA_CONDITION_OPTIONS,d.condition);
-      html+=eaSelectInput(item.slNo,'reasonCode','Reason Code',EA_REASON_CODE_OPTIONS,d.reasonCode);
-      html+=eaSelectInput(item.slNo,'exists','Exist (Y/N)',['','Y','N'],d.exists);
-      html+=eaScoreInput(item.slNo,d.score);
-      html+='</div>';
       html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px">';
-      html+=eaTextInput(item.slNo,'detailedReason','Detailed Reason',d.detailedReason);
+      html+=eaTextInput(item.slNo,'detailedReason','Reason',d.detailedReason);
       html+=eaTextInput(item.slNo,'actionRequired','Action Required',d.actionRequired);
       html+=eaTextInput(item.slNo,'responsible','Responsible',d.responsible);
       html+=eaDateInput(item.slNo,'targetDate','Target Date',d.targetDate);
-      html+=eaTextInput(item.slNo,'comments','Comments',d.comments);
+      html+='</div>';
       html+='</div>';
       html+='</div>';
     });
     html+='</div></div>';
   });
   container.innerHTML=html;
+  // Restore local photo flags for display purposes (photos themselves aren't persisted)
 }
 
 function eaNumInput(slNo,field,label,val){
   return '<div><label style="font-size:10px">'+label+'</label><input type="number" id="ea_'+slNo+'_'+field+'" value="'+(val!=null?val:'')+'" oninput="recalcExcellenceDashboard()" style="font-size:12px;padding:5px 6px"></div>';
 }
 function eaTextInput(slNo,field,label,val){
-  return '<div><label style="font-size:10px">'+label+'</label><input type="text" id="ea_'+slNo+'_'+field+'" value="'+(val?String(val).replace(/"/g,'&quot;'):'')+'" style="font-size:12px;padding:5px 6px"></div>';
+  return '<div><label style="font-size:10px">'+label+'</label><input type="text" id="ea_'+slNo+'_'+field+'" value="'+(val?String(val).replace(/"/g,'&quot;'):'')+'" oninput="recalcExcellenceDashboard()" style="font-size:12px;padding:5px 6px"></div>';
 }
 function eaDateInput(slNo,field,label,val){
   return '<div><label style="font-size:10px">'+label+'</label><input type="date" id="ea_'+slNo+'_'+field+'" value="'+(val||'')+'" style="font-size:12px;padding:5px 6px"></div>';
-}
-function eaSelectInput(slNo,field,label,options,val){
-  var opts=options.map(function(o){ return '<option value="'+o+'"'+(o===val?' selected':'')+'>'+(o||'--')+'</option>'; }).join('');
-  return '<div><label style="font-size:10px">'+label+'</label><select id="ea_'+slNo+'_'+field+'" onchange="recalcExcellenceDashboard()" style="font-size:12px;padding:5px 6px">'+opts+'</select></div>';
-}
-function eaScoreInput(slNo,val){
-  var opts=['','0','1','2','3','4'].map(function(o){ return '<option value="'+o+'"'+(String(val)===o?' selected':'')+'>'+(o||'Score')+'</option>'; }).join('');
-  return '<div><label style="font-size:10px">Score (0-4)</label><select id="ea_'+slNo+'_score" onchange="recalcExcellenceDashboard()" style="font-size:12px;padding:5px 6px">'+opts+'</select></div>';
 }
 
 function toggleEaCategory(idx){
@@ -16180,35 +16188,80 @@ function toggleEaCategory(idx){
   if(toggle) toggle.textContent=hidden?'▾':'▸';
 }
 
+// Status buttons carry the item's slNo in a data attribute on the wrapper so
+// we can find them without re-rendering the whole list (keeps typed remarks
+// from losing focus mid-keystroke).
+function setEaStatus(slNo, status){
+  var wrap=document.getElementById('eaItem'+slNo);
+  if(!wrap) return;
+  wrap.dataset.status=status;
+  var btnsWrap=document.getElementById('eaStatusBtns'+slNo);
+  ['good','attention','notavail'].forEach(function(st){
+    var meta=EA_STATUS_META[st];
+    var btn=btnsWrap.querySelector('button:nth-child('+(['good','attention','notavail'].indexOf(st)+1)+')');
+    if(btn){
+      var active=st===status;
+      btn.style.background=active?meta.color:'transparent';
+      btn.style.color=active?'#fff':meta.color;
+    }
+  });
+  var detail=document.getElementById('eaDetail'+slNo);
+  if(detail) detail.style.display=(status==='attention'||status==='notavail')?'block':'none';
+  recalcExcellenceDashboard();
+}
+
+function capturePhotoForEaItem(slNo){
+  _eaCurrentPhotoSlot=slNo;
+  document.getElementById('eaPhotoInput').click();
+}
+function handleEaPhotoCapture(e){
+  var f=e.target.files[0]; if(!f) return;
+  var slNo=_eaCurrentPhotoSlot;
+  var r=new FileReader();
+  r.onload=function(ev){
+    _eaPhotos[slNo]=ev.target.result;
+    toast('📷 Photo attached to item '+slNo,'ok');
+  };
+  r.readAsDataURL(f);
+  e.target.value='';
+}
+
 function collectExcellenceItems(){
   return EXCELLENCE_AUDIT_ITEMS.map(function(item){
+    var wrap=document.getElementById('eaItem'+item.slNo);
+    var status=wrap ? (wrap.dataset.status||'') : '';
+    var meta=EA_STATUS_META[status];
     var g=function(field){ var el=document.getElementById('ea_'+item.slNo+'_'+field); return el?el.value:''; };
     return {
       slNo:item.slNo, category:item.category, area:item.area, criteria:item.criteria,
+      status:status,
+      score: meta ? meta.score : '',
+      condition: meta ? meta.condition : '',
+      exists: meta ? meta.exists : '',
+      remarks: g('remarks'),
       requiredQty:g('requiredQty'), availableQty:g('availableQty'), damagedQty:g('damagedQty'), missingQty:g('missingQty'),
-      condition:g('condition'), reasonCode:g('reasonCode'), detailedReason:g('detailedReason'),
-      actionRequired:g('actionRequired'), responsible:g('responsible'), targetDate:g('targetDate'),
-      exists:g('exists'), score:g('score'), comments:g('comments')
+      detailedReason:g('detailedReason'), actionRequired:g('actionRequired'), responsible:g('responsible'), targetDate:g('targetDate'),
+      hasPhoto: !!_eaPhotos[item.slNo]
     };
   });
 }
 
 function recalcExcellenceDashboard(){
   var items=collectExcellenceItems();
-  var totalRequired=0, totalAvailable=0, totalDamaged=0, totalMissing=0, scoreSum=0, scoreCount=0;
+  var passed=0, attention=0, failed=0, scoreSum=0, scoreCount=0, openActions=0;
   items.forEach(function(it){
-    totalRequired+=parseFloat(it.requiredQty)||0;
-    totalAvailable+=parseFloat(it.availableQty)||0;
-    totalDamaged+=parseFloat(it.damagedQty)||0;
-    totalMissing+=parseFloat(it.missingQty)||0;
-    if(it.score!==''){ scoreSum+=parseFloat(it.score)||0; scoreCount++; }
+    if(it.status==='good') passed++;
+    else if(it.status==='attention') attention++;
+    else if(it.status==='notavail') failed++;
+    if(it.status){ scoreSum+=it.score; scoreCount++; }
+    if((it.status==='attention'||it.status==='notavail') && it.actionRequired && it.actionRequired.trim()) openActions++;
   });
   document.getElementById('ea-totalItems').textContent=EXCELLENCE_AUDIT_ITEMS.length;
-  document.getElementById('ea-totalAvailable').textContent=totalAvailable;
-  document.getElementById('ea-totalDamaged').textContent=totalDamaged;
-  document.getElementById('ea-totalMissing').textContent=totalMissing;
-  document.getElementById('ea-availabilityPct').textContent = totalRequired>0 ? Math.round(totalAvailable/totalRequired*100)+'%' : '—';
+  document.getElementById('ea-passed').textContent=passed;
+  document.getElementById('ea-attention').textContent=attention;
+  document.getElementById('ea-failed').textContent=failed;
   document.getElementById('ea-overallScorePct').textContent = scoreCount>0 ? Math.round((scoreSum/(scoreCount*4))*100)+'%' : '—';
+  document.getElementById('ea-openActions').textContent=openActions;
 }
 
 function saveExcellenceAudit(){
@@ -16216,10 +16269,8 @@ function saveExcellenceAudit(){
   var monthVal=picker ? picker.value : '';
   if(!monthVal) return toast('⚠️ Select a month first','warn');
   var items=collectExcellenceItems();
-  var repairCost=document.getElementById('ea-repairCost').value;
-  var replacementCost=document.getElementById('ea-replacementCost').value;
-  var availabilityPct=document.getElementById('ea-availabilityPct').textContent;
   var overallScorePct=document.getElementById('ea-overallScorePct').textContent;
+  var openActions=document.getElementById('ea-openActions').textContent;
 
   if(!S.excellenceAudits) S.excellenceAudits=[];
   var existing=getExcellenceAuditForMonth(monthVal);
@@ -16229,8 +16280,8 @@ function saveExcellenceAudit(){
     submittedBy: existing ? existing.submittedBy : 'Safety Officer',
     submittedAt: new Date().toISOString(),
     items: items,
-    repairCost: repairCost, replacementCost: replacementCost,
-    availabilityPct: availabilityPct, overallScorePct: overallScorePct
+    overallScorePct: overallScorePct,
+    openActions: openActions
   };
   if(existing){
     var idx=S.excellenceAudits.findIndex(function(a){ return a.month===monthVal; });
@@ -16253,7 +16304,7 @@ function renderExcellenceHistory(){
   }
   tb.innerHTML=audits.map(function(a){
     return '<tr><td class="fw-700">'+a.month+'</td><td>'+(a.submittedBy||'—')+'</td>'
-      +'<td>'+(a.availabilityPct||'—')+'</td><td>'+(a.overallScorePct||'—')+'</td>'
+      +'<td>'+(a.overallScorePct||'—')+'</td><td>'+(a.openActions||'0')+'</td>'
       +'<td><button class="btn btn-ghost btn-sm" onclick="loadExcellenceAuditFromHistory(\''+a.month+'\')">Open</button></td></tr>';
   }).join('');
 }
@@ -16272,45 +16323,42 @@ function downloadExcellenceAuditXLSX(){
   var items=existing ? existing.items : collectExcellenceItems();
   if(!items || !items.length) return toast('⚠️ Nothing to download — save the audit first','warn');
 
-  var auditHeaders=['Sl.No','Category','Area/Item','Audit Criteria','Required Qty','Available Qty','Damaged Qty','Missing Qty','Condition','Reason Code','Detailed Reason','Action Required','Responsible','Target Date','Exist(Y/N)','Score(0-4)','Comments'];
+  var auditHeaders=['Sl.No','Category','Area/Item','Audit Criteria','Status','Required Qty','Available Qty','Damaged Qty','Missing Qty','Condition','Reason','Action Required','Responsible','Target Date','Exist(Y/N)','Score(0-4)','Remarks'];
   var auditRows=items.map(function(it){
-    return [it.slNo, it.category, it.area, it.criteria, it.requiredQty, it.availableQty, it.damagedQty, it.missingQty, it.condition, it.reasonCode, it.detailedReason, it.actionRequired, it.responsible, it.targetDate, it.exists, it.score, it.comments];
+    var statusLabel = EA_STATUS_META[it.status] ? EA_STATUS_META[it.status].label : '';
+    return [it.slNo, it.category, it.area, it.criteria, statusLabel, it.requiredQty, it.availableQty, it.damagedQty, it.missingQty, it.condition, it.detailedReason, it.actionRequired, it.responsible, it.targetDate, it.exists, it.score, it.remarks];
   });
 
-  var totalRequired=0, totalAvailable=0, totalDamaged=0, totalMissing=0;
+  var passed=0, attention=0, failed=0, scoreSum=0, scoreCount=0;
   items.forEach(function(it){
-    totalRequired+=parseFloat(it.requiredQty)||0;
-    totalAvailable+=parseFloat(it.availableQty)||0;
-    totalDamaged+=parseFloat(it.damagedQty)||0;
-    totalMissing+=parseFloat(it.missingQty)||0;
+    if(it.status==='good') passed++;
+    else if(it.status==='attention') attention++;
+    else if(it.status==='notavail') failed++;
+    if(it.status){ scoreSum+=(it.score||0); scoreCount++; }
   });
-  var repairCost = existing ? existing.repairCost : document.getElementById('ea-repairCost').value;
-  var replacementCost = existing ? existing.replacementCost : document.getElementById('ea-replacementCost').value;
-  var availabilityPct = existing ? existing.availabilityPct : document.getElementById('ea-availabilityPct').textContent;
   var overallScorePct = existing ? existing.overallScorePct : document.getElementById('ea-overallScorePct').textContent;
+  var openActions = existing ? existing.openActions : document.getElementById('ea-openActions').textContent;
 
   var dashboardRows=[
     ['Dashboard',''],
-    ['Total Audit Items', EXCELLENCE_AUDIT_ITEMS.length],
-    ['Total Available', totalAvailable],
-    ['Total Damaged', totalDamaged],
-    ['Total Missing', totalMissing],
-    ['Availability %', availabilityPct],
-    ['Overall Score %', overallScorePct],
-    ['Estimated Repair Cost', repairCost||0],
-    ['Estimated Replacement Cost', replacementCost||0]
+    ['Total Items', EXCELLENCE_AUDIT_ITEMS.length],
+    ['Passed', passed],
+    ['Needs Attention', attention],
+    ['Not Available', failed],
+    ['Audit Score %', overallScorePct],
+    ['Open Actions', openActions]
   ];
 
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws1=XLSX.utils.aoa_to_sheet([auditHeaders].concat(auditRows));
-    ws1['!cols']=[{wch:6},{wch:22},{wch:20},{wch:35},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:16},{wch:30},{wch:30},{wch:14},{wch:12},{wch:10},{wch:10},{wch:30}];
+    ws1['!cols']=[{wch:6},{wch:22},{wch:20},{wch:35},{wch:14},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:30},{wch:30},{wch:14},{wch:12},{wch:10},{wch:10},{wch:30}];
     XLSX.utils.book_append_sheet(wb, ws1, 'Audit');
     var ws2=XLSX.utils.aoa_to_sheet(dashboardRows);
-    ws2['!cols']=[{wch:26},{wch:16}];
+    ws2['!cols']=[{wch:22},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws2, 'Dashboard');
     XLSX.writeFile(wb, 'SHTL_Excellence_Audit_'+monthVal+'.xlsx');
-    toast('📥 Audit downloaded','ok');
+    toast('📥 Audit downloaded (photos are for on-screen reference only, not included in the file)','ok');
   } else {
     exportCSV('SHTL_Excellence_Audit_'+monthVal+'.csv', auditHeaders, auditRows);
   }
