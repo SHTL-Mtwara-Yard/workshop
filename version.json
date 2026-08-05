@@ -1,5 +1,5 @@
 {
-  "v": "v334",
-  "deployed": "2026-08-05T13:36:21Z",
-  "change": "Add Tool Issuance & Inspection tab for General Hand Tools (mechanic-wise, Stores issues, Safety Officer inspects)"
+  "v": "v335",
+  "deployed": "2026-08-05T13:50:14Z",
+  "change": "Add locked Manage Tool List (add/remove tools) to Tool Issuance"
 }
