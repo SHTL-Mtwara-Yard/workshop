@@ -1,5 +1,5 @@
 {
-  "v": "v333",
-  "deployed": "2026-08-05T13:17:01Z",
-  "change": "Simplify Excellence Audit - status buttons instead of full form, details only when needed"
+  "v": "v334",
+  "deployed": "2026-08-05T13:36:21Z",
+  "change": "Add Tool Issuance & Inspection tab for General Hand Tools (mechanic-wise, Stores issues, Safety Officer inspects)"
 }
