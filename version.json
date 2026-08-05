@@ -1,5 +1,5 @@
 {
-  "v": "v340",
-  "deployed": "2026-08-05T16:13:09Z",
-  "change": "Add Exit Remarks field at Security gate out, fix Daily Report + Time Stamping to include no-job-card trucks"
+  "v": "v341",
+  "deployed": "2026-08-05T16:21:26Z",
+  "change": "Merge End-of-Day Balance reasons into Daily Report / Download for Boss"
 }
