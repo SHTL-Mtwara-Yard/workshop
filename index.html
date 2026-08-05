@@ -16161,6 +16161,20 @@ const EA_STATUS_META = {
 var _eaPhotos={}; // slNo -> dataURL, LOCAL ONLY (like other photo capture in this app — never synced to Firebase)
 var _eaCurrentPhotoSlot=null;
 
+// Nested tool checklist (categories B-H) shown as a collapsible drawer under
+// item #1 "Tools & Equipment" only — these are shared workshop assets, not
+// issued to individual mechanics (that's the separate Tools tab, Category A).
+const EA_TOOL_CHECKLIST_CATEGORIES = {
+  'B. Pneumatic Tools': ['1/2" Impact wrench','3/4" Impact wrench','Air ratchet','Air drill','Air blow gun','Air hose with quick couplers','Tyre inflator'],
+  'C. Lifting Equipment': ['Hydraulic bottle jack','Floor jack','Jack stands','Engine crane','Transmission jack','Chain block','Slings & shackles'],
+  'D. Diagnostic Equipment': ['Multimeter','Battery tester','Alternator tester','Compression tester','Air pressure gauge','Infrared thermometer','Fuel pressure gauge','Diagnostic scanner (if applicable)'],
+  'E. Special Truck Tools': ['Kingpin bush remover/installer','Wheel bearing socket','Brake spring pliers','Hub puller','Universal puller set','Injector puller','Injector nozzle tester','Fuel injection timing kit','Clutch alignment tool','Fan clutch wrench'],
+  'F. Workshop Equipment': ['Air compressor','Welding machine','Bench grinder','Drill press','Hydraulic press','Bench vice','Parts washer','Battery charger','Steam cleaner','Radiator pressure tester'],
+  'G. Measuring & Calibration Equipment': ['Dial gauge','Dial bore gauge','Torque angle gauge','Steel rule','Measuring tape','Thread pitch gauge','Digital caliper','Calibration certificates available'],
+  'H. Safety Equipment': ['Fire extinguisher','First aid box','Spill kit','Safety cones','Wheel chocks','Lockout/Tagout kit','Eye wash bottle','PPE (Helmet, Gloves, Goggles, Ear Protection)']
+};
+var _eaToolChecklistOpen=false;
+
 function refreshExcellenceAudit(){
   var picker=document.getElementById('eaMonthPicker');
   if(picker && !picker.value){
@@ -16179,6 +16193,8 @@ function loadExcellenceAudit(){
   var monthVal=picker ? picker.value : '';
   var existing=getExcellenceAuditForMonth(monthVal);
   _eaPhotos={};
+  _eaCurrentExisting=existing||null;
+  _eaToolChecklistOpen=false;
   renderExcellenceItems(existing);
   recalcExcellenceDashboard();
   renderExcellenceHistory();
@@ -16234,6 +16250,9 @@ function renderExcellenceItems(existing){
       html+=eaDateInput(item.slNo,'targetDate','Target Date',d.targetDate);
       html+='</div>';
       html+='</div>';
+      if(item.slNo===1){
+        html+=renderEaToolChecklistDrawer(existingItems[1] ? existingItems[1].toolChecklist : null);
+      }
       html+='</div>';
     });
     html+='</div></div>';
@@ -16248,6 +16267,56 @@ function eaNumInput(slNo,field,label,val){
 function eaTextInput(slNo,field,label,val){
   return '<div><label style="font-size:10px">'+label+'</label><input type="text" id="ea_'+slNo+'_'+field+'" value="'+(val?String(val).replace(/"/g,'&quot;'):'')+'" oninput="recalcExcellenceDashboard()" style="font-size:12px;padding:5px 6px"></div>';
 }
+function renderEaToolChecklistDrawer(savedChecklist){
+  var saved=savedChecklist||{};
+  var html='<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px">';
+  html+='<button type="button" onclick="toggleEaToolChecklist()" style="font-size:12.5px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;padding:0" id="eaToolChecklistToggleBtn">🔧 View Full Tool Checklist (Categories B-H) '+(_eaToolChecklistOpen?'▾':'▸')+'</button>';
+  html+='<div id="eaToolChecklistDrawer" style="display:'+(_eaToolChecklistOpen?'block':'none')+';margin-top:10px">';
+  Object.keys(EA_TOOL_CHECKLIST_CATEGORIES).forEach(function(cat){
+    html+='<div style="font-weight:700;font-size:12.5px;color:var(--accent);margin:10px 0 4px">'+cat+'</div>';
+    EA_TOOL_CHECKLIST_CATEGORIES[cat].forEach(function(toolName){
+      var d=(saved[cat] && saved[cat][toolName]) || {};
+      var safeId=(cat+'_'+toolName).replace(/[^a-zA-Z0-9]/g,'_');
+      html+='<div style="display:grid;grid-template-columns:2fr repeat(4,1fr);gap:6px;align-items:center;margin-bottom:4px">';
+      html+='<div style="font-size:12px">'+toolName+'</div>';
+      html+='<input type="number" placeholder="Req" id="eatc_'+safeId+'_required" value="'+(d.required!=null?d.required:'')+'" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Avail" id="eatc_'+safeId+'_available" value="'+(d.available!=null?d.available:'')+'" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Dmgd" id="eatc_'+safeId+'_damaged" value="'+(d.damaged!=null?d.damaged:'')+'" style="font-size:11px;padding:4px 5px">';
+      html+='<input type="number" placeholder="Miss" id="eatc_'+safeId+'_missing" value="'+(d.missing!=null?d.missing:'')+'" style="font-size:11px;padding:4px 5px">';
+      html+='</div>';
+    });
+  });
+  html+='</div></div>';
+  return html;
+}
+
+function toggleEaToolChecklist(){
+  _eaToolChecklistOpen=!_eaToolChecklistOpen;
+  var drawer=document.getElementById('eaToolChecklistDrawer');
+  var btn=document.getElementById('eaToolChecklistToggleBtn');
+  if(drawer) drawer.style.display=_eaToolChecklistOpen?'block':'none';
+  if(btn) btn.textContent='🔧 View Full Tool Checklist (Categories B-H) '+(_eaToolChecklistOpen?'▾':'▸');
+}
+
+function collectEaToolChecklist(){
+  var result={};
+  Object.keys(EA_TOOL_CHECKLIST_CATEGORIES).forEach(function(cat){
+    result[cat]={};
+    EA_TOOL_CHECKLIST_CATEGORIES[cat].forEach(function(toolName){
+      var safeId=(cat+'_'+toolName).replace(/[^a-zA-Z0-9]/g,'_');
+      var req=document.getElementById('eatc_'+safeId+'_required');
+      if(!req) return; // drawer never opened this session — leave existing saved data untouched by caller
+      result[cat][toolName]={
+        required: req.value,
+        available: document.getElementById('eatc_'+safeId+'_available').value,
+        damaged: document.getElementById('eatc_'+safeId+'_damaged').value,
+        missing: document.getElementById('eatc_'+safeId+'_missing').value
+      };
+    });
+  });
+  return result;
+}
+
 function eaDateInput(slNo,field,label,val){
   return '<div><label style="font-size:10px">'+label+'</label><input type="date" id="ea_'+slNo+'_'+field+'" value="'+(val||'')+'" style="font-size:12px;padding:5px 6px"></div>';
 }
@@ -16299,13 +16368,15 @@ function handleEaPhotoCapture(e){
   e.target.value='';
 }
 
+var _eaCurrentExisting=null;
+
 function collectExcellenceItems(){
   return EXCELLENCE_AUDIT_ITEMS.map(function(item){
     var wrap=document.getElementById('eaItem'+item.slNo);
     var status=wrap ? (wrap.dataset.status||'') : '';
     var meta=EA_STATUS_META[status];
     var g=function(field){ var el=document.getElementById('ea_'+item.slNo+'_'+field); return el?el.value:''; };
-    return {
+    var result={
       slNo:item.slNo, category:item.category, area:item.area, criteria:item.criteria,
       status:status,
       score: meta ? meta.score : '',
@@ -16316,6 +16387,20 @@ function collectExcellenceItems(){
       detailedReason:g('detailedReason'), actionRequired:g('actionRequired'), responsible:g('responsible'), targetDate:g('targetDate'),
       hasPhoto: !!_eaPhotos[item.slNo]
     };
+    if(item.slNo===1){
+      var prevChecklist=(_eaCurrentExisting && _eaCurrentExisting.items && _eaCurrentExisting.items[0] && _eaCurrentExisting.items[0].toolChecklist) || {};
+      var collected=collectEaToolChecklist();
+      // If the drawer was never opened this session, collectEaToolChecklist() returns
+      // categories with empty {} bodies (no inputs found) — keep the previously saved
+      // data in that case instead of overwriting it with blanks.
+      var merged={};
+      Object.keys(EA_TOOL_CHECKLIST_CATEGORIES).forEach(function(cat){
+        var hasNewData = collected[cat] && Object.keys(collected[cat]).length>0;
+        merged[cat] = hasNewData ? collected[cat] : (prevChecklist[cat]||{});
+      });
+      result.toolChecklist=merged;
+    }
+    return result;
   });
 }
 
@@ -16430,6 +16515,22 @@ function downloadExcellenceAuditXLSX(){
     var ws2=XLSX.utils.aoa_to_sheet(dashboardRows);
     ws2['!cols']=[{wch:22},{wch:14}];
     XLSX.utils.book_append_sheet(wb, ws2, 'Dashboard');
+    // Tool Checklist (categories B-H, from item #1's nested drawer)
+    var itemOne = items.find(function(it){ return it.slNo===1; });
+    var toolChecklist = itemOne ? itemOne.toolChecklist : null;
+    if(toolChecklist){
+      var tcHeaders=['Category','Tool','Required Qty','Available Qty','Damaged Qty','Missing Qty'];
+      var tcRows=[];
+      Object.keys(EA_TOOL_CHECKLIST_CATEGORIES).forEach(function(cat){
+        EA_TOOL_CHECKLIST_CATEGORIES[cat].forEach(function(toolName){
+          var d=(toolChecklist[cat] && toolChecklist[cat][toolName]) || {};
+          tcRows.push([cat, toolName, d.required||'', d.available||'', d.damaged||'', d.missing||'']);
+        });
+      });
+      var ws3=XLSX.utils.aoa_to_sheet([tcHeaders].concat(tcRows));
+      ws3['!cols']=[{wch:32},{wch:32},{wch:12},{wch:12},{wch:12},{wch:12}];
+      XLSX.utils.book_append_sheet(wb, ws3, 'Tool Checklist');
+    }
     XLSX.writeFile(wb, 'SHTL_Excellence_Audit_'+monthVal+'.xlsx');
     toast('📥 Audit downloaded (photos are for on-screen reference only, not included in the file)','ok');
   } else {
