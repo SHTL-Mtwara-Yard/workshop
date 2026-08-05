@@ -1,5 +1,5 @@
 {
-  "v": "v339",
-  "deployed": "2026-08-05T15:57:54Z",
-  "change": "Daily Report shows READY - AWAITING DRIVER instead of PENDING - IN YARD when work is done"
+  "v": "v340",
+  "deployed": "2026-08-05T16:13:09Z",
+  "change": "Add Exit Remarks field at Security gate out, fix Daily Report + Time Stamping to include no-job-card trucks"
 }
