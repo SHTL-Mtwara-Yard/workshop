@@ -1834,10 +1834,14 @@ if('serviceWorker' in navigator){
   <!-- MONTHLY REPORT SUBTAB -->
   <div id="incharge-tab-monthly" style="display:none">
     <div class="card" style="border-top:3px solid var(--accent)">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report</div>
+      <div class="flex justify-between items-center flex-wrap gap-8">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--accent)"></span>📊 Monthly Report</div>
+        <select id="monthlyReportMonthPicker" onchange="refreshMonthlyReport()" style="min-width:180px"></select>
+      </div>
       <div id="monthlyReportContent"><div style="color:var(--text2);font-size:13px">Loading...</div></div>
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="printMonthlyReport()">🖨️ Print Report</button>
+        <button class="btn btn-primary btn-sm" onclick="downloadMonthlyReportCSV()">📥 Download Monthly Report</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadRepeatVisitsCSV()">📥 Download 3+ Visits</button>
       </div>
     </div>
@@ -5896,15 +5900,35 @@ function renderInchargeStats(){
 function refreshMonthlyReport(){
   var el=document.getElementById('monthlyReportContent');
   if(!el) return;
+  var picker=document.getElementById('monthlyReportMonthPicker');
   var now=new Date();
-  var month=now.getMonth(); var year=now.getFullYear();
-  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var month, year;
+  if(picker && !picker.dataset.populated){
+    // Populate with the last 12 months (including current), most recent first
+    var opts='';
+    for(var i=0;i<12;i++){
+      var d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+      var val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      var label=d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+      opts+='<option value="'+val+'"'+(i===0?' selected':'')+'>'+label+'</option>';
+    }
+    picker.innerHTML=opts;
+    picker.dataset.populated='1';
+  }
+  if(picker && picker.value){
+    var parts=picker.value.split('-');
+    year=parseInt(parts[0]); month=parseInt(parts[1])-1;
+  } else {
+    month=now.getMonth(); year=now.getFullYear();
+  }
+  var refDate=new Date(year, month, 1);
+  var monthName=refDate.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   var apts=(S.appointments||[]).filter(function(a){
     var d=new Date(a.submittedAt||a.plannedVisit);
     return d.getMonth()===month && d.getFullYear()===year;
   });
 
-  if(!apts.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No appointments this month yet.</div>'; return; }
+  if(!apts.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No appointments in '+monthName+'.</div>'; return; }
 
   // By Incharge
   var byIncharge={};
@@ -5960,9 +5984,16 @@ function refreshMonthlyReport(){
 // One row per appointment, for every truck that visited 3+ times this month —
 // same month/logic as the report above, so it always matches what's on screen.
 function downloadRepeatVisitsCSV(){
+  var picker=document.getElementById('monthlyReportMonthPicker');
   var now=new Date();
-  var month=now.getMonth(); var year=now.getFullYear();
-  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var month, year;
+  if(picker && picker.value){
+    var parts=picker.value.split('-');
+    year=parseInt(parts[0]); month=parseInt(parts[1])-1;
+  } else {
+    month=now.getMonth(); year=now.getFullYear();
+  }
+  var monthName=new Date(year, month, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   var apts=(S.appointments||[]).filter(function(a){
     var d=new Date(a.submittedAt||a.plannedVisit);
     return d.getMonth()===month && d.getFullYear()===year;
@@ -5991,6 +6022,60 @@ function downloadRepeatVisitsCSV(){
     a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
     a.download='SHTL_3PlusVisits_'+monthName.replace(' ','_')+'.csv';
     a.click();
+  }
+}
+
+// Full monthly report download — By Incharge counts, By Truck visit counts,
+// and the raw appointment list for the selected month (not just 3+ visits).
+function downloadMonthlyReportCSV(){
+  var picker=document.getElementById('monthlyReportMonthPicker');
+  var now=new Date();
+  var month, year;
+  if(picker && picker.value){
+    var parts=picker.value.split('-');
+    year=parseInt(parts[0]); month=parseInt(parts[1])-1;
+  } else {
+    month=now.getMonth(); year=now.getFullYear();
+  }
+  var monthName=new Date(year, month, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var apts=(S.appointments||[]).filter(function(a){
+    var d=new Date(a.submittedAt||a.plannedVisit);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  if(!apts.length){ toast('ℹ️ No appointments in '+monthName,'info'); return; }
+
+  var byIncharge={};
+  apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
+  var byTruck={};
+  apts.forEach(function(a){ var t=a.truckNo||'Unknown'; (byTruck[t]=byTruck[t]||[]).push(a); });
+
+  var summaryRows=[['Monthly Report',monthName],['Total Appointments',apts.length],[],['By Incharge','Count']];
+  Object.keys(byIncharge).sort(function(a,b){return byIncharge[b]-byIncharge[a];}).forEach(function(n){
+    summaryRows.push([n, byIncharge[n]]);
+  });
+  summaryRows.push([]);
+  summaryRows.push(['By Truck','Visits This Month']);
+  Object.keys(byTruck).sort(function(a,b){return byTruck[b].length-byTruck[a].length;}).forEach(function(t){
+    summaryRows.push([t, byTruck[t].length]);
+  });
+
+  var detailHeaders=['Truck','Ref No','Planned Visit','Submitted By','Status','Complaint'];
+  var detailRows=apts.slice().sort(function(a,b){ return new Date(a.plannedVisit)-new Date(b.plannedVisit); }).map(function(a){
+    return [a.truckNo||'—', a.refNo||'—', a.plannedVisit?new Date(a.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', a.submittedBy||'—', a.status||'—', a.complaints||'—'];
+  });
+
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws1=XLSX.utils.aoa_to_sheet(summaryRows);
+    ws1['!cols']=[{wch:22},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+    var ws2=XLSX.utils.aoa_to_sheet([detailHeaders].concat(detailRows));
+    ws2['!cols']=[{wch:12},{wch:18},{wch:16},{wch:16},{wch:12},{wch:50}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'All Appointments');
+    XLSX.writeFile(wb, 'SHTL_MonthlyReport_'+monthName.replace(' ','_')+'.xlsx');
+    toast('📥 Monthly Report downloaded — '+monthName,'ok');
+  } else {
+    exportCSV('SHTL_MonthlyReport_'+monthName.replace(' ','_')+'.csv', detailHeaders, detailRows);
   }
 }
 
@@ -18212,7 +18297,8 @@ function showInchargeTab(tab, el){
 
 function printMonthlyReport(){
   var now=new Date();
-  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  var picker=document.getElementById('monthlyReportMonthPicker');
+  var monthName = (picker && picker.selectedOptions && picker.selectedOptions[0]) ? picker.selectedOptions[0].textContent : now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
   var content=document.getElementById('monthlyReportContent');
   if(!content) return;
   var w=window.open('','_blank');
