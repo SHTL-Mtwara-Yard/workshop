@@ -15511,6 +15511,15 @@ function getDailyReportRows(){
       truckMap[key2]={ date:(exitTime2?exitDate2:entryDate2), refNo:refNo2, truck:e.truckNo, bay:'—', etd:'—', status:status2, faults:faultsForThis, parts:[], timeIn:timeIn2, timeOut:timeOut2 };
     }
   });
+  // End-of-Day Balance reasons (Manager tab) — "why is this truck still
+  // pending" notes entered separately from the job card — merge them into
+  // the same faults list so they show up here and in Download for Boss too.
+  (S.eodBalance||[]).forEach(function(b){
+    var bDateStr = new Date(b.date).toISOString().slice(0,10);
+    if(bDateStr !== targetDate) return;
+    var row = truckMap[b.truckNo];
+    if(row) row.faults.push('EOD Balance reason: '+(b.reason||''));
+  });
   rows=Object.values(truckMap);
   var filterVal=document.getElementById('drStatusFilter')?document.getElementById('drStatusFilter').value:'all';
   if(filterVal==='pending') rows=rows.filter(function(r){ return r.status.indexOf('LEFT')!==0; });
