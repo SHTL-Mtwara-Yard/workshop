@@ -1998,7 +1998,7 @@ window.addEventListener('appinstalled', function(){
       <div class="page-sub">Job card register · T0–T4 time stamping SLA · Vehicle uptime &amp; utilization</div>
     </div>
     <div class="flex gap-8">
-      <button class="btn btn-primary" onclick="exportAllManagerFiles()">📥 Export All Files (7 CSVs)</button>
+      <button class="btn btn-primary" onclick="exportAllManagerFiles()">📥 Export All Files (Summary + 7)</button>
       <button class="btn btn-ghost" id="btnCloseWorkshop" onclick="openCloseWorkshopModal()">🌙 Close Workshop for Today</button>
       <button class="btn btn-danger" id="btnReopenWorkshop" style="display:none" onclick="reopenWorkshop()">☀️ Reopen Workshop</button>
     </div>
@@ -15995,9 +15995,94 @@ function exportETDCSV(){
 
 // ═══ EXPORT ALL — convenience button, triggers all 5 downloads with small stagger ═══
 function exportAllManagerFiles(){
-  const exporters=[exportJobCardsCSV, exportTimeStampingCSV, exportUptimeCSV, exportBreakdownCSV, exportMechPerfCSV, exportHoursCSV, exportETDCSV];
+  const exporters=[exportManagerSummaryCSV, exportJobCardsCSV, exportTimeStampingCSV, exportUptimeCSV, exportBreakdownCSV, exportMechPerfCSV, exportHoursCSV, exportETDCSV];
   exporters.forEach((fn,i)=>setTimeout(fn, i*400)); // staggered so the browser doesn't block multiple simultaneous downloads
-  toast('📥 Exporting 7 files — check your downloads folder','ok');
+  toast('📥 Exporting 8 files (Summary + 7 detail files) — check your downloads folder','ok');
+}
+
+// One-page headline Summary — month-to-date counts pulled from the same
+// data the other 7 files detail, so Manager/Boss can see the big picture
+// without opening every file.
+function exportManagerSummaryCSV(){
+  var now=new Date();
+  var mStart=new Date(now.getFullYear(), now.getMonth(), 1);
+  var monthName=now.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+
+  var entriesThisMonth=(S.entries||[]).filter(function(e){ return new Date(e.entryTime)>=mStart; });
+  var exitedThisMonth=entriesThisMonth.filter(function(e){ return e.exitTime; });
+  var uniqueTrucks=new Set(entriesThisMonth.map(function(e){ return e.truckNo; }));
+  var appointmentsThisMonth=(S.appointments||[]).filter(function(a){ return new Date(a.submittedAt||a.plannedVisit)>=mStart; });
+  var breakdownsThisMonth=(S.breakdowns||[]).filter(function(b){ return new Date(b.reportedAt)>=mStart; });
+
+  var jobsTotal=0, jobsDone=0;
+  (S.inspections||[]).forEach(function(ins){
+    var e=(S.entries||[]).find(function(x){ return x.id==ins.entryId; });
+    if(!e || new Date(e.entryTime)<mStart) return;
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        jobsTotal++;
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i]||{};
+        if(upd.done||j.done) jobsDone++;
+      });
+    });
+  });
+
+  var mechanicSet=new Set();
+  (S.inspections||[]).forEach(function(ins){
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var jobs=(ins.jobs||{})[d]||[];
+      jobs.forEach(function(j,i){
+        var upd=(S.jobUpdates||{})[ins.id+'_'+d+'_'+i];
+        if(upd && upd.doneBy) mechanicSet.add(upd.doneBy);
+      });
+    });
+  });
+
+  var rows=[
+    ['SHTL Mtwara — Workshop Summary'],
+    ['Period', monthName],
+    ['Generated', new Date().toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})],
+    [],
+    ['Trucks & Entries', ''],
+    ['Total gate entries this month', entriesThisMonth.length],
+    ['Unique trucks serviced', uniqueTrucks.size],
+    ['Trucks completed & exited', exitedThisMonth.length],
+    ['Trucks still in yard', entriesThisMonth.length - exitedThisMonth.length],
+    [],
+    ['Jobs & Workforce', ''],
+    ['Total jobs logged', jobsTotal],
+    ['Jobs completed', jobsDone],
+    ['Jobs still pending', jobsTotal - jobsDone],
+    ['Active mechanics (marked at least 1 job done)', mechanicSet.size],
+    [],
+    ['Incharge & Breakdown', ''],
+    ['Appointments raised this month', appointmentsThisMonth.length],
+    ['Breakdown call-outs this month', breakdownsThisMonth.length],
+    [],
+    ['See attached files for full detail:', ''],
+    ['  - All Job Cards.csv', 'Every job, per truck, per department'],
+    ['  - Time Stamping.csv', 'T0-T4 SLA timestamps per truck'],
+    ['  - Vehicle Uptime.csv', 'Uptime %, turnaround time'],
+    ['  - Breakdown.csv', 'All breakdown call-outs'],
+    ['  - Mechanic Performance.csv', 'Per-mechanic jobs, hours, on-time %, utilization'],
+    ['  - Attendance Hours.csv', 'Staff attendance & hours'],
+    ['  - ETD Revisions.csv', 'ETD change history']
+  ];
+
+  if(typeof XLSX!=='undefined'){
+    var wb=XLSX.utils.book_new();
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:40},{wch:40}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+    XLSX.writeFile(wb, 'SHTL_Summary_'+monthName.replace(' ','_')+'.xlsx');
+  } else {
+    var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+    var a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+    a.download='SHTL_Summary_'+monthName.replace(' ','_')+'.csv';
+    a.click();
+  }
 }
 
 // ═══ RESET ALL DATA ═══
