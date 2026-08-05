@@ -3835,7 +3835,10 @@ window.addEventListener('appinstalled', function(){
   <!-- ISSUE TOOL SUBTAB -->
   <div id="tools-tab-issue">
     <div class="card mb-12" style="border-top:3px solid var(--accent)">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📤 Issue a Tool</div>
+      <div class="flex justify-between items-center flex-wrap gap-8">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--accent)"></span>📤 Issue a Tool</div>
+        <button class="btn btn-ghost btn-sm" onclick="openManageToolListModal()">🔒 Manage Tool List</button>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px">
         <div><label>Tool</label><select id="tiToolSelect"></select></div>
         <div><label>Mechanic</label><select id="tiMechanicSelect"></select></div>
@@ -3861,6 +3864,31 @@ window.addEventListener('appinstalled', function(){
       <button class="btn btn-ghost btn-sm" onclick="downloadToolInspectionCSV()">📥 Download</button>
     </div>
     <div id="tiInspectByMechanic"></div>
+  </div>
+</div>
+
+<!-- ════════════════ MANAGE TOOL LIST MODAL (locked) ════════════════ -->
+<div class="modal-overlay" id="manageToolListModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">🔒 Manage Tool List</div>
+    <div id="manageToolListGate">
+      <div class="mb-8" style="font-size:13px;color:var(--text2)">Enter Manager name to unlock adding/removing tools from the list.</div>
+      <input type="text" id="manageToolListNameInput" placeholder="Manager name">
+      <div class="modal-actions mt-12">
+        <button class="btn btn-ghost" onclick="closeModal('manageToolListModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="unlockManageToolList()">Unlock</button>
+      </div>
+    </div>
+    <div id="manageToolListPanel" style="display:none">
+      <div class="flex gap-8 mb-12">
+        <input type="text" id="newToolNameInput" placeholder="New tool name" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addToolToList()">+ Add</button>
+      </div>
+      <div id="manageToolListItems" style="max-height:320px;overflow-y:auto"></div>
+      <div class="modal-actions mt-12">
+        <button class="btn btn-ghost" onclick="closeModal('manageToolListModal')">Done</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4130,7 +4158,7 @@ function dL(d){return ({mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld'})[d]||d;
 // S starts empty and is populated by the live Firebase listener below.
 // All 8 users read/write the same database node, so any change anywhere
 // shows up on every device within a second or two.
-var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{}, vehicleFuel:{}, fuelRequests:[], excellenceAudits:[], toolIssuance:[] };
+var S = { entries:[], inspections:[], revisits:[], eodBalance:[], jobUpdates:{}, deptETDs:{}, notifications:[], breakdowns:[], workerPunches:{}, staffRoster:{}, assistingWorkers:{}, workerLog:[], etdRevisionLog:[], appointments:[], pendingParts:[], falseComplaintHistory:[], bayAssignments:{}, postponeRecords:[], securityAlerts:[], recycleBin:[], deletionLog:[], supportJobs:[], tripLog:[], spareRequests:[], boomRepairs:[], boomTargets:{}, attendance:{}, broadcastAnnouncement:null, deviceSyncStatus:{}, knownIssues:[], vehicleOdo:{}, activeTrips:{}, vehicleFuel:{}, fuelRequests:[], excellenceAudits:[], toolIssuance:[], customToolList:[] };
 var _fbReady=false;
 var _fbSuppressNextSnapshot=false; // avoids re-rendering from our own just-sent write
 
@@ -4722,6 +4750,7 @@ fbRoot.on('value', snapshot=>{
       broadcastAnnouncement: data.broadcastAnnouncement || null,
       excellenceAudits: data.excellenceAudits || [],
       toolIssuance: data.toolIssuance || [],
+      customToolList: data.customToolList || [],
       deviceSyncStatus: data.deviceSyncStatus || {},
       knownIssues: data.knownIssues || [],
       vehicleOdo: data.vehicleOdo || {},
@@ -16409,13 +16438,16 @@ function downloadExcellenceAuditXLSX(){
 }
 
 // ═══════════════ TOOL ISSUANCE & INSPECTION (General Hand Tools) ═══════════════
-const TOOL_CATEGORY_A_ITEMS = [
+const TOOL_CATEGORY_A_DEFAULT = [
   'Combination spanner set','Ring spanner set','Socket set 1/4"','Socket set 3/8"','Socket set 1/2"','Socket set 3/4"',
   'Torque wrench','Allen key set','Screwdriver set','Adjustable wrench','Pipe wrench',
   'Pliers - Combination','Pliers - Long Nose','Pliers - Cutting',
   'Hammer - Ball Peen','Hammer - Rubber','Hammer - Sledge',
   'Punch & Chisel set','Feeler gauge','Vernier caliper','Micrometer'
 ];
+function getToolList(){
+  return (S.customToolList && S.customToolList.length) ? S.customToolList : TOOL_CATEGORY_A_DEFAULT;
+}
 const TOOL_STATUS_META={
   notinspected: {label:'Not Inspected', color:'var(--text2)', emoji:'⚪'},
   good:         {label:'Good',          color:'var(--green)', emoji:'🟢'},
@@ -16425,9 +16457,10 @@ const TOOL_STATUS_META={
 
 function refreshToolsPage(){
   var toolSel=document.getElementById('tiToolSelect');
-  if(toolSel && !toolSel.dataset.populated){
-    toolSel.innerHTML=TOOL_CATEGORY_A_ITEMS.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
-    toolSel.dataset.populated='1';
+  if(toolSel){
+    var prevVal=toolSel.value;
+    toolSel.innerHTML=getToolList().map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+    if(getToolList().indexOf(prevVal)!==-1) toolSel.value=prevVal;
   }
   var mechSel=document.getElementById('tiMechanicSelect');
   if(mechSel){
@@ -16436,6 +16469,60 @@ function refreshToolsPage(){
   }
   renderIssuedToolsTable();
   renderInspectByMechanic();
+}
+
+function openManageToolListModal(){
+  document.getElementById('manageToolListGate').style.display='block';
+  document.getElementById('manageToolListPanel').style.display='none';
+  document.getElementById('manageToolListNameInput').value='';
+  document.getElementById('manageToolListModal').classList.add('open');
+}
+
+function unlockManageToolList(){
+  var entered=(document.getElementById('manageToolListNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — access blocked','warn');
+    return;
+  }
+  document.getElementById('manageToolListGate').style.display='none';
+  document.getElementById('manageToolListPanel').style.display='block';
+  renderManageToolListItems();
+}
+
+function renderManageToolListItems(){
+  var container=document.getElementById('manageToolListItems');
+  if(!container) return;
+  container.innerHTML=getToolList().map(function(t){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--border)">'
+      +'<span style="font-size:13px">'+t+'</span>'
+      +'<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="removeToolFromList(\''+t.replace(/'/g,"\\'")+'\')">✕ Remove</button>'
+      +'</div>';
+  }).join('');
+}
+
+function addToolToList(){
+  var input=document.getElementById('newToolNameInput');
+  var name=input.value.trim();
+  if(!name) return toast('⚠️ Enter a tool name','warn');
+  if(!S.customToolList || !S.customToolList.length) S.customToolList=TOOL_CATEGORY_A_DEFAULT.slice();
+  if(S.customToolList.indexOf(name)!==-1) return toast('⚠️ Already in the list','warn');
+  S.customToolList.push(name);
+  save();
+  input.value='';
+  renderManageToolListItems();
+  refreshToolsPage();
+  toast('✅ '+name+' added','ok');
+}
+
+function removeToolFromList(name){
+  if(!S.customToolList || !S.customToolList.length) S.customToolList=TOOL_CATEGORY_A_DEFAULT.slice();
+  var idx=S.customToolList.indexOf(name);
+  if(idx===-1) return;
+  S.customToolList.splice(idx,1);
+  save();
+  renderManageToolListItems();
+  refreshToolsPage();
+  toast('🗑️ '+name+' removed','info');
 }
 
 function showToolsTab(tab, el){
