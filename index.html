@@ -19197,6 +19197,13 @@ function selectFault(el){
 }
 
 // ─── AUTO REVISIT DETECTION ────────────────────────────────────
+// Generic action/positional words that carry no information about WHICH part
+// failed — matching on these alone caused false-positive revisits (e.g.
+// "REPLACED HEADLAMP BULB" vs "REPLACED GEARBOX BOLT" used to match purely on
+// the shared word "REPLACED"). Excluding them means a match now has to share
+// an actual component/fault-specific word.
+var REVISIT_STOPWORDS = new Set(['replaced','replace','repair','repaired','repairs','fixed','fixing','checked','checking','check','issue','issues','required','require','requires','requested','damage','damaged','loose','worn','weak','problem','problems','faulty','fault','again','front','rear','side','left','right','lower','upper','minor','major','small','large','still','need','needs','needed','found','noted','observed','change','changed','changing','install','installed','remove','removed','clean','cleaned','tighten','tightened','adjust','adjusted']);
+
 function detectRevisits(newIns){
   // Called after supervisor submits inspection
   // Check if this truck had a previous inspection with similar jobs
@@ -19206,70 +19213,83 @@ function detectRevisits(newIns){
   });
   if(!prevInsList.length) return;
 
-  prevInsList.forEach(function(prev){
-    // Get km difference
-    var newOdo = newIns.lockedOdo;
-    var prevOdo = prev.lockedOdo;
-    if(!newOdo||!prevOdo) return;
-    var kmDiff = newOdo - prevOdo;
-    if(kmDiff<=0||kmDiff>15000) return; // only flag within 15000km
+  var newOdo = newIns.lockedOdo;
+  if(!newOdo) return;
 
-    // Check for matching jobs
-    var allNewJobs = [];
-    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
-      ((newIns.jobs||{})[d]||[]).forEach(function(j){ allNewJobs.push({dept:d,job:j}); });
-    });
+  var allNewJobs = [];
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+    ((newIns.jobs||{})[d]||[]).forEach(function(j){ allNewJobs.push({dept:d,job:j}); });
+  });
 
-    allNewJobs.forEach(function(item){
-      var fault = item.job.fault||'mechanic';
-      // Only flag mechanic and spare faults as revisits
-      if(fault!=='mechanic'&&fault!=='spare') return;
+  allNewJobs.forEach(function(item){
+    var fault = item.job.fault||'mechanic';
+    // Only flag mechanic and spare faults as revisits
+    if(fault!=='mechanic'&&fault!=='spare') return;
 
-      // Check similarity with previous jobs
+    var a = (item.job.desc||'').toLowerCase();
+    var aWords = a.split(' ').filter(function(w){ return w.length>4 && !REVISIT_STOPWORDS.has(w); });
+    if(!aWords.length) return; // nothing specific enough to match on
+
+    // Check EVERY previous visit within the km window, collect ALL matches,
+    // then keep only the CLOSEST one (smallest kmDiff = most recent
+    // occurrence) — not just whichever prev happens to be checked first.
+    // Otherwise an old distant match could get logged instead of a much more
+    // recent (and more urgent) repeat failure, silently hiding it from the
+    // 🔴 Critical bucket since the duplicate-check would then block the
+    // correct closer match from ever being added.
+    var bestMatch = null; // {prev, kmDiff}
+    prevInsList.forEach(function(prev){
+      var prevOdo = prev.lockedOdo;
+      if(!prevOdo) return;
+      var kmDiff = newOdo - prevOdo;
+      if(kmDiff<=0||kmDiff>15000) return; // only flag within 15000km
+
       var prevJobs = [];
       ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
         ((prev.jobs||{})[d]||[]).forEach(function(j){ prevJobs.push({dept:d,job:j}); });
       });
 
-      var similar = prevJobs.find(function(p){
-        var a = (item.job.desc||'').toLowerCase();
+      var similar = prevJobs.some(function(p){
         var b = (p.job.desc||'').toLowerCase();
-        // Check if first 6 chars match or key words match
-        var words = a.split(' ').filter(function(w){ return w.length>4; });
-        return words.some(function(w){ return b.indexOf(w)>=0; });
+        return aWords.some(function(w){ return b.indexOf(w)>=0; });
       });
 
-      if(similar){
-        // Auto create revisit record
-        var mechanic = (prev.deptStaff||{})[item.dept]||'Unknown';
-        var revisit = {
-          id: Date.now()+Math.random(),
-          truck: truck,
-          km: kmDiff,
-          dept: item.dept,
-          issue: item.job.desc,
-          fault: fault,
-          mechanic: mechanic,
-          prevDate: prev.inspectedAt,
-          prevInsId: prev.id,
-          newInsId: newIns.id,
-          date: new Date().toDateString(),
-          ts: Date.now(),
-          autoDetected: true,
-          actionTaken: '',
-          notified: false
-        };
-        if(!S.revisits) S.revisits=[];
-        // Avoid duplicates
-        var exists = S.revisits.find(function(r){ return r.truck===truck && r.issue===item.job.desc && r.newInsId===newIns.id; });
-        if(!exists){
-          S.revisits.push(revisit);
-          // Notify via toast
-          var zone = kmDiff<5000?'🔴 CRITICAL':'🟡 MONITOR';
-          toast(zone+' Revisit detected: '+truck+' — '+item.job.desc+' ('+kmDiff.toLocaleString()+' km)','warn');
-        }
+      if(similar && (!bestMatch || kmDiff<bestMatch.kmDiff)){
+        bestMatch = {prev:prev, kmDiff:kmDiff};
       }
     });
+
+    if(bestMatch){
+      var prev=bestMatch.prev, kmDiff=bestMatch.kmDiff;
+      // Auto create revisit record
+      var mechanic = (prev.deptStaff||{})[item.dept]||'Unknown';
+      var revisit = {
+        id: Date.now()+Math.random(),
+        truck: truck,
+        km: kmDiff,
+        dept: item.dept,
+        issue: item.job.desc,
+        fault: fault,
+        mechanic: mechanic,
+        prevDate: prev.inspectedAt,
+        prevInsId: prev.id,
+        newInsId: newIns.id,
+        date: new Date().toDateString(),
+        ts: Date.now(),
+        autoDetected: true,
+        actionTaken: '',
+        notified: false
+      };
+      if(!S.revisits) S.revisits=[];
+      // Avoid duplicates
+      var exists = S.revisits.find(function(r){ return r.truck===truck && r.issue===item.job.desc && r.newInsId===newIns.id; });
+      if(!exists){
+        S.revisits.push(revisit);
+        // Notify via toast
+        var zone = kmDiff<5000?'🔴 CRITICAL':'🟡 MONITOR';
+        toast(zone+' Revisit detected: '+truck+' — '+item.job.desc+' ('+kmDiff.toLocaleString()+' km)','warn');
+      }
+    }
   });
   save();
 }
