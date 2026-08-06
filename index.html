@@ -4446,6 +4446,7 @@ var _lastSyncedSupportJobs={};
 var _lastSyncedDeptETDs={};
 var _lastSyncedKnownIssues={};
 var _lastSyncedJobUpdates={};
+var _lastSyncedAppointments={};
 // Order-independent stringify — used everywhere the app compares "is this
 // record actually different from what was last confirmed synced". Plain
 // JSON.stringify is NOT safe for that: its output depends on the order
@@ -4614,15 +4615,41 @@ const _doSave=()=>{
     return merged;
   });
 
+  // appointments — Incharge-raised visit requests, created on one device
+  // (Incharge), read/linked on another (Security), then closed/re-raised on
+  // a third — the single most cross-device-edited collection in the app, yet
+  // it was NEVER given the transaction protection entries/inspections/
+  // bayAssignments/supportJobs/deptETDs/knownIssues/jobUpdates already have.
+  // It was falling into the plain wholesale restWrite below, so any device
+  // saving with a stale local S.appointments array (e.g. hadn't picked up
+  // another device's brand-new appointment yet) would silently wipe that
+  // new appointment off the server on its next save — exactly the
+  // disappearing-record bug this transaction pattern was built to kill.
+  const appointmentsTxn = fbRoot.child('appointments').transaction(serverApts=>{
+    serverApts = serverApts || [];
+    const merged = {};
+    serverApts.forEach(a=>{ if(a) merged[a.id]=a; });
+    (S.appointments||[]).forEach(a=>{
+      const lastSynced=_lastSyncedAppointments[a.id];
+      const localUnchanged = lastSynced!==undefined && stableStringify(a)===lastSynced;
+      if(!localUnchanged) merged[a.id]=a;
+    });
+    Object.keys(_lastSyncedAppointments).forEach(key=>{
+      const stillLocal=(S.appointments||[]).some(a=>String(a.id)===String(key));
+      if(!stillLocal) delete merged[key];
+    });
+    return Object.values(merged);
+  });
+
   // Everything else in S (staffRoster, notifications, etc.) — these haven't
   // shown the same concurrent-conflict pattern, so keep the simpler direct
   // write for them, unchanged from before.
-  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus' && k!=='knownIssues' && k!=='jobUpdates');
+  const restKeys = Object.keys(S).filter(k=>k!=='entries' && k!=='inspections' && k!=='bayAssignments' && k!=='supportJobs' && k!=='deptETDs' && k!=='deviceSyncStatus' && k!=='knownIssues' && k!=='jobUpdates' && k!=='appointments');
   const restPayload = {};
   restKeys.forEach(k=>{ restPayload[k]=S[k]; });
   const restWrite = fbRoot.update(restPayload);
 
-  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, knownIssuesTxn, jobUpdatesTxn, restWrite]).then(()=>{
+  Promise.all([entriesTxn, inspectionsTxn, bayTxn, supportJobsTxn, deptETDsTxn, knownIssuesTxn, jobUpdatesTxn, appointmentsTxn, restWrite]).then(()=>{
     _saving=false;
     if(typeof _updateSyncBanner==='function') _updateSyncBanner();
   }).catch(err=>{
@@ -4686,10 +4713,12 @@ function _doFreshResync(){
   if(_saving) return; // don't fight an in-flight save; listener will catch up naturally
   Promise.all([
     fbRoot.child('entries').once('value'),
-    fbRoot.child('inspections').once('value')
+    fbRoot.child('inspections').once('value'),
+    fbRoot.child('appointments').once('value')
   ]).then(function(results){
     var freshEntries = results[0].val() || [];
     var freshInspections = results[1].val() || [];
+    var freshAppointments = results[2].val() || [];
     var mergedEntries={};
     freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
     (S.entries||[]).forEach(function(e){
@@ -4706,8 +4735,17 @@ function _doFreshResync(){
       var localUnchanged = lastSynced!==undefined && stableStringify(normalizeInspectionShape(ins))===lastSynced;
       if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
     });
+    var mergedAppointments={};
+    freshAppointments.forEach(function(a){ if(a) mergedAppointments[a.id]=a; });
+    (S.appointments||[]).forEach(function(a){
+      var existing=mergedAppointments[a.id];
+      var lastSynced=_lastSyncedAppointments[a.id];
+      var localUnchanged = lastSynced!==undefined && stableStringify(a)===lastSynced;
+      if(!existing || !localUnchanged) mergedAppointments[a.id]=a;
+    });
     S.entries=Object.values(mergedEntries);
     S.inspections=Object.values(mergedInspections);
+    S.appointments=Object.values(mergedAppointments);
     if(typeof runInitialRender==='function') runInitialRender();
   }).catch(function(err){
     console.warn('Resync failed, live listener will catch up', err);
@@ -4810,6 +4848,8 @@ fbRoot.on('value', snapshot=>{
     _lastSyncedKnownIssues = {};
     (S.knownIssues||[]).forEach(k=>{ _lastSyncedKnownIssues[k.id] = stableStringify(k); });
     _lastSyncedJobUpdates = Object.assign({}, S.jobUpdates||{});
+    _lastSyncedAppointments = {};
+    (S.appointments||[]).forEach(a=>{ _lastSyncedAppointments[a.id] = stableStringify(a); });
 
     // ── OFFLINE-WRITE RECOVERY: reapply on first snapshot ─────────────
     // Runs once, only on the very first real Firebase snapshot after load
@@ -4822,7 +4862,7 @@ fbRoot.on('value', snapshot=>{
     // used live in _doSave()'s transactions — then pushed again via save().
     if(_recoveredLocalS && !_fbReady){
       var _recovered = false;
-      [{key:'entries',idField:'id'},{key:'inspections',idField:'entryId'},{key:'supportJobs',idField:'id'},{key:'knownIssues',idField:'id'}].forEach(function(c){
+      [{key:'entries',idField:'id'},{key:'inspections',idField:'entryId'},{key:'supportJobs',idField:'id'},{key:'knownIssues',idField:'id'},{key:'appointments',idField:'id'}].forEach(function(c){
         var localArr = _recoveredLocalS[c.key] || [];
         var syncedMap = (_recoveredSyncSnapshot && _recoveredSyncSnapshot[c.key]) || {};
         var freshMap = {};
