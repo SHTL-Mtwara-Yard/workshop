@@ -1,5 +1,5 @@
 {
-  "v": "v350",
+  "v": "v351",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "PERFORMANCE: Manager tab was eagerly running all 9 sub-tab refresh functions (jobcards, timestamp, uptime, notify, breakdown, mech performance, edit records, staff roster, postpone) on every single tab open, even though only one sub-tab is visible at a time. Several of these (Uptime, Mech Performance especially) do nested scans across months of accumulated entries/inspections data, making this the main cause of slow tab switching. Now only the currently-visible sub-tab refreshes; others refresh on-demand when clicked, same as before. Should make switching into Manager noticeably faster, especially on devices with months of accumulated data."
+  "change": "Tightened Revisit Tracker auto-detection: (1) excludes generic action/positional words (replaced, repaired, checked, front, side, etc.) from the similarity match, so it now requires a shared component-specific word instead of any 4+ letter word in common — fixes false positives like 'replaced headlamp' matching 'replaced gearbox bolt'; (2) when a truck has multiple past inspections, now always keeps the CLOSEST (most recent) matching visit instead of whichever is checked first, so a genuinely urgent recent repeat failure can no longer get silently masked by an older distant match. Applies to new inspections going forward — existing revisit records already logged are unchanged."
 }
