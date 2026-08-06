@@ -7744,20 +7744,36 @@ function saveSupervisorEntry(){
   S.inspections=S.inspections.filter(i=>i.entryId!==parseInt(id));
   S.inspections.push(ins);
   window._lastInsId=ins.id;
-  detectRevisits(ins); // Auto-detect revisits
+  // Each of these calls is wrapped individually — previously, if ANY of them
+  // threw (e.g. detectRevisits hitting a job with no description, or a
+  // refresh function erroring on unexpected data), the exception would abort
+  // the rest of this function immediately INCLUDING the "Inspection saved"
+  // toast and the field-clearing block below it, or (worse, when the throw
+  // landed between the toast and the clear list) show "saved" while quietly
+  // leaving the whole form full of the just-submitted truck's data — exactly
+  // the bug reported. Wrapping each call means one failing step can no
+  // longer block the save confirmation or the form reset that must follow it.
+  try{ detectRevisits(ins); }catch(e){ console.error('detectRevisits failed (non-fatal)',e); } // Auto-detect revisits
   const pb=document.getElementById('supPrintBtn');
   if(pb) pb.style.display='inline-flex';
-  save();
+  try{ save(); }catch(e){ console.error('save() failed',e); toast('⚠️ Save may not have synced — check connection','warn'); }
 
   // Immediately refresh everything dependent on waiting count — no lag
-  refreshSupBayTable();
-  refreshSupervisorPage();
-  updateBadge();
+  try{ refreshSupBayTable(); }catch(e){ console.error('refreshSupBayTable failed (non-fatal)',e); }
+  try{ refreshSupervisorPage(); }catch(e){ console.error('refreshSupervisorPage failed (non-fatal)',e); }
+  try{ updateBadge(); }catch(e){ console.error('updateBadge failed (non-fatal)',e); }
 
   toast('✅ Inspection saved — '+bay+' allocated','ok');
 
-  // Clear job rows
-  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{document.getElementById('rows-'+d).innerHTML='';jobCounts[d]=0;});
+  // Clear job rows — guarded per-department: if this truck only used 3 of
+  // the 6 departments, the other 3 "rows-X" elements never existed in the
+  // DOM (buildDeptBlocks only creates blocks for departments actually
+  // checked). Calling .innerHTML on a missing element threw here and
+  // silently aborted the REST of this function — including every field
+  // reset below — while the "Inspection saved" toast (which fires before
+  // this loop) had already shown. That's exactly why the form kept showing
+  // the just-submitted truck's data after a successful save.
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{const rowsEl=document.getElementById('rows-'+d); if(rowsEl) rowsEl.innerHTML=''; jobCounts[d]=0;});
   // Clear all input/select values
   ['supTruckSelect','supOrigin','supGateIn','supFuel','supDepts','supTrailerNo','supJobType','supDriverName','supDriverMobile','supETD','supETD_hh','supETD_mm','supETD_dd','supTripKms','supBaseOdo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   // Clear display elements
@@ -7769,10 +7785,11 @@ function saveSupervisorEntry(){
   const baySelEl=document.getElementById('supBaySelect'); if(baySelEl) baySelEl.value='';
   // Clear job dept blocks and photos
   const jdb=document.getElementById('jobDeptBlocks'); if(jdb) jdb.innerHTML='';
-  resetPhotoSlots();
+  try{ resetPhotoSlots(); }catch(e){ console.error('resetPhotoSlots failed (non-fatal)',e); }
   const kiPanel=document.getElementById('supKnownIssuesPanel'); if(kiPanel) kiPanel.style.display='none';
   const kiDescEl=document.getElementById('kiDesc'); if(kiDescEl) kiDescEl.value='';
   const kiPartEl=document.getElementById('kiPart'); if(kiPartEl) kiPartEl.value='';
+  const aptPanelEl=document.getElementById('supAptRefPanel'); if(aptPanelEl) aptPanelEl.style.display='none';
   // Hide print button
   const pbBtn=document.getElementById('supPrintBtn'); if(pbBtn) pbBtn.style.display='none';
 }
