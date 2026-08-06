@@ -6079,9 +6079,15 @@ function renderInchargeStats(){
   }).length;
   // Today's "Today" card = requests submitted today (regardless of arrival status yet) —
   // this is what an Incharge expects to see immediately after raising a new request.
+  // Reported (3d) — must actually be reported WITHIN the last 3 days, not all-time reported/pending 3-day window
+  const reportedLast3d = S.appointments.filter(a=>{
+    if(a.status!=='reported' && a.status!=='closed') return false;
+    var rDate = a.reportedAt ? new Date(a.reportedAt) : null;
+    return rDate && rDate>=threeDaysAgo;
+  }).length;
   document.getElementById('iscTodayReported').textContent=todayApts.length;
   document.getElementById('iscPending').textContent=active.filter(a=>aptStatusClass(a)==='pending').length;
-  document.getElementById('iscReported').textContent=active.filter(a=>a.status==='reported').length;
+  document.getElementById('iscReported').textContent=reportedLast3d;
   document.getElementById('iscOverdue').textContent=active.filter(a=>aptStatusClass(a)==='overdue').length;
   document.getElementById('iscTotal').textContent=active.length;
   // Today badge
