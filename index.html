@@ -7465,8 +7465,15 @@ function refreshSupBayOptions(){
 
 function loadTruckForSup(){
   const id=document.getElementById('supTruckSelect').value;
-  // Clear all previous fields first
-  ['supTrailer','supDriverName','supDriverMobile','supTripKms','supBaseOdo','supETD_hh','supETD_mm'].forEach(function(fid){
+  // Clear all previous fields first — this is what runs every time a
+  // different truck is picked from the dropdown mid-entry (not just after
+  // Save). 'supTrailer' was a typo for 'supTrailerNo' — that field never
+  // actually existed, so Trailer No silently kept showing the PREVIOUS
+  // truck's value when switching trucks. Also added Photos and the deferred
+  // "Found something you're deferring" note fields, which had the same
+  // problem — neither was cleared here, only on Save, so switching trucks
+  // before saving could carry stale photos/notes onto the wrong truck.
+  ['supTrailerNo','supDriverName','supDriverMobile','supTripKms','supBaseOdo','supETD_hh','supETD_mm','supOrigin','supGateIn','supFuel','supDepts'].forEach(function(fid){
     var el=document.getElementById(fid); if(el) el.value='';
   });
   var bayEl=document.getElementById('supBaySelect'); if(bayEl) bayEl.value='';
@@ -7474,6 +7481,18 @@ function loadTruckForSup(){
   var prioEl=document.getElementById('supPriority'); if(prioEl) prioEl.value='Normal';
   var dispEl=document.getElementById('supETD_display'); if(dispEl) dispEl.textContent='';
   var odoEl=document.getElementById('supOdoCalcBlock'); if(odoEl) odoEl.style.display='none';
+  if(typeof resetPhotoSlots==='function') resetPhotoSlots();
+  var kiDescEl=document.getElementById('kiDesc'); if(kiDescEl) kiDescEl.value='';
+  var kiPartEl=document.getElementById('kiPart'); if(kiPartEl) kiPartEl.value='';
+  var kiPanelEl=document.getElementById('supKnownIssuesPanel'); if(kiPanelEl) kiPanelEl.style.display='none';
+  var aptPanelEl=document.getElementById('supAptRefPanel'); if(aptPanelEl) aptPanelEl.style.display='none';
+  // Clear job dept blocks/rows too — without this, switching back to blank
+  // (or to a truck with fewer departments) left the PREVIOUS truck's
+  // department job blocks still rendered on screen.
+  ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+    var rowsEl=document.getElementById('rows-'+d); if(rowsEl) rowsEl.innerHTML='';
+  });
+  var jdbEl=document.getElementById('jobDeptBlocks'); if(jdbEl) jdbEl.innerHTML='';
   if(!id) return;
   const e=S.entries.find(x=>x.id==id);
   if(!e)return;
