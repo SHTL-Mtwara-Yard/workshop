@@ -1,5 +1,5 @@
 {
-  "v": "v342",
-  "deployed": "2026-08-05T16:30:17Z",
-  "change": "Fix timezone bug causing EOD Balance reasons to never match today's date in Daily Report"
+  "v": "v343",
+  "deployed": "2026-08-06T00:00:00Z",
+  "change": "Fix 'Reported (3D)' Incharge stat — was counting all-time reported/pending appointments instead of those reported within last 3 days"
 }
