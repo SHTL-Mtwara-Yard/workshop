@@ -1,5 +1,5 @@
 {
-  "v": "v352",
+  "v": "v353",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added 'Rebuild from History' button on Revisit Tracker page (Manager-visible) that wipes and re-scans all historical inspections using the tightened v351 matching logic (stricter word match + closest-visit priority), so the 32/22/8 bucket numbers reflect the more accurate detection instead of the old data. Requires confirmation before running since it's destructive to existing revisit records (originals are recomputed from source inspections, so no underlying data is lost)."
+  "change": "Fixed Supervisor Inspect form not clearing when switching trucks mid-entry. Root cause: the field-clear list had a typo ('supTrailer' instead of 'supTrailerNo'), so Trailer No never actually reset. Also Origin/Gate In/Fuel/Dept Logged, Photos, deferred-issue notes, and job department blocks were never cleared on truck-switch at all (only on Save) -- so picking a different truck from the dropdown before saving could leave the previous truck's Trailer No, driver info, origin, fuel, photos, and job entries showing on screen. All of these now reset properly the instant a different truck is selected."
 }
