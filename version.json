@@ -1,5 +1,5 @@
 {
-  "v": "v345",
+  "v": "v346",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Incharge Monthly Report: added a second 'Gate Entries This Month' section showing all trucks that actually entered the yard (from Security gate log), separate from the existing appointment-requests section. Also added to the XLSX download as a new 'Gate Entries' sheet. Fixed a bug where zero appointments in a month would hide the report entirely even if gate entries existed."
+  "change": "Manager Daily Report / Combined Report: split ETD into two columns - 'Supervisor ETD' (job card, as before) and new 'Ground Team Highest ETD' (max of all punched department ETDs). Updated table, screen download, and Combined Report export sheet consistently."
 }
