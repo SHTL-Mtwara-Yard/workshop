@@ -1,5 +1,5 @@
 {
-  "v": "v351",
+  "v": "v352",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Tightened Revisit Tracker auto-detection: (1) excludes generic action/positional words (replaced, repaired, checked, front, side, etc.) from the similarity match, so it now requires a shared component-specific word instead of any 4+ letter word in common — fixes false positives like 'replaced headlamp' matching 'replaced gearbox bolt'; (2) when a truck has multiple past inspections, now always keeps the CLOSEST (most recent) matching visit instead of whichever is checked first, so a genuinely urgent recent repeat failure can no longer get silently masked by an older distant match. Applies to new inspections going forward — existing revisit records already logged are unchanged."
+  "change": "Added 'Rebuild from History' button on Revisit Tracker page (Manager-visible) that wipes and re-scans all historical inspections using the tightened v351 matching logic (stricter word match + closest-visit priority), so the 32/22/8 bucket numbers reflect the more accurate detection instead of the old data. Requires confirmation before running since it's destructive to existing revisit records (originals are recomputed from source inspections, so no underlying data is lost)."
 }
