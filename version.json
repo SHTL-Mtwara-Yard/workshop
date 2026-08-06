@@ -1,5 +1,5 @@
 {
-  "v": "v348",
+  "v": "v349",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: S.appointments was never given the transaction-based sync protection entries/inspections/bayAssignments/supportJobs/deptETDs/knownIssues/jobUpdates already had — it was falling into the plain wholesale restWrite, so any device saving with a stale local appointments array could silently wipe out another device's brand-new appointment on its next save. This is the root cause of appointments (e.g. T811 DZU) disappearing from Incharge Queue and Security's Link dropdown with no trace in History. Now uses the same transaction-merge pattern, plus the periodic/on-visible self-healing resync and offline-write recovery now also cover appointments."
+  "change": "Fix 'Page Unresponsive' freeze on load: the immediate version-check on page load used a SYNCHRONOUS XHR that blocked the entire page until the network request completed, which could take many seconds on a slow connection and trigger the browser's own hang-detector. Converted to async with identical reload-if-outdated behavior, so a slow connection can never freeze the page."
 }
