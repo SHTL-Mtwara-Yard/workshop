@@ -1,5 +1,5 @@
 {
-  "v": "v346",
+  "v": "v347",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Manager Daily Report / Combined Report: split ETD into two columns - 'Supervisor ETD' (job card, as before) and new 'Ground Team Highest ETD' (max of all punched department ETDs). Updated table, screen download, and Combined Report export sheet consistently."
+  "change": "WhatsApp Message Driver button now shows on pending appointments too, not just overdue/no-show. Pending gets a friendly upcoming-visit reminder wording; overdue keeps the urgent no-show wording + follow-up tracking (pending clicks aren't logged as follow-ups)."
 }
