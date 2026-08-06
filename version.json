@@ -1,5 +1,5 @@
 {
-  "v": "v354",
+  "v": "v355",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: found the real cause of the form not clearing after Save. saveSupervisorEntry() cleared job rows for all 6 departments unconditionally (document.getElementById('rows-'+d).innerHTML='') even for departments the truck didn't use, whose row elements don't exist in the DOM at all. That threw a TypeError which silently aborted the rest of the function -- INCLUDING every field-clearing step below it -- right after the 'Inspection saved' toast had already fired. So the save succeeded, the toast showed, but the whole form (Origin, Trailer No, Driver Name, Fuel, ETD, etc.) stayed full of the just-submitted truck's data. Now guarded with a null check per department, and every step in the save flow (detectRevisits, refreshes, save) is individually try/caught so one failing step can no longer block the rest."
+  "change": "PERFORMANCE: found the cause of slow/delayed response while punching jobs. refreshWorkerBoard() -- called after every single job Start/Complete punch, 10 call sites total -- was calling getOpenJobLocksFor() once per staff member (~76 people), and each call independently re-scanned the entire inspections history with a nested entries lookup inside. That's ~76 full history scans on every punch. Replaced with a single combined pass (getAllOpenJobLocksGrouped) that computes the same result for all workers in one scan instead of 76. Should make Start/Complete punches feel noticeably snappier, especially on older/slower devices."
 }
