@@ -5226,7 +5226,37 @@ function showGroundSub(id,el){
   if(id==='ground-leaderboard') renderGroundLeaderboard();
 }
 
-function refreshManager(){ refreshMgrJobCards(); refreshTimeStamping(); refreshUptime(); refreshMgrNotify(); refreshBreakdown(); refreshMechPerf(); refreshEditRecords(); refreshStaffRoster(); refreshPostponePage(); if(typeof refreshDeviceSyncStatus==='function') refreshDeviceSyncStatus(); }
+// PERFORMANCE FIX: this used to eagerly run all 9 Manager sub-tab refreshers
+// (jobcards, timestamp, uptime, notify, breakdown, mechperf, editrecords,
+// staffroster, postpone) every single time the Manager tab was opened — even
+// though only ONE sub-tab is ever visible at a time, and showSub() already
+// refreshes a sub-tab on demand the moment the user actually clicks into it.
+// Several of these (refreshUptime, refreshMechPerf especially) do nested
+// .find()-inside-.forEach() scans across months of accumulated entries/
+// inspections, so running all 9 on every tab open was the main cause of
+// Manager (and by extension every tab switch waiting on it) feeling slow.
+// Now only the currently-visible sub-tab gets refreshed; the rest refresh
+// lazily via showSub() the moment the user clicks them, exactly as before.
+function refreshManager(){
+  var activeSub=document.querySelector('#page-manager .subpage.active');
+  var activeId=activeSub?activeSub.id.replace(/^sub-/,''):'mgr-jobcards';
+  var refreshers={
+    'mgr-jobcards':refreshMgrJobCards,'mgr-timestamp':refreshTimeStamping,'mgr-uptime':refreshUptime,
+    'mgr-notify':refreshMgrNotify,'mgr-breakdown':refreshBreakdown,'mgr-perf':refreshMechPerf,
+    'mgr-staffreport':(typeof refreshISRPage==='function'?refreshISRPage:null),
+    'mgr-hours':(typeof refreshHoursReport==='function'?refreshHoursReport:null),
+    'mgr-etd':(typeof refreshETDReport==='function'?refreshETDReport:null),
+    'mgr-incharge':(typeof refreshMgrIncharge==='function'?refreshMgrIncharge:null),
+    'mgr-false':(typeof refreshFalseHistory==='function'?refreshFalseHistory:null),
+    'mgr-postpone':refreshPostponePage,
+    'mgr-datacontrol':(typeof refreshDataControl==='function'?refreshDataControl:null),
+    'mgr-edit':(_editRecordsUnlocked?refreshEditRecords:null),
+    'mgr-staff':refreshStaffRoster
+  };
+  if(refreshers[activeId]) try{ refreshers[activeId](); }catch(e){ console.error('refreshManager: sub-tab refresh failed for '+activeId,e); }
+  // Small always-current header widgets (device sync dot) stay eager — cheap, not per-record.
+  if(typeof refreshDeviceSyncStatus==='function') try{ refreshDeviceSyncStatus(); }catch(e){}
+}
 
 // ═══ FUEL SLIDER ═══
 function updateFuelFromSlider(val){
