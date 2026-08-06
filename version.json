@@ -1,5 +1,5 @@
 {
-  "v": "v344",
+  "v": "v345",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Add WhatsApp deep-link driver follow-up for overdue/no-show appointments, with follow-up count + last-contacted timestamp tracked on the apt card"
+  "change": "Incharge Monthly Report: added a second 'Gate Entries This Month' section showing all trucks that actually entered the yard (from Security gate log), separate from the existing appointment-requests section. Also added to the XLSX download as a new 'Gate Entries' sheet. Fixed a bug where zero appointments in a month would hide the report entirely even if gate entries existed."
 }
