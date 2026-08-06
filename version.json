@@ -1,5 +1,5 @@
 {
-  "v": "v353",
+  "v": "v354",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Fixed Supervisor Inspect form not clearing when switching trucks mid-entry. Root cause: the field-clear list had a typo ('supTrailer' instead of 'supTrailerNo'), so Trailer No never actually reset. Also Origin/Gate In/Fuel/Dept Logged, Photos, deferred-issue notes, and job department blocks were never cleared on truck-switch at all (only on Save) -- so picking a different truck from the dropdown before saving could leave the previous truck's Trailer No, driver info, origin, fuel, photos, and job entries showing on screen. All of these now reset properly the instant a different truck is selected."
+  "change": "CRITICAL FIX: found the real cause of the form not clearing after Save. saveSupervisorEntry() cleared job rows for all 6 departments unconditionally (document.getElementById('rows-'+d).innerHTML='') even for departments the truck didn't use, whose row elements don't exist in the DOM at all. That threw a TypeError which silently aborted the rest of the function -- INCLUDING every field-clearing step below it -- right after the 'Inspection saved' toast had already fired. So the save succeeded, the toast showed, but the whole form (Origin, Trailer No, Driver Name, Fuel, ETD, etc.) stayed full of the just-submitted truck's data. Now guarded with a null check per department, and every step in the save flow (detectRevisits, refreshes, save) is individually try/caught so one failing step can no longer block the rest."
 }
