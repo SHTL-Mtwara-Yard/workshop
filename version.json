@@ -1,5 +1,5 @@
 {
-  "v": "v349",
+  "v": "v350",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Fix 'Page Unresponsive' freeze on load: the immediate version-check on page load used a SYNCHRONOUS XHR that blocked the entire page until the network request completed, which could take many seconds on a slow connection and trigger the browser's own hang-detector. Converted to async with identical reload-if-outdated behavior, so a slow connection can never freeze the page."
+  "change": "PERFORMANCE: Manager tab was eagerly running all 9 sub-tab refresh functions (jobcards, timestamp, uptime, notify, breakdown, mech performance, edit records, staff roster, postpone) on every single tab open, even though only one sub-tab is visible at a time. Several of these (Uptime, Mech Performance especially) do nested scans across months of accumulated entries/inspections data, making this the main cause of slow tab switching. Now only the currently-visible sub-tab refreshes; others refresh on-demand when clicked, same as before. Should make switching into Manager noticeably faster, especially on devices with months of accumulated data."
 }
