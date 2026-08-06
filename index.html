@@ -18135,14 +18135,46 @@ function getOpenJobLocksFor(workerName){
   return locks;
 }
 
+// PERFORMANCE: refreshWorkerBoard() and openCloseWorkshopModal() used to call
+// getOpenJobLocksFor(name) once PER STAFF MEMBER (~76 people), and each call
+// independently re-scans the full S.inspections list with a nested
+// S.entries.find() inside — so every single job punch (which triggers
+// refreshWorkerBoard()) was doing roughly 76x that full inspections scan.
+// With months of accumulated data this was the direct cause of "slow /
+// delayed response while punching". This computes the exact same result —
+// open job locks grouped by worker name — in a SINGLE pass over
+// S.inspections instead of 76 separate passes.
+function getAllOpenJobLocksGrouped(){
+  const byWorker={};
+  const entryLookup={};
+  S.entries.forEach(e=>{ entryLookup[e.id]=e; });
+  S.inspections.forEach(ins=>{
+    const e=entryLookup[ins.entryId];
+    if(!e || e.exitTime) return;
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
+      const jobs=(ins.jobs||{})[d]||[];
+      if(!jobs.length) return;
+      const assigned=(ins.deptStaff||{})[d];
+      if(!assigned) return;
+      const doneCount=jobs.filter((j,i)=>(S.jobUpdates[`${ins.id}_${d}_${i}`]||{}).done||j.done).length;
+      if(doneCount<jobs.length){
+        if(!byWorker[assigned]) byWorker[assigned]=[];
+        byWorker[assigned].push({truckNo:ins.truckNo, bayNo:ins.bayNo, dept:d, doneCount, total:jobs.length});
+      }
+    });
+  });
+  return byWorker;
+}
+
 function refreshWorkerBoard(){
   updateWorkshopCloseButtons();
   const board=document.getElementById('workerBoard');
   // Build the full list of names to show: anyone who has self-punched today,
   // PLUS anyone currently holding an open job lock (even if they never opened
   // the Punch tab themselves — e.g. assigned via the old Ground Team dropdown).
+  const allLocks=getAllOpenJobLocksGrouped();
   const punchedNames=Object.keys(S.workerPunches);
-  const lockedNames=[...new Set(ALL_STAFF.filter(n=>getOpenJobLocksFor(n).length>0))];
+  const lockedNames=Object.keys(allLocks);
   const names=[...new Set([...punchedNames,...lockedNames])];
 
   if(!names.length){ board.innerHTML='<div class="alert alert-info">No workers have punched in today yet.</div>'; return; }
@@ -18151,7 +18183,7 @@ function refreshWorkerBoard(){
 
   // Compute REAL status per worker: open locks always win over a stale self-declaration.
   const resolved=names.map(name=>{
-    const locks=getOpenJobLocksFor(name);
+    const locks=allLocks[name]||[];
     const selfPunch=S.workerPunches[safeKey(name)];
     if(locks.length){
       return {name, status:'working', locks, since: (selfPunch&&selfPunch.since) || new Date().toISOString()};
@@ -18199,10 +18231,11 @@ function refreshWorkerBoard(){
 // so they correctly keep showing as Working tomorrow with zero risk from this action,
 // including staff on weekly off whose job is still open.
 function openCloseWorkshopModal(){
+  const allLocks=getAllOpenJobLocksGrouped();
   const names=Object.keys(S.workerPunches);
   const staleNames=names.filter(n=>{
     const p=S.workerPunches[safeKey(n)];
-    return (p.status==='available'||p.status==='assisting') && getOpenJobLocksFor(n).length===0;
+    return (p.status==='available'||p.status==='assisting') && !(allLocks[n]&&allLocks[n].length);
   });
   const workingCount=names.length-staleNames.length;
   document.getElementById('closeWorkshopSummary').textContent =
