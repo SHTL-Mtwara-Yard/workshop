@@ -2147,9 +2147,9 @@ window.addEventListener('appinstalled', function(){
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>Date</th><th>Ref No</th><th>Truck No</th><th>Bay</th><th>ETD</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
+            <th>Date</th><th>Ref No</th><th>Truck No</th><th>Bay</th><th>Supervisor ETD</th><th>Ground Team Highest ETD</th><th>Time In</th><th>Time Out</th><th>Status</th><th>All Faults</th><th>Parts Needed</th>
           </tr></thead>
-          <tbody id="dailyReportTable"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
+          <tbody id="dailyReportTable"><tr><td colspan="11" style="text-align:center;color:var(--text2);padding:20px">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -15557,6 +15557,22 @@ function getDailyReportRows(){
     var status = exitTime ? 'LEFT'+(leftOnTarget?' TODAY':'') : (e.readyToLeave ? 'READY — AWAITING DRIVER' : 'PENDING — IN YARD');
     var bay = ins.bayNo || ins.lastBayNo || '—';
     var etd = ins.etd ? new Date(ins.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}) : '—';
+    // Ground Team's highest (latest) committed department ETD — separate from
+    // the Supervisor's overall ETD above. Each department (mech/elec/tyre/weld/
+    // pneumatic/suspension) punches its own ETD independently; the truck's real
+    // ceiling is whichever department commits latest, per the "truck ETD =
+    // longest dept ETD" rule — shown here for comparison against Supervisor's ETD.
+    var groundETDDate=null;
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      var dk=S.deptETDs[ins.id+'_'+d];
+      if(dk){
+        var etdD=null;
+        if(typeof dk==='object'&&dk.time&&dk.date) etdD=new Date(dk.date+' '+dk.time);
+        else if(typeof dk==='string'&&dk.length>5) etdD=new Date(dk);
+        if(etdD&&!isNaN(etdD)&&(!groundETDDate||etdD>groundETDDate)) groundETDDate=etdD;
+      }
+    });
+    var groundETD=groundETDDate?groundETDDate.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—';
     var timeIn = new Date(e.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     var timeOut = exitTime ? new Date(exitTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—';
     // Use the authoritative link: punchEntry() sets apt.reportedEntryId =
@@ -15573,12 +15589,13 @@ function getDailyReportRows(){
     if(e.exitRemarks) faults.push('Exit remarks: '+e.exitRemarks);
     var key=ins.truckNo;
     if(!truckMap[key]){
-      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, etd:etd, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
+      truckMap[key]={ date:(leftOnTarget?exitDate:entryDate), refNo:refNo, truck:ins.truckNo, bay:bay, etd:etd, groundETD:groundETD, status:status, faults:faults.slice(), parts:parts.slice(), timeIn:timeIn, timeOut:timeOut };
     } else {
       truckMap[key].faults=truckMap[key].faults.concat(faults);
       truckMap[key].parts=truckMap[key].parts.concat(parts);
       if(bay!=='—') truckMap[key].bay=bay;
       if(etd!=='—') truckMap[key].etd=etd;
+      if(groundETD!=='—') truckMap[key].groundETD=groundETD;
       if(exitTime){ truckMap[key].status='LEFT'+(leftOnTarget?' TODAY':''); truckMap[key].timeOut=timeOut; }
     }
   });
@@ -15604,7 +15621,7 @@ function getDailyReportRows(){
     var key2=e.truckNo;
     var faultsForThis = e.exitRemarks ? ['No job card — Exit remarks: '+e.exitRemarks] : ['No job card opened for this visit'];
     if(!truckMap[key2]){
-      truckMap[key2]={ date:(exitTime2?exitDate2:entryDate2), refNo:refNo2, truck:e.truckNo, bay:'—', etd:'—', status:status2, faults:faultsForThis, parts:[], timeIn:timeIn2, timeOut:timeOut2 };
+      truckMap[key2]={ date:(exitTime2?exitDate2:entryDate2), refNo:refNo2, truck:e.truckNo, bay:'—', etd:'—', groundETD:'—', status:status2, faults:faultsForThis, parts:[], timeIn:timeIn2, timeOut:timeOut2 };
     }
   });
   // End-of-Day Balance reasons (Manager tab) — "why is this truck still
@@ -15631,14 +15648,14 @@ function renderDailyReport(){
   var tbody=document.getElementById('dailyReportTable');
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
+    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:20px">No trucks for this date/filter</td></tr>';
     return;
   }
   tbody.innerHTML=rows.map(function(r){
     var statusColor = r.status==='LEFT TODAY' ? 'var(--green)' : r.status==='READY — AWAITING DRIVER' ? 'var(--blue)' : 'var(--amber)';
     var partsStr = r.parts.length ? r.parts.join('; ') : '—';
     var partsColor = r.parts.length ? 'var(--red)' : 'var(--text2)';
-    return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td><td>'+r.etd+'</td>'+
+    return '<tr><td>'+r.date+'</td><td style="font-family:monospace;font-size:12px">'+r.refNo+'</td><td><b>'+r.truck+'</b></td><td>'+r.bay+'</td><td>'+r.etd+'</td><td>'+(r.groundETD||'—')+'</td>'+
       '<td>'+r.timeIn+'</td><td>'+r.timeOut+'</td>'+
       '<td style="color:'+statusColor+';font-weight:600">'+r.status+'</td>'+
       '<td>'+numberedFaultsHtml(r.faults)+'</td>'+
@@ -15687,13 +15704,13 @@ function exportDailyReportCSV(){
 
 function _generateDailyReportFile(){
   var rows=getDailyReportRows();
-  var headers=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
-  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
+  var headers=['Date','Ref No','Truck','Bay','Supervisor ETD','Ground Team Highest ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
+  var data=rows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.groundETD||'—', r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
   if(typeof XLSX!=='undefined'){
     var wb=XLSX.utils.book_new();
     var ws=XLSX.utils.aoa_to_sheet([headers].concat(data));
-    ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
-    applyWrapTextToColumn(ws, 8, data.length); // "All Faults" is column index 8
+    ws['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+    applyWrapTextToColumn(ws, 9, data.length); // "All Faults" is column index 9
     XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
     var picker=document.getElementById('drDatePicker');
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
@@ -15765,11 +15782,11 @@ function exportCombinedReport(){
 
   // Sheet 1: Daily Report (same rows as "Download for Boss")
   const drRows=getDailyReportRows();
-  const drHeaders=['Date','Ref No','Truck','Bay','ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
-  const drData=drRows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
+  const drHeaders=['Date','Ref No','Truck','Bay','Supervisor ETD','Ground Team Highest ETD','Time In','Time Out','Status','All Faults','Parts Needed'];
+  const drData=drRows.map(function(r){ return [r.date, r.refNo, r.truck, r.bay, r.etd, r.groundETD||'—', r.timeIn, r.timeOut, r.status, numberedFaultsText(r.faults), r.parts.join('; ')||'—']; });
   const ws1=XLSX.utils.aoa_to_sheet([drHeaders].concat(drData));
-  ws1['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
-  applyWrapTextToColumn(ws1, 8, drData.length); // "All Faults" is column index 8
+  ws1['!cols']=[{wch:12},{wch:18},{wch:12},{wch:8},{wch:16},{wch:16},{wch:10},{wch:10},{wch:18},{wch:70},{wch:40}];
+  applyWrapTextToColumn(ws1, 9, drData.length); // "All Faults" is column index 9
   XLSX.utils.book_append_sheet(wb, ws1, 'Daily Report');
 
   // Sheet 2: Repair History (same rows as "Download Repair History", uses
