@@ -6268,18 +6268,15 @@ function refreshMonthlyReport(){
     var d=new Date(a.submittedAt||a.plannedVisit);
     return d.getMonth()===month && d.getFullYear()===year;
   });
-
-  if(!apts.length){ el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:12px">No appointments in '+monthName+'.</div>'; return; }
-
-  // By Incharge
   var byIncharge={};
   apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
-
-  // By Truck
   var byTruck={};
   apts.forEach(function(a){ var t=a.truckNo||'Unknown'; byTruck[t]=(byTruck[t]||0)+1; });
 
   var html='<div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text2)">'+monthName+' — '+apts.length+' total appointments</div>';
+  if(!apts.length){
+    html+='<div style="color:var(--text2);font-size:12px;padding:8px 0">No appointment requests in '+monthName+'.</div>';
+  } else {
 
   // Incharge table
   html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--accent)">👤 By Incharge</div>';
@@ -6317,6 +6314,44 @@ function refreshMonthlyReport(){
     html+='<span style="font-weight:700">'+truck+'</span>';
     html+='<span style="color:'+color+';font-weight:700;margin-left:6px">×'+count+'</span></div>';
   });
+  html+='</div>';
+
+  } // end if(apts.length)
+
+  // ── Gate Entries This Month (actual physical visits, independent of appointments) ──
+  var monthEntries=(S.entries||[]).filter(function(e){
+    var d=new Date(e.entryTime);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  var byTruckEntries={};
+  monthEntries.forEach(function(e){ var t=fmtTruck(e.truckNo)||'Unknown'; byTruckEntries[t]=(byTruckEntries[t]||0)+1; });
+  var entryCounts=Object.keys(byTruckEntries).map(function(t){ return byTruckEntries[t]; });
+  var uniqueEntryTruckCount=entryCounts.length;
+  var entrySingle=entryCounts.filter(function(c){ return c===1; }).length;
+  var entryTwice=entryCounts.filter(function(c){ return c===2; }).length;
+  var entryThreePlus=entryCounts.filter(function(c){ return c>=3; }).length;
+
+  html+='<div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--border)">';
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--green)">🚪 Gate Entries This Month ('+monthEntries.length+' total, actual yard visits)</div>';
+  if(!monthEntries.length){
+    html+='<div style="color:var(--text2);font-size:12px">No gate entries recorded in '+monthName+'.</div>';
+  } else {
+    html+='<div style="font-size:11.5px;color:var(--text2);margin-bottom:10px">'
+      +uniqueEntryTruckCount+' unique trucks — '
+      +'<span style="color:var(--green);font-weight:700">'+entrySingle+' truck'+(entrySingle===1?'':'s')+' with 1 visit</span>, '
+      +'<span style="color:var(--yellow);font-weight:700">'+entryTwice+' with 2</span>, '
+      +'<span style="color:var(--red);font-weight:700">'+entryThreePlus+' with 3+</span>'
+      +'</div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+    Object.keys(byTruckEntries).sort(function(a,b){return byTruckEntries[b]-byTruckEntries[a];}).forEach(function(truck){
+      var count=byTruckEntries[truck];
+      var color=count>=3?'var(--red)':count===2?'var(--yellow)':'var(--green)';
+      html+='<div style="padding:4px 10px;border-radius:20px;border:1px solid '+color+';font-size:12px">';
+      html+='<span style="font-weight:700">'+truck+'</span>';
+      html+='<span style="color:'+color+';font-weight:700;margin-left:6px">×'+count+'</span></div>';
+    });
+    html+='</div>';
+  }
   html+='</div>';
 
   el.innerHTML=html;
@@ -6383,26 +6418,42 @@ function downloadMonthlyReportCSV(){
     var d=new Date(a.submittedAt||a.plannedVisit);
     return d.getMonth()===month && d.getFullYear()===year;
   });
-  if(!apts.length){ toast('ℹ️ No appointments in '+monthName,'info'); return; }
+  var monthEntries=(S.entries||[]).filter(function(e){
+    var d=new Date(e.entryTime);
+    return d.getMonth()===month && d.getFullYear()===year;
+  });
+  if(!apts.length && !monthEntries.length){ toast('ℹ️ No appointments or gate entries in '+monthName,'info'); return; }
 
   var byIncharge={};
   apts.forEach(function(a){ var n=a.submittedBy||'Unknown'; byIncharge[n]=(byIncharge[n]||0)+1; });
   var byTruck={};
   apts.forEach(function(a){ var t=a.truckNo||'Unknown'; (byTruck[t]=byTruck[t]||[]).push(a); });
+  var byTruckEntries={};
+  monthEntries.forEach(function(e){ var t=fmtTruck(e.truckNo)||'Unknown'; (byTruckEntries[t]=byTruckEntries[t]||[]).push(e); });
 
-  var summaryRows=[['Monthly Report',monthName],['Total Appointments',apts.length],[],['By Incharge','Count']];
+  var summaryRows=[['Monthly Report',monthName],['Total Appointments',apts.length],['Total Gate Entries',monthEntries.length],[],['By Incharge','Count']];
   Object.keys(byIncharge).sort(function(a,b){return byIncharge[b]-byIncharge[a];}).forEach(function(n){
     summaryRows.push([n, byIncharge[n]]);
   });
   summaryRows.push([]);
-  summaryRows.push(['By Truck','Visits This Month']);
+  summaryRows.push(['By Truck (Appointments)','Visits This Month']);
   Object.keys(byTruck).sort(function(a,b){return byTruck[b].length-byTruck[a].length;}).forEach(function(t){
     summaryRows.push([t, byTruck[t].length]);
+  });
+  summaryRows.push([]);
+  summaryRows.push(['By Truck (Gate Entries)','Visits This Month']);
+  Object.keys(byTruckEntries).sort(function(a,b){return byTruckEntries[b].length-byTruckEntries[a].length;}).forEach(function(t){
+    summaryRows.push([t, byTruckEntries[t].length]);
   });
 
   var detailHeaders=['Truck','Ref No','Planned Visit','Submitted By','Status','Complaint'];
   var detailRows=apts.slice().sort(function(a,b){ return new Date(a.plannedVisit)-new Date(b.plannedVisit); }).map(function(a){
     return [a.truckNo||'—', a.refNo||'—', a.plannedVisit?new Date(a.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', a.submittedBy||'—', a.status||'—', a.complaints||'—'];
+  });
+
+  var entryHeaders=['Truck','Entry Time','Exit Time','Origin','Status'];
+  var entryRows=monthEntries.slice().sort(function(a,b){ return new Date(a.entryTime)-new Date(b.entryTime); }).map(function(e){
+    return [fmtTruck(e.truckNo)||'—', e.entryTime?new Date(e.entryTime).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', e.exitTime?new Date(e.exitTime).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—', e.origin||'—', e.status||'—'];
   });
 
   if(typeof XLSX!=='undefined'){
@@ -6413,6 +6464,9 @@ function downloadMonthlyReportCSV(){
     var ws2=XLSX.utils.aoa_to_sheet([detailHeaders].concat(detailRows));
     ws2['!cols']=[{wch:12},{wch:18},{wch:16},{wch:16},{wch:12},{wch:50}];
     XLSX.utils.book_append_sheet(wb, ws2, 'All Appointments');
+    var ws3=XLSX.utils.aoa_to_sheet([entryHeaders].concat(entryRows));
+    ws3['!cols']=[{wch:12},{wch:18},{wch:18},{wch:14},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Gate Entries');
     XLSX.writeFile(wb, 'SHTL_MonthlyReport_'+monthName.replace(' ','_')+'.xlsx');
     toast('📥 Monthly Report downloaded — '+monthName,'ok');
   } else {
