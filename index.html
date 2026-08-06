@@ -5795,19 +5795,14 @@ function renderAptCard(apt, showHistory){
     ? `<span class="odo-diff">+${(apt.currentOdo-apt.lastVisitOdo).toLocaleString()} km since last visit</span>` : '';
 
   let actionsHtml='';
-  if(sc==='overdue'){
-    const waLink=buildAptWhatsApp(apt);
-    const followUpNote=apt.lastFollowUpAt
+  if(sc==='overdue' || sc==='pending'){
+    const isOverdue=sc==='overdue';
+    const waLink=buildAptWhatsApp(apt, isOverdue);
+    const followUpNote=(isOverdue && apt.lastFollowUpAt)
       ? `<div style="width:100%;font-size:11px;color:#dc2626;margin-bottom:6px"><i class="ti ti-clock" aria-hidden="true"></i> Last follow-up: ${new Date(apt.lastFollowUpAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} (${apt.followUpCount||1}x)</div>`
       : '';
     actionsHtml=`${followUpNote}
-      ${waLink?`<a class="btn btn-sm" href="${waLink}" target="_blank" onclick="markAptFollowUp(${apt.id})" style="background:#25d366;color:#fff;text-decoration:none;border:none"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Message Driver</a>`:`<span class="text-xs" style="color:#dc2626">No driver mobile on file</span>`}
-      <button class="btn btn-ghost btn-sm" onclick="openEditApt(${apt.id})"><i class="ti ti-edit" aria-hidden="true"></i> Edit</button>
-      <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="openCloseApt(${apt.id})"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
-      <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise</button>
-      <a class="btn btn-ghost btn-sm" href="${buildAptMailto(apt)}" style="text-decoration:none"><i class="ti ti-mail" aria-hidden="true"></i> Email Office</a>`;
-  } else if(sc==='pending'){
-    actionsHtml=`
+      ${waLink?`<a class="btn btn-sm" href="${waLink}" target="_blank" onclick="${isOverdue?`markAptFollowUp(${apt.id})`:''}" style="background:#25d366;color:#fff;text-decoration:none;border:none"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Message Driver</a>`:`<span class="text-xs" style="color:#dc2626">No driver mobile on file</span>`}
       <button class="btn btn-ghost btn-sm" onclick="openEditApt(${apt.id})"><i class="ti ti-edit" aria-hidden="true"></i> Edit</button>
       <button class="btn btn-ghost btn-sm" style="color:#dc2626;border-color:#dc2626" onclick="openCloseApt(${apt.id})"><i class="ti ti-x" aria-hidden="true"></i> Close</button>
       <button class="btn btn-ghost btn-sm" onclick="reraiseApt(${apt.id})"><i class="ti ti-refresh" aria-hidden="true"></i> Re-raise</button>
@@ -5849,16 +5844,20 @@ function renderAptCard(apt, showHistory){
   </div>`;
 }
 
-function buildAptWhatsApp(apt){
+function buildAptWhatsApp(apt, isOverdue){
   if(!apt.driverMobile) return null;
   var waNum=apt.driverMobile.replace(/\D/g,'');
   if(waNum.startsWith('0')) waNum='255'+waNum.slice(1);
   var visitStr=new Date(apt.plannedVisit).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
   var msg='Dear Driver '+(apt.driverName||'')+',\n\n'+
-    'Reminder: Your truck *'+apt.truckNo+'* was scheduled for SHTL Mtwara Workshop on '+visitStr+' and has not yet arrived.\n\n'+
+    (isOverdue
+      ? 'Reminder: Your truck *'+apt.truckNo+'* was scheduled for SHTL Mtwara Workshop on '+visitStr+' and has not yet arrived.\n\n'
+      : 'Reminder: Your truck *'+apt.truckNo+'* is scheduled for SHTL Mtwara Workshop on '+visitStr+'.\n\n')+
     (apt.refNo?'*Reference: '+apt.refNo+'*\n':'')+
     (apt.complaints?'\nRegistered complaints:\n'+apt.complaints+'\n':'')+
-    '\nPlease confirm your new arrival time, or contact the workshop office.\n\nSHTL Mtwara Workshop';
+    (isOverdue
+      ? '\nPlease confirm your new arrival time, or contact the workshop office.\n\nSHTL Mtwara Workshop'
+      : '\nPlease confirm your arrival time, or contact the workshop office if plans change.\n\nSHTL Mtwara Workshop');
   return 'https://wa.me/'+waNum+'?text='+encodeURIComponent(msg);
 }
 
