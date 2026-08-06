@@ -1914,6 +1914,9 @@ window.addEventListener('appinstalled', function(){
 <div class="page" id="page-revisit">
   <div class="page-title">🔁 Revisit Tracker</div>
   <div class="page-sub">Auto-detected from supervisor job cards · Accountability by fault type · Incentive tracking</div>
+  <div style="margin-bottom:14px">
+    <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red)" onclick="confirmRebuildRevisits()"><i class="ti ti-refresh" aria-hidden="true"></i> Rebuild from History (tightened matching)</button>
+  </div>
 
   <!-- SUMMARY CARDS -->
   <div class="revisit-summary">
@@ -19293,6 +19296,115 @@ function detectRevisits(newIns){
   });
   save();
 }
+
+// ─── REBUILD REVISITS FROM HISTORY (uses the tightened matching logic) ───
+function confirmRebuildRevisits(){
+  var overlay=document.createElement('div');
+  overlay.id='rebuildRevisitsOverlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`
+    <div style="background:var(--surface1);border-radius:12px;padding:20px;max-width:420px;width:100%;border-top:4px solid var(--red)">
+      <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red)">⚠️ Rebuild Revisit Tracker?</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">
+        This will <b>permanently clear all current revisit records</b> and re-scan every inspection in history using the tightened matching rules (stricter word match + closest-visit priority).<br><br>
+        The 32/22/8 numbers you're seeing now will change to reflect the more accurate logic. This cannot be undone.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('rebuildRevisitsOverlay').remove()">Cancel</button>
+        <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none" onclick="rebuildAllRevisits()">Yes, Rebuild</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function rebuildAllRevisits(){
+  var overlay=document.getElementById('rebuildRevisitsOverlay');
+  if(overlay) overlay.remove();
+  toast('🔄 Rebuilding revisit history…','info');
+
+  S.revisits=[];
+  var byTruck={};
+  (S.inspections||[]).forEach(function(ins){
+    if(!ins.truckNo) return;
+    if(!byTruck[ins.truckNo]) byTruck[ins.truckNo]=[];
+    byTruck[ins.truckNo].push(ins);
+  });
+
+  Object.keys(byTruck).forEach(function(truck){
+    var visits=byTruck[truck];
+    visits.forEach(function(newIns){
+      var prevInsList=visits.filter(function(i){ return i.id!==newIns.id; });
+      if(!prevInsList.length) return;
+      var newOdo=newIns.lockedOdo;
+      if(!newOdo) return;
+
+      var allNewJobs=[];
+      ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+        ((newIns.jobs||{})[d]||[]).forEach(function(j){ allNewJobs.push({dept:d,job:j}); });
+      });
+
+      allNewJobs.forEach(function(item){
+        var fault=item.job.fault||'mechanic';
+        if(fault!=='mechanic'&&fault!=='spare') return;
+
+        var a=(item.job.desc||'').toLowerCase();
+        var aWords=a.split(' ').filter(function(w){ return w.length>4 && !REVISIT_STOPWORDS.has(w); });
+        if(!aWords.length) return;
+
+        var bestMatch=null;
+        prevInsList.forEach(function(prev){
+          var prevOdo=prev.lockedOdo;
+          if(!prevOdo) return;
+          var kmDiff=newOdo-prevOdo;
+          if(kmDiff<=0||kmDiff>15000) return;
+
+          var prevJobs=[];
+          ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+            ((prev.jobs||{})[d]||[]).forEach(function(j){ prevJobs.push({dept:d,job:j}); });
+          });
+
+          var similar=prevJobs.some(function(p){
+            var b=(p.job.desc||'').toLowerCase();
+            return aWords.some(function(w){ return b.indexOf(w)>=0; });
+          });
+
+          if(similar && (!bestMatch || kmDiff<bestMatch.kmDiff)){
+            bestMatch={prev:prev, kmDiff:kmDiff};
+          }
+        });
+
+        if(bestMatch){
+          var prev=bestMatch.prev, kmDiff=bestMatch.kmDiff;
+          var mechanic=(prev.deptStaff||{})[item.dept]||'Unknown';
+          var revisit={
+            id: Date.now()+Math.random(),
+            truck: truck,
+            km: kmDiff,
+            dept: item.dept,
+            issue: item.job.desc,
+            fault: fault,
+            mechanic: mechanic,
+            prevDate: prev.inspectedAt,
+            prevInsId: prev.id,
+            newInsId: newIns.id,
+            date: newIns.inspectedAt ? new Date(newIns.inspectedAt).toDateString() : new Date().toDateString(),
+            ts: newIns.inspectedAt ? new Date(newIns.inspectedAt).getTime() : Date.now(),
+            autoDetected: true,
+            actionTaken: '',
+            notified: false
+          };
+          var exists=S.revisits.find(function(r){ return r.truck===truck && r.issue===item.job.desc && r.newInsId===newIns.id; });
+          if(!exists) S.revisits.push(revisit);
+        }
+      });
+    });
+  });
+
+  save();
+  refreshRevisit();
+  toast('✅ Revisit Tracker rebuilt — '+S.revisits.length+' records from tightened matching','ok');
+}
+
 
 // ─── REVISIT TAB RENDERING ─────────────────────────────────────
 function showRevTab(tab, el){
