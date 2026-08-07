@@ -8715,7 +8715,8 @@ function loadBayJobs(){
           <option value="">-- Assign ${di.l.replace(/^[^ ]+ /,'')} --</option>
           ${staffList.map(n=>`<option value="${n}" ${assignedStaff===n?'selected':''}>${n}</option>`).join('')}
         </select>
-        ${assignedStaff?`<span class="staff-assigned-tag">✓ ${assignedStaff}</span>`:''}${assistHtml}`;
+        ${assignedStaff?`<span class="staff-assigned-tag">✓ ${assignedStaff}</span>`:''}${assistHtml}
+        ${(assignedStaff && !deptComplete && !gracePeriodOver) ? `<span class="text-xs text2 dept-lock-countdown" data-assigned-at="${staffAssignedAt}" style="margin-left:6px">🔓 locks in 5s…</span>` : ''}`;
     eHtml+=`<div style="margin-bottom:16px">
       <div class="flex justify-between items-center mb-8">
         <span style="color:var(--${di.c});font-weight:700">${di.l}</span>
@@ -9670,6 +9671,22 @@ function saveDeptStaff(insId,dept){
   // Lock after 5 seconds
   setTimeout(function(){ loadBayJobs(); }, 5000);
 }
+
+// Live countdown for department staff-assignment locks — ticks the visible
+// "locks in Ns…" badge down every second (added because the actual lock
+// only re-renders 5s after assignment via saveDeptStaff()'s own timer above;
+// this just makes the wait visible in the meantime, so it reads as "about to
+// lock" rather than looking like a stuck bug).
+setInterval(function(){
+  document.querySelectorAll('.dept-lock-countdown').forEach(function(el){
+    var assignedAt=el.getAttribute('data-assigned-at');
+    if(!assignedAt) return;
+    var elapsed=Date.now()-new Date(assignedAt).getTime();
+    var remaining=Math.max(0, Math.ceil((5000-elapsed)/1000));
+    if(remaining<=0){ el.textContent='🔒 locking…'; }
+    else { el.textContent='🔓 locks in '+remaining+'s…'; }
+  });
+}, 1000);
 
 // ═══ GROUND TEAM: ADD ADDITIONAL JOB FOUND DURING REPAIR ═══
 function showAddGroundJob(insId,dept){
