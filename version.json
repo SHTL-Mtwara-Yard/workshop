@@ -1,5 +1,5 @@
 {
-  "v": "v355",
+  "v": "v356",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "PERFORMANCE: found the cause of slow/delayed response while punching jobs. refreshWorkerBoard() -- called after every single job Start/Complete punch, 10 call sites total -- was calling getOpenJobLocksFor() once per staff member (~76 people), and each call independently re-scanned the entire inspections history with a nested entries lookup inside. That's ~76 full history scans on every punch. Replaced with a single combined pass (getAllOpenJobLocksGrouped) that computes the same result for all workers in one scan instead of 76. Should make Start/Complete punches feel noticeably snappier, especially on older/slower devices."
+  "change": "PERFORMANCE (3 fixes for continued slowness, especially older devices like the Lenovo): (1) refreshGroundPage's team performance calc used 2 separate full inspections scans (Team A, Team B) -- merged into 1 pass. (2) The Leaderboard did 4 separate full inspections scans (one per department: mech/elec/tyre/weld) -- merged into 1 pass. (3) BIGGEST: every device's live Firebase listener refreshes whichever page is currently open on THAT device on EVERY remote change from ANY device in the yard -- a punch anywhere, a save anywhere. During busy periods this meant back-to-back full page refreshes. Now debounced to 250ms so a burst of near-simultaneous updates collapses into a single refresh."
 }
