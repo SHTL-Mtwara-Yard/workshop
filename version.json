@@ -1,5 +1,5 @@
 {
-  "v": "v356",
+  "v": "v357",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "PERFORMANCE (3 fixes for continued slowness, especially older devices like the Lenovo): (1) refreshGroundPage's team performance calc used 2 separate full inspections scans (Team A, Team B) -- merged into 1 pass. (2) The Leaderboard did 4 separate full inspections scans (one per department: mech/elec/tyre/weld) -- merged into 1 pass. (3) BIGGEST: every device's live Firebase listener refreshes whichever page is currently open on THAT device on EVERY remote change from ANY device in the yard -- a punch anywhere, a save anywhere. During busy periods this meant back-to-back full page refreshes. Now debounced to 250ms so a burst of near-simultaneous updates collapses into a single refresh."
+  "change": "Department staff-assignment lock: verified the 5-second auto-lock timer already existed and works correctly (each department locks 5s after its own assignment, independent of other departments) -- the reported 'not locked' case was almost certainly just the screenshot being taken within that grace window. Added a live ticking '\ud83d\udd13 locks in Ns...' countdown badge so the pending state is visibly counting down instead of looking like a stuck dropdown."
 }
