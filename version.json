@@ -1,5 +1,5 @@
 {
-  "v": "v357",
+  "v": "v358",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Department staff-assignment lock: verified the 5-second auto-lock timer already existed and works correctly (each department locks 5s after its own assignment, independent of other departments) -- the reported 'not locked' case was almost certainly just the screenshot being taken within that grace window. Added a live ticking '\ud83d\udd13 locks in Ns...' countdown badge so the pending state is visibly counting down instead of looking like a stuck dropdown."
+  "change": "CRITICAL FIX: End-of-Day Balance reasons (e.g. 'Work done, driver not around') were silently dropped from Daily Report / Download for Boss / Combined Report whenever the truck had no OTHER job card or gate activity logged that same day -- e.g. a truck sitting for several days awaiting the driver. The code only attached the reason if a row already existed for that truck; now it creates a row from the truck's active entry (or the balance note alone) so the reason is never lost. Affects the on-screen Daily Report, the XLSX download, and the Combined Report sheet -- all three share this same underlying data."
 }
