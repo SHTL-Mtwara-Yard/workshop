@@ -15787,7 +15787,31 @@ function getDailyReportRows(){
   (S.eodBalance||[]).forEach(function(b){
     if(new Date(b.date).toDateString() !== targetDateLocal) return;
     var row = truckMap[b.truckNo];
-    if(row) row.faults.push('EOD Balance reason: '+(b.reason||''));
+    if(row){
+      row.faults.push('EOD Balance reason: '+(b.reason||''));
+    } else {
+      // No job card / gate-entry activity for this truck TODAY (e.g. it's
+      // been sitting for several days with no fresh movement) — previously
+      // this meant the EOD Balance note had nowhere to attach and was
+      // silently dropped, so the truck never appeared in the Daily Report
+      // at all even though a manager had explicitly logged why it's stuck.
+      // Now synthesize a row for it from whatever we know (active entry if
+      // one exists, else the balance note alone), so the reason is never lost.
+      var activeEntry = (S.entries||[]).find(function(e){ return e.truckNo===b.truckNo && !e.exitTime; });
+      var linkedIns = activeEntry ? (S.inspections||[]).find(function(i){ return i.entryId===activeEntry.id; }) : null;
+      truckMap[b.truckNo] = {
+        date: activeEntry ? new Date(activeEntry.entryTime).toLocaleDateString('en-GB') : new Date(targetDate+'T00:00:00').toLocaleDateString('en-GB'),
+        refNo: '—',
+        truck: b.truckNo,
+        bay: linkedIns ? (linkedIns.bayNo||'—') : '—',
+        etd: '—', groundETD: '—',
+        status: 'PENDING — IN YARD (no activity today)',
+        faults: ['EOD Balance reason: '+(b.reason||'')],
+        parts: [],
+        timeIn: activeEntry ? new Date(activeEntry.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—',
+        timeOut: '—'
+      };
+    }
   });
   rows=Object.values(truckMap);
   var filterVal=document.getElementById('drStatusFilter')?document.getElementById('drStatusFilter').value:'all';
