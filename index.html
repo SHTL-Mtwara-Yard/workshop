@@ -4682,6 +4682,7 @@ const _doSave=()=>{
 // write cuts both write count and the resulting bandwidth to every device,
 // without changing any data or merge logic — same correctness, fewer trips.
 var _saveDebounceTimer=null;
+var _refreshCurrentPageDebounceTimer=null;
 const save=()=>{
   if(typeof capNotifications==='function') capNotifications(); // keep notifications from growing forever
   cacheLocally(); // keep local cache instant, even before the debounced write fires
@@ -4983,8 +4984,20 @@ fbRoot.on('value', snapshot=>{
     _fbReady=true;
     runInitialRender();
   } else {
-    // Firebase data arrived — refresh current page with live data
-    refreshCurrentPage();
+    // Firebase data arrived — refresh current page with live data.
+    // PERFORMANCE: this fires on EVERY remote change from ANY device in the
+    // yard — a punch on Ground, a save on Security, anything — even when
+    // this device did nothing itself. During busy periods (many workers
+    // punching within the same minute), a burst of near-simultaneous remote
+    // updates used to trigger a full page refresh for EACH one back to back.
+    // Debounced to 250ms: several updates arriving close together now
+    // collapse into a single refresh instead of re-rendering repeatedly,
+    // without adding any noticeable delay to what the user sees.
+    if(_refreshCurrentPageDebounceTimer) clearTimeout(_refreshCurrentPageDebounceTimer);
+    _refreshCurrentPageDebounceTimer=setTimeout(function(){
+      _refreshCurrentPageDebounceTimer=null;
+      refreshCurrentPage();
+    }, 250);
     // Check for new unread security alerts and beep
     const newAlerts=(S.securityAlerts||[]).filter(a=>!a.acknowledgedAt);
     if(newAlerts.length>0) playSecurityBeep();
@@ -8132,25 +8145,25 @@ function refreshGroundPage(){
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
   const teamABays=['Bay 1','Bay 2','Bay 3','Bay 4','Bay 5','Bay 6','Bay 7','Bay 8','Bay 9','Bay 10','Express Bay','Free Bay'];
-
-  function calcTeamPerf(teamBays){
-    let total=0, onTime=0;
-    S.inspections.forEach(ins=>{
-      if(!ins.t4_qcDone) return;
-      const qcDate=new Date(ins.t4_qcDone);
-      if(qcDate<monthStart) return;
-      const inTeam=teamBays.includes(ins.bayNo);
-      if(!inTeam) return;
-      total++;
-      const etd=new Date(ins.etd);
-      if(qcDate<=etd) onTime++;
-    });
-    return total>0?Math.round(onTime/total*100):0;
-  }
-
   const teamBBays=['Bay 11','Bay 12','Bay 13','Bay 14','Bay 15','Bay 16','Bay 17','Bay 18','Bay 19','Bay 20','Bay 21'];
-  const perfA=calcTeamPerf(teamABays);
-  const perfB=calcTeamPerf(teamBBays);
+
+  // PERFORMANCE: this used to call calcTeamPerf() twice — once for Team A,
+  // once for Team B — each doing its OWN full S.inspections.forEach scan.
+  // Combined into a single pass that tallies both teams at once, since
+  // refreshGroundPage() fires on essentially every Ground Team action
+  // (bay select, punch, etc.) and this scan grows with months of history.
+  let totalA=0, onTimeA=0, totalB=0, onTimeB=0;
+  S.inspections.forEach(ins=>{
+    if(!ins.t4_qcDone) return;
+    const qcDate=new Date(ins.t4_qcDone);
+    if(qcDate<monthStart) return;
+    const etd=new Date(ins.etd);
+    const onTime=qcDate<=etd;
+    if(teamABays.includes(ins.bayNo)){ totalA++; if(onTime) onTimeA++; }
+    else if(teamBBays.includes(ins.bayNo)){ totalB++; if(onTime) onTimeB++; }
+  });
+  const perfA=totalA>0?Math.round(onTimeA/totalA*100):0;
+  const perfB=totalB>0?Math.round(onTimeB/totalB*100):0;
   const avg=Math.round((perfA+perfB)/2);
 
   const setPerf=(id,barId,pct)=>{
@@ -13650,21 +13663,21 @@ function refreshLeaderboard(){
 
   const medals=['🥇','🥈','🥉','4.','5.'];
 
-  grid.innerHTML=depts.map(dept=>{
-    // Get all staff in this dept
-    const deptStaff=(STAFF[dept.key]||[]);
-
-    // Count jobs done per person on target day
-    const stats={};
-    deptStaff.forEach(name=>{ stats[name]={jobs:0,hrs:0}; });
-
-    S.inspections.forEach(ins=>{
-      const insDate=new Date(ins.inspectedAt);
-      if(insDate.toDateString()!==targetStr) return;
+  // PERFORMANCE: this used to do depts.map(dept => S.inspections.forEach(...))
+  // — a full inspections scan PER department (4 scans total) every time the
+  // leaderboard renders. Combined into one pass over S.inspections that
+  // tallies stats for all 4 departments at once.
+  const statsByDept={mech:{},elec:{},tyre:{},weld:{}};
+  depts.forEach(dept=>{ (STAFF[dept.key]||[]).forEach(name=>{ statsByDept[dept.key][name]={jobs:0,hrs:0}; }); });
+  S.inspections.forEach(ins=>{
+    const insDate=new Date(ins.inspectedAt);
+    if(insDate.toDateString()!==targetStr) return;
+    depts.forEach(dept=>{
       ((ins.jobs||{})[dept.key]||[]).forEach((j,i)=>{
         const upd=S.jobUpdates[`${ins.id}_${dept.key}_${i}`]||{};
         const name=upd.assignedTo||j.assignedTo||null;
         if(!name) return;
+        const stats=statsByDept[dept.key];
         if(!stats[name]) stats[name]={jobs:0,hrs:0};
         if(upd.done||j.done){
           stats[name].jobs++;
@@ -13674,6 +13687,12 @@ function refreshLeaderboard(){
         }
       });
     });
+  });
+
+  grid.innerHTML=depts.map(dept=>{
+    // Get all staff in this dept
+    const deptStaff=(STAFF[dept.key]||[]);
+    const stats=statsByDept[dept.key];
 
     // Sort by jobs desc
     const ranked=Object.entries(stats)
