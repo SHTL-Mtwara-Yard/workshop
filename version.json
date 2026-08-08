@@ -1,5 +1,5 @@
 {
-  "v": "v359",
+  "v": "v360",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Daily Report Status column now shows the EOD Balance reason directly (e.g. 'PENDING - AWAITING FOR DRIVER') instead of generic 'PENDING - IN YARD', matching what Security sees on their own EOD Balance list. Previously the reason was only visible buried in the All Faults list; now it's visible at a glance in Status too. Applies to the on-screen Daily Report, the XLSX download, and the Combined Report sheet."
+  "change": "Security tab Parking Area — Awaiting Exit cards now show the actual date+time the truck was parked (not just elapsed minutes), and today's EOD Balance remark if a manager has logged one for that truck -- so Security sees the full 'why is it still here, since when' picture without switching tabs."
 }
