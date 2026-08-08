@@ -15789,6 +15789,13 @@ function getDailyReportRows(){
     var row = truckMap[b.truckNo];
     if(row){
       row.faults.push('EOD Balance reason: '+(b.reason||''));
+      // Surface the reason directly in Status too — matching what Security
+      // sees on their own EOD Balance list — instead of leaving it as a
+      // generic "PENDING — IN YARD" that requires reading the full faults
+      // list to understand why the truck is still here.
+      if(row.status.indexOf('LEFT')!==0 && b.reason){
+        row.status='PENDING — '+b.reason.toUpperCase();
+      }
     } else {
       // No job card / gate-entry activity for this truck TODAY (e.g. it's
       // been sitting for several days with no fresh movement) — previously
@@ -15805,7 +15812,7 @@ function getDailyReportRows(){
         truck: b.truckNo,
         bay: linkedIns ? (linkedIns.bayNo||'—') : '—',
         etd: '—', groundETD: '—',
-        status: 'PENDING — IN YARD (no activity today)',
+        status: 'PENDING — '+(b.reason||'IN YARD').toUpperCase(),
         faults: ['EOD Balance reason: '+(b.reason||'')],
         parts: [],
         timeIn: activeEntry ? new Date(activeEntry.entryTime).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—',
