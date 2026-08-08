@@ -1,5 +1,5 @@
 {
-  "v": "v358",
+  "v": "v359",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: End-of-Day Balance reasons (e.g. 'Work done, driver not around') were silently dropped from Daily Report / Download for Boss / Combined Report whenever the truck had no OTHER job card or gate activity logged that same day -- e.g. a truck sitting for several days awaiting the driver. The code only attached the reason if a row already existed for that truck; now it creates a row from the truck's active entry (or the balance note alone) so the reason is never lost. Affects the on-screen Daily Report, the XLSX download, and the Combined Report sheet -- all three share this same underlying data."
+  "change": "Daily Report Status column now shows the EOD Balance reason directly (e.g. 'PENDING - AWAITING FOR DRIVER') instead of generic 'PENDING - IN YARD', matching what Security sees on their own EOD Balance list. Previously the reason was only visible buried in the All Faults list; now it's visible at a glance in Status too. Applies to the on-screen Daily Report, the XLSX download, and the Combined Report sheet."
 }
