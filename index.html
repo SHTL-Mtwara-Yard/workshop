@@ -6877,18 +6877,26 @@ function refreshSecurityPanel(){
       const hasAlert = (S.securityAlerts||[]).some(a => a.insId == ins.id && !a.acknowledgedAt);
       const bg = hasAlert ? 'background:#fff3cd;border-color:#e8600a' : cleared ? 'background:#f0fdf4' : '';
       const sinceParked = ins.completedAt ? Math.round((now - new Date(ins.completedAt))/60000) : 0;
+      const sinceParkedH = Math.floor(sinceParked/60), sinceParkedM = sinceParked%60;
+      const sinceParkedStr = sinceParkedH>0 ? sinceParkedH+'h '+sinceParkedM+'m' : sinceParkedM+'m';
+      const parkedAtStr = ins.completedAt ? new Date(ins.completedAt).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      // Today's EOD Balance remark for this truck, if a manager has logged
+      // one — shown here too so Security sees the same "why it's stuck"
+      // reason without switching tabs, matching the Daily Report.
+      const eodToday = (S.eodBalance||[]).find(function(b){ return b.truckNo===displayTruck && new Date(b.date).toDateString()===now.toDateString(); });
       return `<div style="border:1px solid var(--border);border-radius:var(--radius2);padding:12px 14px;margin-bottom:8px;${bg}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:4px">
           <div>
             <span style="font-size:16px;font-weight:700">${displayTruck}</span>
             <span class="tag tag-orange" style="margin-left:6px;font-size:10px">🅿️ Parking</span>
             ${cleared?'<span class="tag tag-green" style="margin-left:4px;font-size:10px">✅ Ready</span>':''}
           </div>
-          <span style="font-size:11px;color:var(--text2)">In parking ${sinceParked}m</span>
+          <span style="font-size:11px;color:var(--text2);text-align:right">Waiting ${sinceParkedStr}<br>since ${parkedAtStr}</span>
         </div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
           Driver on arrival: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
           ${remark?`<br>Supervisor: ${remark.reason}${remark.note?' — '+remark.note:''}` : ''}
+          ${eodToday?`<br><span style="color:var(--amber);font-weight:600">EOD: ${eodToday.reason}</span>` : ''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
