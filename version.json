@@ -1,5 +1,5 @@
 {
-  "v": "v360",
+  "v": "v361",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Security tab Parking Area — Awaiting Exit cards now show the actual date+time the truck was parked (not just elapsed minutes), and today's EOD Balance remark if a manager has logged one for that truck -- so Security sees the full 'why is it still here, since when' picture without switching tabs."
+  "change": "Manual Exit date picker now allows selecting up to 3 days back (was 2 days: today + yesterday only) -- helps when internet was down and the exit couldn't be punched for a couple of days."
 }
