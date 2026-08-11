@@ -7052,9 +7052,9 @@ function openManualExit(insId){
   const now = new Date();
   document.getElementById('me_exitDate').value = now.toISOString().slice(0,10);
   document.getElementById('me_exitTime').value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  // Restrict to today / yesterday only — prevents accidental far-future or far-past entries
-  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate()-1);
-  document.getElementById('me_exitDate').min = yesterday.toISOString().slice(0,10);
+  // Restrict to today / previous 3 days — prevents accidental far-future or far-past entries
+  const threeDaysAgo = new Date(now); threeDaysAgo.setDate(threeDaysAgo.getDate()-3);
+  document.getElementById('me_exitDate').min = threeDaysAgo.toISOString().slice(0,10);
   document.getElementById('me_exitDate').max = now.toISOString().slice(0,10);
   document.getElementById('me_remark').value = '';
   document.getElementById('manualExitModal').classList.add('open');
