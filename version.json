@@ -1,5 +1,5 @@
 {
-  "v": "v362",
+  "v": "v363",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Security tab Entry Log now has a Date column. This list actually shows every truck still IN YARD (not just today's entries), so a truck sitting for several days looked identical to one that just arrived -- now the entry date is shown for each row, highlighted in red if it's not today, making older trucks visually obvious at a glance."
+  "change": "Added Trailer Status \u2014 Yard Inventory to Support Services > Trailers, matching the fleet's shared Excel format (SrNo, Trailer Type, Running Fleet, AuxNo, RegistrationDate, ModelName, ChassisNo, Remark, Staus, Location). Upload Excel button parses and imports the sheet directly (auto-detects the right sheet even with a pivot-summary sheet present), with a live summary (In Yard / Working Condition / Flat Bed / Needs Repair / Left-Duplicate) and a color-coded, repair-priority-sorted table. Download button exports back to the same format. This is separate from the existing Log Trailer Job / Trailer Log job-tracking feature, which is unchanged."
 }
