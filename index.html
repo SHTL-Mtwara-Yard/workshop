@@ -3130,6 +3130,24 @@ window.addEventListener('appinstalled', function(){
   <!-- TRAILERS (standalone trailers parked without a truck) -->
   <div class="support-subpage" id="ssub-trailers">
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:#f97316"></span>🅿️ Trailer Status — Yard Inventory</div>
+        <div style="display:flex;gap:6px">
+          <input type="file" id="trailerStatusFileInput" accept=".xlsx,.xls" style="display:none" onchange="importTrailerStatusFile(this.files[0])">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('trailerStatusFileInput').click()"><i class="ti ti-upload" aria-hidden="true"></i> Upload Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadTrailerStatus()"><i class="ti ti-download" aria-hidden="true"></i> Download</button>
+        </div>
+      </div>
+      <div class="text-xs text2" style="margin-bottom:10px">Drop the fleet's trailer status sheet here to update at a glance which trailers are in the yard, which need repair, and which don't. Re-uploading replaces the full list with the new sheet.</div>
+      <div id="trailerStatusSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Sr</th><th>Trailer No</th><th>Type</th><th>Model</th><th>Chassis No</th><th>Reg. Date</th><th>Remark</th><th>Status</th><th>Location</th></tr></thead>
+          <tbody id="trailerStatusTable"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No trailer status sheet uploaded yet — tap "Upload Excel" above</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title"><span class="dot" style="background:#f97316"></span>Log Trailer Job</div>
       <div class="form-row cols-2">
         <div><label>Trailer No</label><input type="text" id="trTrailerNo" placeholder="e.g. T897 EHY" style="text-transform:uppercase"></div>
@@ -12121,6 +12139,7 @@ function refreshSupportPage(){
   // Populate Trailers tab mechanic dropdown on first load
   const trNameEl=document.getElementById('trName');
   if(trNameEl && trNameEl.options.length<=1){ onTrDeptChange(); }
+  if(typeof refreshTrailerStatus==='function') refreshTrailerStatus();
 
   // Populate greasing team dropdowns
   const gStaff=(STAFF['greasing']||[]);
@@ -12456,6 +12475,153 @@ function onTrDeptChange(){
   const staff=(STAFF[deptKey]||[]).slice().sort();
   nameSel.innerHTML='<option value="">-- Select --</option>'+staff.map(n=>`<option>${n}</option>`).join('');
 }
+
+// ─── TRAILER STATUS — YARD INVENTORY (uploaded fleet sheet) ──────────────
+// Classifies the free-text "Staus" column from the fleet's sheet into a
+// consistent 3-way state so the summary counts and row coloring stay
+// sensible even as the wording varies slightly between uploads.
+function classifyTrailerStatus(statusRaw){
+  var s=(statusRaw||'').toLowerCase();
+  if(s.indexOf('accident')>=0) return 'repair'; // Accidental / Accidental - Insurance related - right off
+  if(s.indexOf('flat bed')>=0) return 'attention'; // Flat bed — often flagged with "axles need to fix" in Remark
+  if(s.indexOf('working condition')>=0) return 'ok';
+  if(s.indexOf('left')>=0) return 'left';
+  if(s.indexOf('duplicate')>=0) return 'duplicate';
+  return 'unknown';
+}
+function trailerStatusMeta(cls){
+  return {
+    ok:        {label:'Working Condition', color:'var(--green)', bg:'#f0fdf4'},
+    attention: {label:'Flat Bed',          color:'#b45309',      bg:'#fffbeb'},
+    repair:    {label:'Needs Repair',      color:'var(--red)',   bg:'#fef2f2'},
+    left:      {label:'Left',              color:'var(--text2)', bg:'#f8fafc'},
+    duplicate: {label:'Duplicate Entry',   color:'var(--text2)', bg:'#f8fafc'},
+    unknown:   {label:'Unknown',           color:'var(--text2)', bg:'#f8fafc'}
+  }[cls];
+}
+
+function importTrailerStatusFile(file){
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array', cellDates:true});
+      // Use whichever sheet actually has the trailer rows (the fleet's file
+      // has a "Sheet2" pivot summary first and the real data on "Sheet1") —
+      // pick the sheet with the most rows containing a recognizable header.
+      var bestSheet=null, bestRows=null;
+      wb.SheetNames.forEach(function(name){
+        var rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{defval:''});
+        if(rows.length && (!bestRows || rows.length>bestRows.length)){
+          // crude check: does it look like the trailer sheet (has an AuxNo/ChassisNo-ish column)?
+          var keys=Object.keys(rows[0]).map(function(k){return k.toLowerCase();});
+          var looksRight=keys.some(function(k){return k.indexOf('chassis')>=0||k.indexOf('aux')>=0;});
+          if(looksRight){ bestSheet=name; bestRows=rows; }
+        }
+      });
+      if(!bestRows){ toast('⚠️ Could not find a recognizable trailer sheet in this file','warn'); return; }
+
+      var imported=bestRows.map(function(r,i){
+        function getVal(possibleKeys){
+          var foundKey=Object.keys(r).find(function(k){ return possibleKeys.indexOf(k.trim())>=0; });
+          return foundKey ? r[foundKey] : '';
+        }
+        var regDateRaw=getVal(['RegistrationDate']);
+        var regDate='';
+        if(regDateRaw instanceof Date) regDate=regDateRaw.toLocaleDateString('en-GB');
+        else if(regDateRaw) regDate=String(regDateRaw);
+        return {
+          srNo: getVal(['SrNo'])||(i+1),
+          trailerType: getVal(['Trailer Type']),
+          runningFleet: getVal(['Running Fleet']),
+          auxNo: (getVal(['AuxNo'])||'').toString().toUpperCase().trim(),
+          regDate: regDate,
+          modelName: getVal(['ModelName']),
+          chassisNo: getVal(['ChassisNo']),
+          remark: getVal(['Remark']),
+          status: getVal(['Staus','Status']),
+          location: getVal(['Location ','Location'])
+        };
+      }).filter(function(r){ return r.auxNo || r.chassisNo; }); // drop fully-blank rows
+
+      S.trailerStatus = imported;
+      S.trailerStatusUploadedAt = new Date().toISOString();
+      save();
+      refreshTrailerStatus();
+      toast('✅ Trailer status sheet imported — '+imported.length+' trailers','ok');
+    }catch(err){
+      console.error('Trailer status import failed',err);
+      toast('⚠️ Could not read that file — check it matches the shared format','warn');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  document.getElementById('trailerStatusFileInput').value='';
+}
+
+function refreshTrailerStatus(){
+  var summaryEl=document.getElementById('trailerStatusSummary');
+  var tbodyEl=document.getElementById('trailerStatusTable');
+  if(!summaryEl||!tbodyEl) return;
+  var list=S.trailerStatus||[];
+
+  if(!list.length){
+    summaryEl.innerHTML='';
+    tbodyEl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:16px">No trailer status sheet uploaded yet — tap "Upload Excel" above</td></tr>';
+    return;
+  }
+
+  var counts={ok:0,attention:0,repair:0,left:0,duplicate:0,unknown:0};
+  list.forEach(function(t){ counts[classifyTrailerStatus(t.status)]++; });
+  var inYardCount = counts.ok+counts.attention+counts.repair+counts.unknown;
+
+  summaryEl.innerHTML = [
+    {n:inYardCount, l:'In Yard', c:'var(--accent)'},
+    {n:counts.ok, l:'Working Condition', c:'var(--green)'},
+    {n:counts.attention, l:'Flat Bed', c:'#b45309'},
+    {n:counts.repair, l:'Needs Repair', c:'var(--red)'},
+    {n:counts.left+counts.duplicate, l:'Left / Duplicate', c:'var(--text2)'}
+  ].map(function(s){
+    return '<div style="flex:1;min-width:110px;background:var(--surface2);border-radius:var(--radius);padding:10px 12px;text-align:center">'
+      +'<div style="font-size:22px;font-weight:800;color:'+s.c+'">'+s.n+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);font-weight:600">'+s.l+'</div></div>';
+  }).join('');
+
+  // Sort: needs-repair and flat-bed first (most actionable), then working condition, then left/duplicate last.
+  var order={repair:0,attention:1,unknown:2,ok:3,left:4,duplicate:5};
+  var sorted=list.slice().sort(function(a,b){
+    return order[classifyTrailerStatus(a.status)]-order[classifyTrailerStatus(b.status)];
+  });
+
+  tbodyEl.innerHTML=sorted.map(function(t){
+    var cls=classifyTrailerStatus(t.status);
+    var meta=trailerStatusMeta(cls);
+    return '<tr style="background:'+meta.bg+'">'
+      +'<td>'+(t.srNo||'—')+'</td>'
+      +'<td class="fw-700">'+(t.auxNo||'—')+'</td>'
+      +'<td class="text-xs">'+(t.trailerType||'—')+'</td>'
+      +'<td class="text-xs">'+(t.modelName||'—')+'</td>'
+      +'<td class="text-xs" style="font-family:monospace;font-size:10px">'+(t.chassisNo||'—')+'</td>'
+      +'<td class="text-xs">'+(t.regDate||'—')+'</td>'
+      +'<td class="text-xs">'+(t.remark||'—')+'</td>'
+      +'<td><span style="color:'+meta.color+';font-weight:700;font-size:11px">'+meta.label+'</span></td>'
+      +'<td class="text-xs">'+(t.location||'—')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function downloadTrailerStatus(){
+  var list=S.trailerStatus||[];
+  if(!list.length){ toast('⚠️ No trailer status data to download — upload a sheet first','warn'); return; }
+  var headers=['SrNo','Trailer Type','Running Fleet','AuxNo','RegistrationDate','ModelName','ChassisNo','Remark','Staus','Location'];
+  var rows=list.map(function(t){ return [t.srNo,t.trailerType,t.runningFleet,t.auxNo,t.regDate,t.modelName,t.chassisNo,t.remark,t.status,t.location]; });
+  var ws=XLSX.utils.aoa_to_sheet([headers].concat(rows));
+  ws['!cols']=[{wch:6},{wch:26},{wch:16},{wch:12},{wch:14},{wch:16},{wch:20},{wch:40},{wch:16},{wch:10}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Trailer Status');
+  XLSX.writeFile(wb, 'SHTL_Trailer_Status_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
 
 function startTrailerJob(){
   const trailerNo=document.getElementById('trTrailerNo').value.trim().toUpperCase();
