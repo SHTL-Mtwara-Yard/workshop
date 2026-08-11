@@ -1,5 +1,5 @@
 {
-  "v": "v361",
+  "v": "v362",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Manual Exit date picker now allows selecting up to 3 days back (was 2 days: today + yesterday only) -- helps when internet was down and the exit couldn't be punched for a couple of days."
+  "change": "Security tab Entry Log now has a Date column. This list actually shows every truck still IN YARD (not just today's entries), so a truck sitting for several days looked identical to one that just arrived -- now the entry date is shown for each row, highlighted in red if it's not today, making older trucks visually obvious at a glance."
 }
