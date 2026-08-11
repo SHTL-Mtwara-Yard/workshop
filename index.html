@@ -1425,8 +1425,8 @@ window.addEventListener('appinstalled', function(){
         <div class="card-title"><span class="dot" style="background:var(--green)"></span>Today's Entry Log</div>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>#</th><th>Truck</th><th>From</th><th>Dept</th><th>Fuel(L)</th><th>Inventory</th><th>In</th><th>Out</th><th>Duration</th></tr></thead>
-            <tbody id="securityLog"><tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr></tbody>
+            <thead><tr><th>#</th><th>Date</th><th>Truck</th><th>From</th><th>Dept</th><th>Fuel(L)</th><th>Inventory</th><th>In</th><th>Out</th><th>Duration</th></tr></thead>
+            <tbody id="securityLog"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -7147,7 +7147,7 @@ function refreshSecurityLog(){
     return !e.exitTime;
   }).sort((a,b)=>new Date(b.entryTime)-new Date(a.entryTime));
   const tb=document.getElementById('securityLog');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px">No entries today</td></tr>';return;}
   tb.innerHTML=rows.map((e,i)=>{
     try{
       const inT=new Date(e.entryTime);
@@ -7164,8 +7164,15 @@ function refreshSecurityLog(){
       // no real appointment behind this particular visit.
       const apt=(S.appointments||[]).find(function(a){ return a.reportedEntryId===e.id; });
       const refTag=apt&&apt.refNo?`<div style="font-size:9px;color:#7c3aed;font-weight:700">${apt.refNo}</div>`:'';
+      // This list shows every truck still IN YARD, not just ones that
+      // entered today — a truck sitting for several days looks identical
+      // to one that just arrived without a Date column. isToday flags it
+      // so older entries are visually distinguishable at a glance.
+      const isToday = !isNaN(inT) && inT.toDateString()===today;
+      const dateCell = isNaN(inT) ? '—' : `<span style="${isToday?'':'color:var(--red);font-weight:700'}">${inT.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>`;
       return `<tr>
         <td>${i+1}</td>
+        <td>${dateCell}</td>
         <td class="fw-700">${e.truckNo||'—'}${refTag}</td>
         <td><span class="tag tag-blue">${e.origin||'—'}</span></td>
         <td>${dTags||'—'}</td>
@@ -7177,7 +7184,7 @@ function refreshSecurityLog(){
       </tr>`;
     }catch(err){
       console.error('Security log row failed for entry', e, err);
-      return `<tr><td colspan="9" style="color:#dc2626;font-size:11px;padding:6px">⚠️ Entry for ${e.truckNo||'unknown truck'} failed to display — check Manager → Edit Records</td></tr>`;
+      return `<tr><td colspan="10" style="color:#dc2626;font-size:11px;padding:6px">⚠️ Entry for ${e.truckNo||'unknown truck'} failed to display — check Manager → Edit Records</td></tr>`;
     }
   }).join('');
 }
