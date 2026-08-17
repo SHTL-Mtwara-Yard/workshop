@@ -2652,6 +2652,7 @@ window.addEventListener('appinstalled', function(){
         <button class="btn btn-ghost btn-sm" id="dc-tab-bayclean" onclick="showDcTab('bayclean',this)" style="color:var(--orange);border-color:var(--orange)">🧹 Bay Cleanup</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-audit" onclick="showDcTab('audit',this)">📜 Audit Trail</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-usage" onclick="showDcTab('usage',this)" style="color:var(--green);border-color:var(--green)">📊 Feature Usage</button>
         
       </div>
 
@@ -2735,6 +2736,13 @@ window.addEventListener('appinstalled', function(){
         <div class="card-title"><span class="dot" style="background:var(--text2)"></span>📜 Deletion Audit Trail</div>
         <div class="text-xs text2 mb-12">Every deletion is logged permanently — cannot be deleted.</div>
         <div id="dcAuditList"><div class="text2 text-xs" style="padding:12px">No deletions recorded yet.</div></div>
+      </div>
+
+      <!-- FEATURE USAGE -->
+      <div id="dc-section-usage" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>📊 Feature Usage — What's Actually Being Used</div>
+        <div class="text-xs text2 mb-12">Real record counts straight from your live data, not a guess — shows exactly which parts of the system are getting used and which are sitting empty.</div>
+        <div id="dcUsageReport"></div>
       </div>
 
       <!-- CHANGE PIN -->
@@ -14388,7 +14396,7 @@ function lockDataControl(){
 }
 
 function showDcTab(tab,btn){
-  ['truck','datetruck','date','type','bayclean','recycle','audit','pin'].forEach(t=>{
+  ['truck','datetruck','date','type','bayclean','recycle','audit','usage','pin'].forEach(t=>{
     const s=document.getElementById('dc-section-'+t);
     if(s) s.style.display=t===tab?'block':'none';
     const b=document.getElementById('dc-tab-'+t);
@@ -14397,6 +14405,7 @@ function showDcTab(tab,btn){
   if(tab==='recycle') refreshRecycleBin();
   if(tab==='audit') refreshAuditTrail();
   if(tab==='bayclean') refreshStaleBaysList();
+  if(tab==='usage') refreshFeatureUsageReport();
   if(tab==='type'){
     const grid=document.getElementById('dcTypeGrid');
     if(grid && !grid.children.length){
@@ -14408,6 +14417,67 @@ function showDcTab(tab,btn){
         </div>`).join('');
     }
   }
+}
+
+function refreshFeatureUsageReport(){
+  var el=document.getElementById('dcUsageReport');
+  if(!el) return;
+  var now=new Date();
+
+  function latestDate(records, fields){
+    var latest=null;
+    (records||[]).forEach(function(r){
+      fields.forEach(function(f){
+        if(!r[f]) return;
+        var d=new Date(r[f]);
+        if(!isNaN(d) && (!latest||d>latest)) latest=d;
+      });
+    });
+    return latest;
+  }
+  function daysAgo(d){ return d ? Math.round((now-d)/86400000) : null; }
+  function statusFor(count, lastD){
+    if(!count) return {label:'Never used', color:'var(--red)', bg:'#fef2f2'};
+    var da=daysAgo(lastD);
+    if(da===null) return {label:count+' record'+(count===1?'':'s')+' — no date found', color:'var(--text2)', bg:'#f8fafc'};
+    if(da<=30) return {label:'Active — last used '+da+'d ago', color:'var(--green)', bg:'#f0fdf4'};
+    return {label:'Stale — last used '+da+'d ago', color:'#b45309', bg:'#fffbeb'};
+  }
+
+  var supportJobs=S.supportJobs||[];
+  var byType=function(t){ return supportJobs.filter(function(j){ return j.type===t; }); };
+
+  var rows=[
+    {label:'🏆 Excellence, Asset & 5S Audit', records:S.excellenceAudits, fields:['submittedAt']},
+    {label:'🔧 Tool Issuance & Inspection', records:S.toolIssuance, fields:['issuedAt','returnedAt']},
+    {label:'🛢️ Support — Greasing', records:byType('greasing'), fields:['startTime','endTime','loggedAt']},
+    {label:'🔨 Support — Panel Beater', records:byType('panelbeater'), fields:['startTime','endTime','loggedAt']},
+    {label:'♻️ Support — Refurbish', records:byType('refurbish'), fields:['startDT','loggedAt']},
+    {label:'💨 Support — Sand Blasting', records:byType('sandblasting'), fields:['startTime','endTime','loggedAt']},
+    {label:'🧼 Support — Washing', records:byType('washing'), fields:['startTime','endTime','loggedAt']},
+    {label:'🚛 Support — Trailers (job log)', records:byType('trailer'), fields:['startTime','endTime','loggedAt']},
+    {label:'🅿️ Trailer Status — Yard Inventory', records:S.trailerStatus, fields:[], customLast: S.trailerStatusUploadedAt?new Date(S.trailerStatusUploadedAt):null},
+    {label:'🏗️ Boom Repairs', records:S.boomRepairs, fields:['loggedAt','ts']},
+    {label:'🚍 Fleet Trip Log / Drivers', records:S.tripLog, fields:['startedAt','endedAt']},
+    {label:'📦 Stores — Spare Requests', records:S.spareRequests, fields:['requestedAt','createdAt']},
+    {label:'🔁 Revisit Tracker', records:S.revisits, fields:['ts','date']},
+    {label:'📋 Job Cards / Inspections (baseline)', records:S.inspections, fields:['inspectedAt']},
+    {label:'📅 Incharge Appointments (baseline)', records:S.appointments, fields:['submittedAt','plannedVisit']}
+  ];
+
+  el.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>Feature</th><th>Records</th><th>Status</th></tr></thead><tbody>'
+    + rows.map(function(r){
+        var count=(r.records||[]).length;
+        var lastD=r.customLast!==undefined ? r.customLast : latestDate(r.records, r.fields);
+        var st=statusFor(count, lastD);
+        return '<tr style="background:'+st.bg+'">'
+          +'<td style="font-weight:600">'+r.label+'</td>'
+          +'<td>'+count+'</td>'
+          +'<td style="color:'+st.color+';font-weight:700;font-size:12px">'+st.label+'</td>'
+          +'</tr>';
+      }).join('')
+    + '</tbody></table></div>'
+    + '<div class="text-xs text2" style="margin-top:10px">"Active" = used within the last 30 days. "Never used" collections are either not being adopted yet or the relevant staff haven\'t started logging there — worth a quick check with whoever owns that workflow.</div>';
 }
 
 // ── BAY CLEANUP ──
