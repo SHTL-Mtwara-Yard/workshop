@@ -1,5 +1,5 @@
 {
-  "v": "v365",
+  "v": "v366",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: two different functions were both named deleteTruckRecords -- Data Control's selective delete (tn, what) and Edit Records' full wipe (truckNo). The full-wipe version, being declared later in the file, silently overrode the other everywhere. This meant Data Control's 'Gate entries only' and 'Appointments only' buttons were secretly deleting EVERYTHING for that truck (entries, inspections, jobUpdates, deptETDs, workerLog) instead of just the selected category. Renamed the full-wipe version to deleteAllTruckRecords to eliminate the collision -- Data Control's selective buttons now actually delete only what they say."
+  "change": "Revisit Tracker: added two new charts, both above the existing truck lists (which are unchanged) -- (1) Monthly Revisit Trend, a 12-month bar chart of detected revisits per month; (2) Overhaul Jobs - Year Wise, a bar chart of trucks logged with the new 'Overhaul' Job Type option (added to the Supervisor Inspect form's Job Type dropdown alongside Running Repair/PM Maintenance/Accidental/Minor Job/Major Job), grouped by year."
 }
