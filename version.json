@@ -1,5 +1,5 @@
 {
-  "v": "v363",
+  "v": "v364",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added Trailer Status \u2014 Yard Inventory to Support Services > Trailers, matching the fleet's shared Excel format (SrNo, Trailer Type, Running Fleet, AuxNo, RegistrationDate, ModelName, ChassisNo, Remark, Staus, Location). Upload Excel button parses and imports the sheet directly (auto-detects the right sheet even with a pivot-summary sheet present), with a live summary (In Yard / Working Condition / Flat Bed / Needs Repair / Left-Duplicate) and a color-coded, repair-priority-sorted table. Download button exports back to the same format. This is separate from the existing Log Trailer Job / Trailer Log job-tracking feature, which is unchanged."
+  "change": "Manual Exit date range fix: instead of a fixed 3-day-back cutoff (which kept blocking legitimate cases like a truck sitting a week+ due to internet issues), the earliest selectable exit date is now the truck's own Gate-In date -- an exit can never be earlier than when the truck actually arrived, which is the real constraint, not an arbitrary day count. Max is still capped at today."
 }
