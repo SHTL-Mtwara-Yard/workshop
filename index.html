@@ -7070,9 +7070,15 @@ function openManualExit(insId){
   const now = new Date();
   document.getElementById('me_exitDate').value = now.toISOString().slice(0,10);
   document.getElementById('me_exitTime').value = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  // Restrict to today / previous 3 days — prevents accidental far-future or far-past entries
-  const threeDaysAgo = new Date(now); threeDaysAgo.setDate(threeDaysAgo.getDate()-3);
-  document.getElementById('me_exitDate').min = threeDaysAgo.toISOString().slice(0,10);
+  // Restrict exit date to no earlier than this truck's own Gate-In date (an
+  // exit can't happen before the truck arrived) and no later than today
+  // (prevents accidental future-dating). Previously capped to a fixed
+  // "3 days back" window regardless of the truck — but a truck can
+  // legitimately sit for a week+ if internet was down or the punch was
+  // missed, so the real, correct floor is the truck's own entry date, not
+  // an arbitrary day count.
+  const entryDate = e && e.entryTime ? new Date(e.entryTime) : null;
+  document.getElementById('me_exitDate').min = entryDate ? entryDate.toISOString().slice(0,10) : now.toISOString().slice(0,10);
   document.getElementById('me_exitDate').max = now.toISOString().slice(0,10);
   document.getElementById('me_remark').value = '';
   document.getElementById('manualExitModal').classList.add('open');
