@@ -1542,7 +1542,7 @@ window.addEventListener('appinstalled', function(){
       </div>
       <div class="form-row cols-2">
         <div><label>🚌 Trailer No</label><input type="text" id="supTrailerNo" placeholder="e.g. TR 220 XYZ" oninput="this.value=this.value.toUpperCase()"></div>
-        <div><label>🔧 Job Type</label><select id="supJobType"><option value="">-- Select Job Type --</option><option>Running Repair</option><option>PM Maintenance</option><option>Accidental</option><option>Minor Job</option><option>Major Job</option></select></div>
+        <div><label>🔧 Job Type</label><select id="supJobType"><option value="">-- Select Job Type --</option><option>Running Repair</option><option>PM Maintenance</option><option>Accidental</option><option>Minor Job</option><option>Major Job</option><option>Overhaul</option></select></div>
       </div>
       <div class="form-row cols-2">
         <div><label>👤 Driver Name</label><input type="text" id="supDriverName" placeholder="Full name"></div>
@@ -1935,6 +1935,20 @@ window.addEventListener('appinstalled', function(){
       <div style="font-size:13px;font-weight:600;margin-top:4px">Over 10,000 km 🟢</div>
       <div class="text-xs text2 mt-8">Quality work — incentive eligible</div>
     </div>
+  </div>
+
+  <!-- MONTHLY REVISIT TREND -->
+  <div class="card mb-12">
+    <div class="card-title">📊 Monthly Revisit Trend</div>
+    <div class="text-xs text2" style="margin-bottom:12px">Revisits detected per month, last 12 months</div>
+    <div id="revisitMonthlyChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;padding:0 4px"></div>
+  </div>
+
+  <!-- OVERHAUL JOBS — YEAR WISE -->
+  <div class="card mb-12">
+    <div class="card-title">🔧 Overhaul Jobs — Year Wise</div>
+    <div class="text-xs text2" style="margin-bottom:12px">Trucks logged as Job Type "Overhaul" on the Supervisor Inspect form, by year</div>
+    <div id="overhaulYearlyChart" style="display:flex;align-items:flex-end;gap:14px;height:160px;padding:0 4px"></div>
   </div>
 
   <!-- KM BUCKET DETAIL TABLES -->
@@ -19812,7 +19826,68 @@ function refreshRevisit(){
   }
 
   refreshRevisitTab('mechanic');
+  renderRevisitMonthlyChart();
+  renderOverhaulYearlyChart();
 }
+
+// Monthly revisit count, last 12 months — simple CSS bar chart, no external lib needed.
+function renderRevisitMonthlyChart(){
+  var el=document.getElementById('revisitMonthlyChart');
+  if(!el) return;
+  var revisits=(S.revisits||[]).filter(function(r){ return r.fault==='mechanic'||r.fault==='spare'; });
+  var now=new Date();
+  var months=[];
+  for(var i=11;i>=0;i--){
+    var d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push({key:d.getFullYear()+'-'+d.getMonth(), label:d.toLocaleDateString('en-GB',{month:'short'}), year:d.getFullYear(), count:0});
+  }
+  revisits.forEach(function(r){
+    var d=r.ts?new Date(r.ts):(r.date?new Date(r.date):null);
+    if(!d||isNaN(d)) return;
+    var key=d.getFullYear()+'-'+d.getMonth();
+    var m=months.find(function(mo){ return mo.key===key; });
+    if(m) m.count++;
+  });
+  var max=Math.max.apply(null, months.map(function(m){return m.count;}).concat([1]));
+  el.innerHTML=months.map(function(m){
+    var h=Math.round((m.count/max)*120);
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:2px">'+(m.count||'')+'</div>'
+      +'<div style="width:100%;max-width:32px;height:'+Math.max(h,m.count>0?4:0)+'px;background:var(--red);border-radius:4px 4px 0 0"></div>'
+      +'<div style="font-size:10px;color:var(--text2);margin-top:6px;white-space:nowrap">'+m.label+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+// Overhaul-type jobs, grouped by year — reads Job Type="Overhaul" from S.inspections.
+function renderOverhaulYearlyChart(){
+  var el=document.getElementById('overhaulYearlyChart');
+  if(!el) return;
+  var overhauls=(S.inspections||[]).filter(function(ins){ return (ins.jobType||'')==='Overhaul'; });
+  var byYear={};
+  overhauls.forEach(function(ins){
+    var d=ins.inspectedAt?new Date(ins.inspectedAt):null;
+    if(!d||isNaN(d)) return;
+    var y=d.getFullYear();
+    byYear[y]=(byYear[y]||0)+1;
+  });
+  var years=Object.keys(byYear).sort();
+  if(!years.length){
+    el.innerHTML='<div class="text-xs text2" style="padding:20px 0;width:100%;text-align:center">No trucks logged as "Overhaul" yet — select it as the Job Type on the Supervisor Inspect form to start tracking.</div>';
+    return;
+  }
+  var max=Math.max.apply(null, years.map(function(y){return byYear[y];}).concat([1]));
+  el.innerHTML=years.map(function(y){
+    var count=byYear[y];
+    var h=Math.round((count/max)*120);
+    return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:2px">'+count+'</div>'
+      +'<div style="width:44px;height:'+Math.max(h,4)+'px;background:var(--accent);border-radius:4px 4px 0 0"></div>'
+      +'<div style="font-size:11px;font-weight:600;color:var(--text2);margin-top:6px">'+y+'</div>'
+      +'</div>';
+  }).join('');
+}
+
 
 function scrollToRevisitBucket(bucket){
   var el=document.getElementById('bucket-'+bucket);
