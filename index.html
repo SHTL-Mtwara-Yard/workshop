@@ -17656,7 +17656,7 @@ function loadEditRecord(){
   html+=`<div class="card" style="border:1px solid var(--red)">
     <div class="edit-section-head"><span style="color:var(--red)">🗑️ Delete Records — ${truck}</span></div>
     <div class="text-xs text2 mb-12">Removes gate entry, inspection, job, and timestamp data for <strong>${truck} only</strong>. Every other truck in the system is untouched. This cannot be undone.</div>
-    <button class="btn btn-danger btn-sm" onclick="deleteTruckRecords('${truck}')">🗑️ Delete All Records for ${truck}</button>
+    <button class="btn btn-danger btn-sm" onclick="deleteAllTruckRecords('${truck}')">🗑️ Delete All Records for ${truck}</button>
   </div>`;
 
   panelDiv.innerHTML=html;
@@ -17665,7 +17665,12 @@ function loadEditRecord(){
 // Deletes every record tied to ONE truck number — gate entries, inspections, and the
 // jobUpdates/deptETDs keyed off those inspection ids. Scoped strictly to truckNo so it
 // can never touch any other truck's data, unlike the old global Reset All Data button.
-function deleteTruckRecords(truckNo){
+// Named distinctly from deleteTruckRecords(tn,what) above (Data Control's selective
+// delete) -- both were previously named deleteTruckRecords, and this one-arg version,
+// being declared later in the file, silently overrode the other everywhere, which
+// meant Data Control's "Gate entries only" / "Appointments only" buttons were secretly
+// deleting EVERYTHING for that truck instead of just the selected category.
+function deleteAllTruckRecords(truckNo){
   if(!confirm(`Delete ALL records for ${truckNo}? This removes its gate entry, inspection, job data and hours worked log. Every other truck is untouched. This cannot be undone.`)) return;
 
   const insIdsToRemove=S.inspections.filter(i=>i.truckNo===truckNo).map(i=>i.id);
