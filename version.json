@@ -1,5 +1,5 @@
 {
-  "v": "v366",
+  "v": "v367",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Revisit Tracker: added two new charts, both above the existing truck lists (which are unchanged) -- (1) Monthly Revisit Trend, a 12-month bar chart of detected revisits per month; (2) Overhaul Jobs - Year Wise, a bar chart of trucks logged with the new 'Overhaul' Job Type option (added to the Supervisor Inspect form's Job Type dropdown alongside Running Repair/PM Maintenance/Accidental/Minor Job/Major Job), grouped by year."
+  "change": "Added a Feature Usage tab to Manager > Data Control -- shows real record counts and last-used date, straight from live data, for every major feature (Excellence Audit, Tool Issuance, each Support Services sub-tab, Trailer Status inventory, Boom Repairs, Fleet Trip Log, Stores Spare Requests, Revisit Tracker), color-coded Active (used in last 30 days) / Stale / Never Used, against a baseline of Job Cards and Appointments for comparison."
 }
