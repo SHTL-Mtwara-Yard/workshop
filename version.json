@@ -1,5 +1,5 @@
 {
-  "v": "v364",
+  "v": "v365",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Manual Exit date range fix: instead of a fixed 3-day-back cutoff (which kept blocking legitimate cases like a truck sitting a week+ due to internet issues), the earliest selectable exit date is now the truck's own Gate-In date -- an exit can never be earlier than when the truck actually arrived, which is the real constraint, not an arbitrary day count. Max is still capped at today."
+  "change": "CRITICAL FIX: two different functions were both named deleteTruckRecords -- Data Control's selective delete (tn, what) and Edit Records' full wipe (truckNo). The full-wipe version, being declared later in the file, silently overrode the other everywhere. This meant Data Control's 'Gate entries only' and 'Appointments only' buttons were secretly deleting EVERYTHING for that truck (entries, inspections, jobUpdates, deptETDs, workerLog) instead of just the selected category. Renamed the full-wipe version to deleteAllTruckRecords to eliminate the collision -- Data Control's selective buttons now actually delete only what they say."
 }
