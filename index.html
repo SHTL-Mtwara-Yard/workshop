@@ -11484,11 +11484,30 @@ function refreshBreakdown(){
     <td style="color:var(--accent);font-weight:600">${b.sparesSent||'<span style="color:var(--text2)">—</span>'}</td>
     <td>${resCell}</td>
     <td style="display:flex;gap:4px">
+      ${!isResolved?`<a class="btn btn-sm" href="${buildBreakdownWhatsApp(b)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border:none" title="Share this breakdown via WhatsApp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>`:''}
       <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit Mechanic, ETD, Delay Reason, Work Done & Spares Sent">✏️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button>
     </td>
   </tr>`;
   }).join('');
+}
+
+// Shares a pending breakdown via WhatsApp's contact/group picker (no fixed
+// number — wa.me with no phone opens the "choose who to send to" screen,
+// since this needs to go to whichever team member or group is relevant,
+// not a single fixed recipient).
+function buildBreakdownWhatsApp(b){
+  var reportedStr=new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  var msg='🔴 *BREAKDOWN — '+b.truckNo+'*\n\n'
+    +'📍 Location: *'+(b.location||'—')+'*\n'
+    +'📞 Driver Contact: '+(b.contact||'—')+'\n'
+    +'🕐 Reported: '+reportedStr+'\n'
+    +'🛠️ Mechanic: '+(b.mechanic||'Not yet assigned')+'\n'
+    +(b.etd?('⏱️ ETD: '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'\n'):'')
+    +'\n📝 Remarks: '+(b.remarks||'—')+'\n'
+    +(b.delayReason?('\n⚠️ Delay Reason: '+b.delayReason+'\n'):'')
+    +'\nSHTL Mtwara Workshop — Breakdown Register';
+  return 'https://wa.me/?text='+encodeURIComponent(msg);
 }
 
 var _bdEditId=null;
