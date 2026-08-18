@@ -1,5 +1,5 @@
 {
-  "v": "v368",
+  "v": "v369",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Fixed Breakdown Register 'Export CSV' -- it was exporting ALL breakdowns regardless of the on-screen date filter (Today/This Month/All) and search box, ignoring them entirely. Now applies the exact same filter as the visible table, so selecting 'Today' and exporting gives you only today's breakdowns."
+  "change": "Breakdown Register Edit modal now has Mechanic Name (dropdown, from staff list), ETD - Expected Time of Resolution (date+time), and Delay Reason fields, in addition to the existing Work Done / Spares Sent. New ETD and Delay Reason columns added to the table (ETD shown in red with a warning icon if it's passed and the breakdown is still unresolved) and to the CSV export."
 }
