@@ -2388,6 +2388,7 @@ window.addEventListener('appinstalled', function(){
           <option value="today">Today</option>
         </select>
         <button class="btn btn-ghost btn-sm" onclick="exportBreakdownCSV()">📥 Export CSV</button>
+        <button class="btn btn-sm" onclick="shareBulkPendingBreakdowns()" style="background:#25d366;color:#fff;border:none"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Share All Pending</button>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -11509,6 +11510,47 @@ function buildBreakdownWhatsApp(b){
     +'\nSHTL Mtwara Workshop — Breakdown Register';
   return 'https://wa.me/?text='+encodeURIComponent(msg);
 }
+
+// Bulk share — one WhatsApp message listing every currently PENDING
+// breakdown, respecting whatever search/date filter is active on screen
+// (same filter logic as refreshBreakdown()/exportBreakdownCSV()), instead
+// of sending one message per truck.
+function shareBulkPendingBreakdowns(){
+  const search=(document.getElementById('bdSearch').value||'').toUpperCase();
+  const monthF=document.getElementById('bdMonthFilter').value;
+  const now=new Date();
+  const todayStr=now.toDateString();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+  const pending=[...S.breakdowns]
+    .filter(b=>b.resolution!=='Resolved')
+    .sort((a,b)=>new Date(a.reportedAt)-new Date(b.reportedAt))
+    .filter(b=>{
+      if(monthF==='month' && new Date(b.reportedAt)<monthStart) return false;
+      if(monthF==='today' && new Date(b.reportedAt).toDateString()!==todayStr) return false;
+      if(search){
+        const hay=(b.truckNo+' '+b.location+' '+(b.mechanic||'')).toUpperCase();
+        if(!hay.includes(search)) return false;
+      }
+      return true;
+    });
+
+  if(!pending.length){ toast('✅ No pending breakdowns to share — all clear','ok'); return; }
+
+  var msg='🔴 *PENDING BREAKDOWNS — '+pending.length+'*\n'
+    +'SHTL Mtwara Workshop\n'
+    +new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+'\n';
+  pending.forEach(function(b,i){
+    var reportedStr=new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+    msg+='\n'+(i+1)+'. *'+b.truckNo+'* — '+(b.location||'—')+'\n'
+      +'   📞 '+(b.contact||'—')+' · 🕐 '+reportedStr+'\n'
+      +'   🛠️ '+(b.mechanic||'Not assigned')+(b.etd?(' · ⏱️ ETD '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})):'')+'\n'
+      +'   📝 '+(b.remarks||'—')+'\n'
+      +(b.delayReason?('   ⚠️ Delay: '+b.delayReason+'\n'):'');
+  });
+  window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank');
+}
+
 
 var _bdEditId=null;
 function editBreakdownDetails(id){
