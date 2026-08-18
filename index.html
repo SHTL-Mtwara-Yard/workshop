@@ -817,6 +817,23 @@ window.addEventListener('appinstalled', function(){
   <div class="modal-box" style="max-width:460px">
     <div class="modal-title">✏️ Edit Breakdown — <span id="bdEditTruckNo"></span></div>
     <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">MECHANIC NAME</label>
+      <select id="bdEditMechanic" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+        <option value="">-- Not yet assigned --</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">ETD — EXPECTED TIME OF RESOLUTION</label>
+      <div style="display:flex;gap:8px">
+        <input type="date" id="bdEditETDDate" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+        <input type="time" id="bdEditETDTime" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">DELAY REASON (if past ETD or taking longer than expected)</label>
+      <textarea id="bdEditDelayReason" rows="2" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Waiting for spare part from Mtwara yard, bad road access"></textarea>
+    </div>
+    <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">WORK DONE (what was repaired at site)</label>
       <textarea id="bdEditWorkDone" rows="3" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Changed wheel stud, fitted spare tyre, tightened loose bolts"></textarea>
     </div>
@@ -2375,9 +2392,9 @@ window.addEventListener('appinstalled', function(){
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th>S.No</th><th>Date/Time</th><th>Truck No</th><th>Contact No</th><th>Location</th><th>Mechanic</th><th>Status</th><th>Remarks</th><th>Work Done</th><th>Spares Sent</th><th>Resolution</th><th></th>
+            <th>S.No</th><th>Date/Time</th><th>Truck No</th><th>Contact No</th><th>Location</th><th>Mechanic</th><th>ETD</th><th>Delay Reason</th><th>Status</th><th>Remarks</th><th>Work Done</th><th>Spares Sent</th><th>Resolution</th><th></th>
           </tr></thead>
-          <tbody id="bdTable"><tr><td colspan="12" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
+          <tbody id="bdTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -11443,13 +11460,15 @@ function refreshBreakdown(){
   });
 
   const tb=document.getElementById('bdTable');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr>';return;}
 
   tb.innerHTML=rows.map((b,i)=>{
     const isResolved=b.resolution==='Resolved';
     const resCell = isResolved
       ? `<span class="tag tag-green">✅ Resolved</span><div class="text-xs text2 mt-8">${b.closingRemarks||''}</div><button class="btn btn-ghost btn-sm mt-8" onclick="toggleBreakdownClosure('${b.id}')">Reopen</button>`
       : `<button class="btn btn-success btn-sm" onclick="openBreakdownClosure('${b.id}')">Mark Resolved</button>`;
+    const etdDate = b.etd ? new Date(b.etd) : null;
+    const etdPast = etdDate && !isResolved && etdDate < new Date();
     return `<tr>
     <td>${i+1}</td>
     <td class="text-xs">${new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td>
@@ -11457,13 +11476,15 @@ function refreshBreakdown(){
     <td>${b.contact||'—'}</td>
     <td><span class="tag tag-blue">${b.location}</span></td>
     <td>${b.mechanic?`<span class="tag tag-green">${b.mechanic}</span>`:'—'}</td>
+    <td class="text-xs" style="${etdPast?'color:var(--red);font-weight:700':''}">${etdDate?etdDate.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'}${etdPast?' ⚠️':''}</td>
+    <td class="text-xs" style="color:var(--amber)">${b.delayReason||'—'}</td>
     <td>${b.status||'—'}</td>
     <td class="text2">${b.remarks||'—'}</td>
     <td style="color:var(--green);font-weight:600">${b.workDone||'<span style="color:var(--text2)">—</span>'}</td>
     <td style="color:var(--accent);font-weight:600">${b.sparesSent||'<span style="color:var(--text2)">—</span>'}</td>
     <td>${resCell}</td>
     <td style="display:flex;gap:4px">
-      <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit Work Done & Spares Sent">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit Mechanic, ETD, Delay Reason, Work Done & Spares Sent">✏️</button>
       <button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button>
     </td>
   </tr>`;
@@ -11475,6 +11496,20 @@ function editBreakdownDetails(id){
   const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
   _bdEditId=id;
   document.getElementById('bdEditTruckNo').textContent=b.truckNo;
+  const mechSel=document.getElementById('bdEditMechanic');
+  if(mechSel.options.length<=1){
+    ALL_STAFF.forEach(function(n){ mechSel.innerHTML+='<option value="'+n+'">'+n+'</option>'; });
+  }
+  mechSel.value=b.mechanic||'';
+  if(b.etd){
+    const etdD=new Date(b.etd);
+    document.getElementById('bdEditETDDate').value=etdD.toISOString().slice(0,10);
+    document.getElementById('bdEditETDTime').value=etdD.toTimeString().slice(0,5);
+  } else {
+    document.getElementById('bdEditETDDate').value='';
+    document.getElementById('bdEditETDTime').value='';
+  }
+  document.getElementById('bdEditDelayReason').value=b.delayReason||'';
   document.getElementById('bdEditWorkDone').value=b.workDone||'';
   document.getElementById('bdEditSparesSent').value=b.sparesSent||'';
   document.getElementById('bdEditModal').classList.add('open');
@@ -11484,6 +11519,11 @@ function editBreakdownDetails(id){
 function saveBdEdit(){
   if(!_bdEditId) return;
   const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  b.mechanic=document.getElementById('bdEditMechanic').value||'';
+  const etdDate=document.getElementById('bdEditETDDate').value;
+  const etdTime=document.getElementById('bdEditETDTime').value;
+  b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
+  b.delayReason=(document.getElementById('bdEditDelayReason').value||'').toUpperCase().trim();
   b.workDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
   b.sparesSent=(document.getElementById('bdEditSparesSent').value||'').toUpperCase().trim();
   save();
@@ -16597,8 +16637,8 @@ function exportBreakdownCSV(){
     return true;
   });
 
-  const headers=['S.No','Date/Time','Truck No','Contact No','Location','Mechanic','Status','Remarks','Resolution','Closing Remarks','Resolved At'];
-  const rows=filtered.map((b,i)=>[i+1, new Date(b.reportedAt).toLocaleString('en-GB'), b.truckNo, b.contact||'', b.location, b.mechanic||'', b.status||'', b.remarks||'', b.resolution||'Open', b.closingRemarks||'', b.resolvedAt?new Date(b.resolvedAt).toLocaleString('en-GB'):'']);
+  const headers=['S.No','Date/Time','Truck No','Contact No','Location','Mechanic','ETD','Delay Reason','Status','Remarks','Resolution','Closing Remarks','Resolved At'];
+  const rows=filtered.map((b,i)=>[i+1, new Date(b.reportedAt).toLocaleString('en-GB'), b.truckNo, b.contact||'', b.location, b.mechanic||'', b.etd?new Date(b.etd).toLocaleString('en-GB'):'', b.delayReason||'', b.status||'', b.remarks||'', b.resolution||'Open', b.closingRemarks||'', b.resolvedAt?new Date(b.resolvedAt).toLocaleString('en-GB'):'']);
   if(!rows.length){ toast('⚠️ No breakdowns match the current filter — nothing to export','warn'); return; }
   exportCSV('SHTL_DailyBreakdown_'+dateStamp()+'.csv', headers, rows);
 }
