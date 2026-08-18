@@ -1,5 +1,5 @@
 {
-  "v": "v370",
+  "v": "v371",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a WhatsApp share button to pending (unresolved) breakdowns in the Breakdown Register. Tapping it opens WhatsApp's contact/group picker (not a fixed number, since it could go to different people) with a pre-filled message: truck, location, driver contact, reported time, mechanic, ETD, remarks, and delay reason. Resolved breakdowns don't show the button since there's nothing pending to share."
+  "change": "Added a 'Share All Pending' WhatsApp button next to Export CSV on the Breakdown Register -- compiles every currently unresolved breakdown (respecting the active search/date filter) into a single numbered WhatsApp message instead of sharing one at a time per truck."
 }
