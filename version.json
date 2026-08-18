@@ -1,5 +1,5 @@
 {
-  "v": "v367",
+  "v": "v368",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a Feature Usage tab to Manager > Data Control -- shows real record counts and last-used date, straight from live data, for every major feature (Excellence Audit, Tool Issuance, each Support Services sub-tab, Trailer Status inventory, Boom Repairs, Fleet Trip Log, Stores Spare Requests, Revisit Tracker), color-coded Active (used in last 30 days) / Stale / Never Used, against a baseline of Job Cards and Appointments for comparison."
+  "change": "Fixed Breakdown Register 'Export CSV' -- it was exporting ALL breakdowns regardless of the on-screen date filter (Today/This Month/All) and search box, ignoring them entirely. Now applies the exact same filter as the visible table, so selecting 'Today' and exporting gives you only today's breakdowns."
 }
