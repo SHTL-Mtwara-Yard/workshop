@@ -1,5 +1,5 @@
 {
-  "v": "v369",
+  "v": "v370",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Breakdown Register Edit modal now has Mechanic Name (dropdown, from staff list), ETD - Expected Time of Resolution (date+time), and Delay Reason fields, in addition to the existing Work Done / Spares Sent. New ETD and Delay Reason columns added to the table (ETD shown in red with a warning icon if it's passed and the breakdown is still unresolved) and to the CSV export."
+  "change": "Added a WhatsApp share button to pending (unresolved) breakdowns in the Breakdown Register. Tapping it opens WhatsApp's contact/group picker (not a fixed number, since it could go to different people) with a pre-filled message: truck, location, driver contact, reported time, mechanic, ETD, remarks, and delay reason. Resolved breakdowns don't show the button since there's nothing pending to share."
 }
