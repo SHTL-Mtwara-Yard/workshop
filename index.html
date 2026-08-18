@@ -16577,9 +16577,29 @@ function exportUptimeCSV(){
 
 // ═══ EXPORT: DAILY BREAKDOWN ═══
 function exportBreakdownCSV(){
+  // Was exporting S.breakdowns unfiltered — completely ignoring whichever
+  // date filter (Today/This Month/All) and search box the on-screen table
+  // was actually using. Now applies the exact same filter logic as
+  // refreshBreakdown() so the download matches what's visible on screen.
+  const search=(document.getElementById('bdSearch').value||'').toUpperCase();
+  const monthF=document.getElementById('bdMonthFilter').value;
+  const now=new Date();
+  const todayStr=now.toDateString();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+
+  const filtered=[...S.breakdowns].sort((a,b)=>new Date(b.reportedAt)-new Date(a.reportedAt)).filter(b=>{
+    if(monthF==='month' && new Date(b.reportedAt)<monthStart) return false;
+    if(monthF==='today' && new Date(b.reportedAt).toDateString()!==todayStr) return false;
+    if(search){
+      const hay=(b.truckNo+' '+b.location+' '+b.mechanic).toUpperCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
   const headers=['S.No','Date/Time','Truck No','Contact No','Location','Mechanic','Status','Remarks','Resolution','Closing Remarks','Resolved At'];
-  const rows=[...S.breakdowns].sort((a,b)=>new Date(b.reportedAt)-new Date(a.reportedAt))
-    .map((b,i)=>[i+1, new Date(b.reportedAt).toLocaleString('en-GB'), b.truckNo, b.contact||'', b.location, b.mechanic||'', b.status||'', b.remarks||'', b.resolution||'Open', b.closingRemarks||'', b.resolvedAt?new Date(b.resolvedAt).toLocaleString('en-GB'):'']);
+  const rows=filtered.map((b,i)=>[i+1, new Date(b.reportedAt).toLocaleString('en-GB'), b.truckNo, b.contact||'', b.location, b.mechanic||'', b.status||'', b.remarks||'', b.resolution||'Open', b.closingRemarks||'', b.resolvedAt?new Date(b.resolvedAt).toLocaleString('en-GB'):'']);
+  if(!rows.length){ toast('⚠️ No breakdowns match the current filter — nothing to export','warn'); return; }
   exportCSV('SHTL_DailyBreakdown_'+dateStamp()+'.csv', headers, rows);
 }
 
