@@ -2384,6 +2384,7 @@ window.addEventListener('appinstalled', function(){
         <input type="text" id="bdSearch" placeholder="Search truck / location / mechanic..." style="flex:1;min-width:160px" oninput="refreshBreakdown()">
         <select id="bdMonthFilter" style="min-width:140px" onchange="refreshBreakdown()">
           <option value="all">All Time</option>
+          <option value="pending_today" selected>Pending + Today</option>
           <option value="month">This Month</option>
           <option value="today">Today</option>
         </select>
@@ -11453,6 +11454,18 @@ function refreshBreakdown(){
   rows=rows.filter(b=>{
     if(monthF==='month' && new Date(b.reportedAt)<monthStart) return false;
     if(monthF==='today' && new Date(b.reportedAt).toDateString()!==todayStr) return false;
+    // Pending + Today: any breakdown still unresolved (no matter how old —
+    // it still needs action), PLUS anything reported OR resolved today (so
+    // today's full picture is visible, including what already got fixed).
+    // The moment something gets marked Resolved on a PAST day, it drops out
+    // of this view automatically — resolving is what "removes" it, no
+    // separate cleanup needed.
+    if(monthF==='pending_today'){
+      const isPending = b.resolution!=='Resolved';
+      const reportedToday = new Date(b.reportedAt).toDateString()===todayStr;
+      const resolvedToday = b.resolvedAt && new Date(b.resolvedAt).toDateString()===todayStr;
+      if(!isPending && !reportedToday && !resolvedToday) return false;
+    }
     if(search){
       const hay=(b.truckNo+' '+b.location+' '+b.mechanic).toUpperCase();
       if(!hay.includes(search)) return false;
@@ -16700,6 +16713,12 @@ function exportBreakdownCSV(){
   const filtered=[...S.breakdowns].sort((a,b)=>new Date(b.reportedAt)-new Date(a.reportedAt)).filter(b=>{
     if(monthF==='month' && new Date(b.reportedAt)<monthStart) return false;
     if(monthF==='today' && new Date(b.reportedAt).toDateString()!==todayStr) return false;
+    if(monthF==='pending_today'){
+      const isPending = b.resolution!=='Resolved';
+      const reportedToday = new Date(b.reportedAt).toDateString()===todayStr;
+      const resolvedToday = b.resolvedAt && new Date(b.resolvedAt).toDateString()===todayStr;
+      if(!isPending && !reportedToday && !resolvedToday) return false;
+    }
     if(search){
       const hay=(b.truckNo+' '+b.location+' '+b.mechanic).toUpperCase();
       if(!hay.includes(search)) return false;
