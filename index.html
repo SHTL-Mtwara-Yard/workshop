@@ -2385,9 +2385,13 @@ window.addEventListener('appinstalled', function(){
         </div>
       </div>
 
-      <!-- BOX 2: Truck / driver / issue fields + progress -->
-      <div style="border:1px solid var(--border);border-radius:var(--radius2);padding:14px;margin-bottom:14px;background:var(--surface2)">
-        <div style="font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">🚛 TRUCK &amp; ISSUE DETAILS</div>
+      <!-- BOX 2: Truck / driver / issue fields + progress — its own toggle, collapsed by default -->
+      <div style="margin-bottom:14px">
+        <button type="button" onclick="toggleBdBox2()" id="bdBox2Toggle" style="width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:12px 14px;font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--text2);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span>🚛 TRUCK &amp; ISSUE DETAILS</span>
+          <span id="bdBox2ToggleIcon">▾</span>
+        </button>
+        <div id="bdBox2Body" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius2) var(--radius2);padding:14px;background:var(--surface2)">
       <!-- Redesigned form fields in WhatsApp format -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
@@ -2435,6 +2439,7 @@ window.addEventListener('appinstalled', function(){
             <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
           </div>
         </div>
+      </div>
       </div>
       </div>
       <button class="btn btn-primary" onclick="logBreakdown()" style="background:var(--dispatch-red);border-color:var(--dispatch-red)">+ Log Breakdown</button>
@@ -11405,6 +11410,14 @@ function toggleBdForm(){
   const isOpen=body.style.display!=='none';
   body.style.display=isOpen?'none':'block';
   icon.textContent=isOpen?'▾':'▴';
+}
+
+function toggleBdBox2(){
+  const body=document.getElementById('bdBox2Body');
+  const icon=document.getElementById('bdBox2ToggleIcon');
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  icon.textContent=isOpen?'▾':'▴';
   if(!isOpen) setTimeout(function(){ document.getElementById('bdTruckNo').focus(); },150);
 }
 
@@ -11535,6 +11548,8 @@ function logBreakdown(){
   // "hidden unless I'm actively logging one" behavior requested.
   var body=document.getElementById('bdFormBody');
   if(body && body.style.display!=='none') toggleBdForm();
+  var box2=document.getElementById('bdBox2Body');
+  if(box2 && box2.style.display!=='none') toggleBdBox2();
 }
 
 function deleteBreakdown(id){
