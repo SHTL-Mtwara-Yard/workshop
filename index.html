@@ -2364,23 +2364,29 @@ window.addEventListener('appinstalled', function(){
           <button onclick="parseBreakdownPaste()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">⚡ Parse & Fill Fields</button>
         </div>
       </div>
-      <div class="form-row cols-2">
-        <div>
-          <label>Date &amp; Time of Report</label>
-          <div id="bdDateTimeSummary" style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px"></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <select id="bdDay" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
-            <select id="bdMonth" onchange="updateBdDateTimeSummary()" style="width:100px;font-size:15px;padding:8px"></select>
-            <select id="bdYear" onchange="updateBdDateTimeSummary()" style="width:80px;text-align:center;font-size:15px;padding:8px"></select>
-            <span style="font-weight:700">@</span>
-            <select id="bdHour" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
-            <span style="font-weight:700">:</span>
-            <select id="bdMinute" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
-            <button class="btn btn-ghost btn-sm" onclick="setBdDateTimeNow()">🕐 Now</button>
+
+      <!-- BOX 1: Paste + Date/Time -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius2);padding:14px;margin-bottom:14px;background:var(--surface3)">
+        <div class="form-row cols-2" style="margin-bottom:0">
+          <div>
+            <label>Date &amp; Time of Report</label>
+            <div id="bdDateTimeSummary" style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:6px"></div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <select id="bdDay" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+              <select id="bdMonth" onchange="updateBdDateTimeSummary()" style="width:100px;font-size:15px;padding:8px"></select>
+              <select id="bdYear" onchange="updateBdDateTimeSummary()" style="width:80px;text-align:center;font-size:15px;padding:8px"></select>
+              <span style="font-weight:700">@</span>
+              <select id="bdHour" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+              <span style="font-weight:700">:</span>
+              <select id="bdMinute" onchange="updateBdDateTimeSummary()" style="width:70px;text-align:center;font-size:15px;padding:8px"></select>
+              <button class="btn btn-ghost btn-sm" onclick="setBdDateTimeNow()">🕐 Now</button>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- BOX 2: Truck / driver / issue fields + progress -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius2);padding:14px;margin-bottom:14px">
       <!-- Redesigned form fields in WhatsApp format -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
@@ -2416,7 +2422,7 @@ window.addEventListener('appinstalled', function(){
           <input type="text" id="bdMechanic" placeholder="Type mechanic name..." oninput="this.value=this.value.toUpperCase()">
         </div>
       </div>
-      <div style="border-top:2px dashed var(--border);padding-top:10px;margin-bottom:10px">
+      <div style="border-top:2px dashed var(--border);padding-top:10px">
         <div class="dispatch-eyebrow c-green" style="margin-bottom:10px">📶 PROGRESS / WORK UPDATE — update any time: "on the way", "WIP", or final fix</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
@@ -2428,6 +2434,7 @@ window.addEventListener('appinstalled', function(){
             <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
           </div>
         </div>
+      </div>
       </div>
       <button class="btn btn-primary" onclick="logBreakdown()" style="background:var(--dispatch-red);border-color:var(--dispatch-red)">+ Log Breakdown</button>
       </div>
