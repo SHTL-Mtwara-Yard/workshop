@@ -1,5 +1,5 @@
 {
-  "v": "v383",
+  "v": "v384",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Box 2 (Truck & Issue Details) on Log Breakdown is now its own independent collapsible toggle, matching the Paste WhatsApp box -- previously it always showed automatically as soon as 'Report a New Breakdown' was opened. Now tapping 'Report a New Breakdown' only reveals Box 1 (Paste toggle + Date/Time); Box 2's fields stay hidden until its own header is tapped. Both Box 2 and the outer form auto-collapse again after a successful submit."
+  "change": "Added a compact horizontal status timeline (Reported -> Attended -> In Progress -> Resolved) directly on each Breakdown Register card, right under the issue text -- same 4 stages as the full vertical stepper in the Edit modal, condensed into one row with dots + current stage/timestamp, so status is visible at a glance without opening Edit."
 }
