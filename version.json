@@ -1,5 +1,5 @@
 {
-  "v": "v384",
+  "v": "v385",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a compact horizontal status timeline (Reported -> Attended -> In Progress -> Resolved) directly on each Breakdown Register card, right under the issue text -- same 4 stages as the full vertical stepper in the Edit modal, condensed into one row with dots + current stage/timestamp, so status is visible at a glance without opening Edit."
+  "change": "Removed emoji from both WhatsApp share messages (individual breakdown share + bulk 'Share All Pending') -- on some phones/WhatsApp versions, emoji were rendering as the Unicode replacement character (garbled box symbol) instead of the actual glyph, making the shared message hard to read. Replaced with plain text labels (Location:, Mechanic:, ETD:, etc.) which are guaranteed to render correctly on every device."
 }
