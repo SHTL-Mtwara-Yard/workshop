@@ -1,5 +1,5 @@
 {
-  "v": "v373",
+  "v": "v374",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Breakdown Register: added 'Pending + Today' filter option (now the default) -- shows every still-unresolved breakdown regardless of age, PLUS anything reported or resolved today. The moment a breakdown gets marked Resolved on a past day it drops out of this view automatically; nothing extra to clean up. Applied consistently to the on-screen table, CSV export, and bulk WhatsApp share."
+  "change": "Breakdown Edit: added 'Local Mechanic (type name)' option to the Mechanic dropdown -- fixes a gap from v369 where switching Mechanic from free-text to a staff-only dropdown broke the ability to record external/local mechanics (e.g. 'LOCAL FUNDIE'). If a breakdown's saved mechanic isn't in the staff list, the field now correctly shows Local Mechanic pre-filled with their name instead of showing blank. Also relabeled 'FILL AFTER REPAIR' to reflect that Work Done is meant for live progress updates (on the way, WIP, etc.), not just the final fix."
 }
