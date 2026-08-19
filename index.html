@@ -2348,6 +2348,11 @@ window.addEventListener('appinstalled', function(){
           <div class="dispatch-header-sub">Enter the time the message actually came in, even if logging it later</div>
         </div>
       </div>
+      <button type="button" onclick="toggleBdForm()" id="bdFormToggle" style="width:100%;text-align:left;background:var(--dispatch-red);color:#fff;border:none;border-radius:var(--radius2);padding:12px 16px;font-size:14px;font-weight:800;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <span>➕ Report a New Breakdown</span>
+        <span id="bdFormToggleIcon">▾</span>
+      </button>
+      <div id="bdFormBody" style="display:none;margin-top:14px">
       <!-- Paste & Parse — collapsed by default, tap to expand when actually needed -->
       <div style="margin-bottom:14px">
         <button type="button" onclick="toggleBdPasteBox()" id="bdPasteToggle" style="width:100%;text-align:left;background:var(--surface2);border:2px dashed var(--accent);border-radius:10px;padding:10px 12px;font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
@@ -2425,6 +2430,7 @@ window.addEventListener('appinstalled', function(){
         </div>
       </div>
       <button class="btn btn-primary" onclick="logBreakdown()" style="background:var(--dispatch-red);border-color:var(--dispatch-red)">+ Log Breakdown</button>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px" id="bdQuickStats"></div>
@@ -11385,6 +11391,15 @@ function getBdDateTime(){
   return y+'-'+pad(m)+'-'+pad(d)+'T'+pad(h)+':'+pad(min);
 }
 
+function toggleBdForm(){
+  const body=document.getElementById('bdFormBody');
+  const icon=document.getElementById('bdFormToggleIcon');
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  icon.textContent=isOpen?'▾':'▴';
+  if(!isOpen) setTimeout(function(){ document.getElementById('bdTruckNo').focus(); },150);
+}
+
 function toggleBdPasteBox(){
   const wrap=document.getElementById('bdPasteBoxWrap');
   const icon=document.getElementById('bdPasteToggleIcon');
@@ -11508,6 +11523,10 @@ function logBreakdown(){
   setBdDateTimeNow();
   refreshBreakdown();
   toast('✅ Breakdown logged','ok');
+  // Collapse the form back after a successful submit — matches the
+  // "hidden unless I'm actively logging one" behavior requested.
+  var body=document.getElementById('bdFormBody');
+  if(body && body.style.display!=='none') toggleBdForm();
 }
 
 function deleteBreakdown(id){
