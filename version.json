@@ -1,5 +1,5 @@
 {
-  "v": "v380",
+  "v": "v381",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Log Breakdown: the entire form (Paste box, Date/Time, all fields, Log Breakdown button) is now collapsed by default behind a single '\u2795 Report a New Breakdown' button, instead of always showing every field. Tap it to expand and log one; it auto-collapses again after a successful submit, so the page stays clean unless you're actively reporting something."
+  "change": "Split the Log Breakdown form into two visually separate bordered boxes: Box 1 (Paste WhatsApp + Date/Time of Report) and Box 2 (Truck/Driver/Phone/Location/Status/Issue/IC/Mechanic + Progress/Work Update fields). Also fixed an unclosed div from the previous collapse changes that could have caused layout drift."
 }
