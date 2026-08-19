@@ -1,5 +1,5 @@
 {
-  "v": "v390",
+  "v": "v391",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Breakdown Register cards now show the full vertical status timeline (Reported/Attended/In Progress/Resolved stacked with checkmarks and timestamps, same as the Edit modal) instead of the compact horizontal dots version -- matches exactly what was requested, consistent look between card and modal."
+  "change": "Removed the duplicate JOB STATUS timeline from the Edit Breakdown modal -- it's now redundant since the card itself already shows the full vertical timeline (v390). Edit modal now jumps straight to Status Remark and the editable fields."
 }
