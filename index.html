@@ -2442,13 +2442,8 @@ window.addEventListener('appinstalled', function(){
         <button class="btn btn-ghost btn-sm" onclick="exportBreakdownCSV()">📥 Export CSV</button>
         <button class="btn btn-sm" onclick="shareBulkPendingBreakdowns()" style="background:#25d366;color:#fff;border:none"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> Share All Pending</button>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead style="background:var(--dispatch-bg)"><tr style="color:#fff">
-            <th style="color:#fff">S.No</th><th style="color:#fff">Date/Time</th><th style="color:#fff">Truck No</th><th style="color:#fff">Contact No</th><th style="color:#fff">Location</th><th style="color:#fff">Mechanic</th><th style="color:#fff">ETD</th><th style="color:#fff">Delay Reason</th><th style="color:#fff">Status</th><th style="color:#fff">Remarks</th><th style="color:#fff">Work Done</th><th style="color:#fff">Spares Sent</th><th style="color:#fff">Resolution</th><th style="color:#fff"></th>
-          </tr></thead>
-          <tbody id="bdTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
-        </table>
+      <div id="bdCards" style="display:flex;flex-direction:column;gap:10px">
+        <div style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</div>
       </div>
     </div>
   </div>
@@ -11556,36 +11551,44 @@ function refreshBreakdown(){
     return true;
   });
 
-  const tb=document.getElementById('bdTable');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr>';return;}
+  const cardsEl=document.getElementById('bdCards');
+  if(!rows.length){cardsEl.innerHTML='<div style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</div>';return;}
 
-  tb.innerHTML=rows.map((b,i)=>{
+  cardsEl.innerHTML=rows.map((b)=>{
     const isResolved=b.resolution==='Resolved';
-    const resCell = isResolved
-      ? `<span class="tag tag-green">✅ Resolved</span><div class="text-xs text2 mt-8">${b.closingRemarks||''}</div><button class="btn btn-ghost btn-sm mt-8" onclick="toggleBreakdownClosure('${b.id}')">Reopen</button>`
-      : `<button class="btn btn-success btn-sm" onclick="openBreakdownClosure('${b.id}')">Mark Resolved</button>`;
     const etdDate = b.etd ? new Date(b.etd) : null;
     const etdPast = etdDate && !isResolved && etdDate < new Date();
-    return `<tr>
-    <td>${i+1}</td>
-    <td class="text-xs">${new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</td>
-    <td class="fw-700">${b.truckNo}</td>
-    <td>${b.contact||'—'}</td>
-    <td><span class="tag tag-blue">${b.location}</span></td>
-    <td>${b.mechanic?`<span class="tag tag-green">${b.mechanic}</span>`:'—'}</td>
-    <td class="text-xs" style="${etdPast?'color:var(--red);font-weight:700':''}">${etdDate?etdDate.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'}${etdPast?' ⚠️':''}</td>
-    <td class="text-xs" style="color:var(--amber)">${b.delayReason||'—'}</td>
-    <td>${b.status||'—'}</td>
-    <td class="text2">${b.remarks||'—'}</td>
-    <td style="color:var(--green);font-weight:600">${b.workDone||'<span style="color:var(--text2)">—</span>'}</td>
-    <td style="color:var(--accent);font-weight:600">${b.sparesSent||'<span style="color:var(--text2)">—</span>'}</td>
-    <td>${resCell}</td>
-    <td style="display:flex;gap:4px">
-      ${!isResolved?`<a class="btn btn-sm" href="${buildBreakdownWhatsApp(b)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border:none" title="Share this breakdown via WhatsApp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>`:''}
-      <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit Mechanic, ETD, Delay Reason, Work Done & Spares Sent">✏️</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')">✕</button>
-    </td>
-  </tr>`;
+    const statusColor = b.status==='LOADED' ? 'var(--dispatch-cyan)' : 'var(--dispatch-amber)';
+    const resActions = isResolved
+      ? `<button class="btn btn-ghost btn-sm" style="flex:1" onclick="toggleBreakdownClosure('${b.id}')">↩️ Reopen</button>`
+      : `<button class="btn btn-sm" style="flex:1;background:var(--dispatch-green);color:#fff;border:none" onclick="openBreakdownClosure('${b.id}')">✓ Mark Resolved</button>`;
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px">
+        <div>
+          <div style="font-size:16px;font-weight:800">${b.truckNo}</div>
+          <div style="font-size:12px;color:var(--text2)">${new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})} · ${b.location||'—'}</div>
+        </div>
+        ${isResolved
+          ? `<span class="tag tag-green" style="flex-shrink:0">✅ Resolved</span>`
+          : `<span style="flex-shrink:0;background:${statusColor}22;color:${statusColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${b.status||'—'}</span>`}
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:10px">${b.remarks||'—'}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
+        <div><span style="color:var(--text2)">Contact</span><br>${b.contact||'—'}</div>
+        <div><span style="color:var(--text2)">Mechanic</span><br>${b.mechanic?`<span style="color:var(--dispatch-amber);font-weight:600">${b.mechanic}</span>`:'Not assigned'}</div>
+        <div><span style="color:var(--text2)">ETD</span><br><span style="${etdPast?'color:var(--red);font-weight:700':''}">${etdDate?etdDate.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}):'—'}${etdPast?' ⚠️':''}</span></div>
+        <div><span style="color:var(--text2)">Work done</span><br>${b.workDone?`<span style="color:var(--dispatch-green);font-weight:600">${b.workDone}</span>`:'—'}</div>
+        ${b.delayReason?`<div style="grid-column:1/-1"><span style="color:var(--text2)">Delay reason</span><br><span style="color:var(--dispatch-amber)">${b.delayReason}</span></div>`:''}
+        ${b.sparesSent?`<div style="grid-column:1/-1"><span style="color:var(--text2)">Spares sent</span><br>${b.sparesSent}</div>`:''}
+        ${isResolved&&b.closingRemarks?`<div style="grid-column:1/-1"><span style="color:var(--text2)">Closing remarks</span><br>${b.closingRemarks}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px">
+        ${resActions}
+        ${!isResolved?`<a class="btn btn-sm" href="${buildBreakdownWhatsApp(b)}" target="_blank" style="background:#25d366;color:#fff;text-decoration:none;border:none" title="Share via WhatsApp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="editBreakdownDetails('${b.id}')" title="Edit">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBreakdown('${b.id}')" title="Delete">✕</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
