@@ -1,5 +1,5 @@
 {
-  "v": "v386",
+  "v": "v387",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: .modal-box was used throughout the app's HTML (Edit Breakdown and 4+ other modals) but was never actually defined in CSS -- meaning every one of these modals had zero background, letting the page content behind it show through and visually overlap with the modal's own fields (exactly the illegible Edit Breakdown screenshot). Added the missing CSS rule with a proper opaque background, padding, and shadow. Also added Work Done and Spares Sent to both WhatsApp share messages (individual and bulk), which were missing entirely before."
+  "change": "Breakdown Register: (1) resolved breakdowns now sort to the bottom of the list, unresolved ones at top sorted oldest-waiting-first (most urgent), instead of being interleaved by report time regardless of status; (2) resolved cards are now minimized by default (just truck/date/status), tap the card to expand full details -- keeping the pending ones that actually need attention front and center."
 }
