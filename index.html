@@ -11880,7 +11880,32 @@ function renderBdTimeline(b){
           +'<div style="font-size:13px;font-weight:700;color:'+(s.done?'#fff':'#6b7699')+'">'+s.label+'</div>'
           +(s.at?'<div style="font-size:11px;color:#93a0c4">'+fmt(s.at)+'</div>':'<div style="font-size:11px;color:#4b5578">pending</div>')
           +'</div></div>';
-      }).join('');
+      }).join('')
+    + renderBdDelaySummary(b);
+}
+
+// "Total Delay" summary — compares ETD against actual resolution time (or
+// now, if still open). Green "On Time" if resolved at/before ETD, red with
+// the overrun duration if it ran past ETD, or blank if no ETD was ever set.
+function renderBdDelaySummary(b){
+  if(!b.etd) return '';
+  const etdD=new Date(b.etd);
+  const isResolved=b.resolution==='Resolved';
+  const compareAt = isResolved ? new Date(b.resolvedAt||Date.now()) : new Date();
+  const diffMs = compareAt - etdD;
+  const onTime = diffMs<=0;
+  let delayStr='';
+  if(!onTime){
+    const totalMin=Math.round(diffMs/60000);
+    const h=Math.floor(totalMin/60), m=totalMin%60;
+    delayStr=(h>0?h+'h ':'')+m+'m';
+  }
+  return '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #2a3560;display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:10px;color:#93a0c4;font-weight:800;letter-spacing:.5px">'+(isResolved?'TOTAL DELAY':'RUNNING DELAY')+'</span>'
+    +(onTime
+      ? '<span style="font-size:13px;font-weight:800;color:var(--dispatch-green)">✓ On Time</span>'
+      : '<span style="font-size:13px;font-weight:800;color:var(--dispatch-red)">'+delayStr+' over ETD</span>')
+    +'</div>';
 }
 
 function toggleBdLocalMechanic(){
