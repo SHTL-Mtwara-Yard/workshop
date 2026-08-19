@@ -2348,11 +2348,16 @@ window.addEventListener('appinstalled', function(){
           <div class="dispatch-header-sub">Enter the time the message actually came in, even if logging it later</div>
         </div>
       </div>
-      <!-- Paste & Parse -->
-      <div style="background:var(--surface2);border:2px dashed var(--accent);border-radius:10px;padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">📋 PASTE WHATSAPP MESSAGE — AUTO FILL</div>
-        <textarea id="bdPasteBox" rows="4" placeholder="Paste WhatsApp breakdown message here and tap Parse..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;resize:none"></textarea>
-        <button onclick="parseBreakdownPaste()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">⚡ Parse & Fill Fields</button>
+      <!-- Paste & Parse — collapsed by default, tap to expand when actually needed -->
+      <div style="margin-bottom:14px">
+        <button type="button" onclick="toggleBdPasteBox()" id="bdPasteToggle" style="width:100%;text-align:left;background:var(--surface2);border:2px dashed var(--accent);border-radius:10px;padding:10px 12px;font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span>📋 PASTE WHATSAPP MESSAGE — AUTO FILL</span>
+          <span id="bdPasteToggleIcon">▾</span>
+        </button>
+        <div id="bdPasteBoxWrap" style="display:none;background:var(--surface2);border:2px dashed var(--accent);border-top:none;border-radius:0 0 10px 10px;padding:12px">
+          <textarea id="bdPasteBox" rows="4" placeholder="Paste WhatsApp breakdown message here and tap Parse..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;resize:none"></textarea>
+          <button onclick="parseBreakdownPaste()" style="margin-top:8px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">⚡ Parse & Fill Fields</button>
+        </div>
       </div>
       <div class="form-row cols-2">
         <div>
@@ -11363,6 +11368,15 @@ function getBdDateTime(){
   var min=document.getElementById('bdMinute').value;
   var pad=function(n){return String(n).padStart(2,'0');};
   return y+'-'+pad(m)+'-'+pad(d)+'T'+pad(h)+':'+pad(min);
+}
+
+function toggleBdPasteBox(){
+  const wrap=document.getElementById('bdPasteBoxWrap');
+  const icon=document.getElementById('bdPasteToggleIcon');
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  icon.textContent=isOpen?'▾':'▴';
+  if(!isOpen) setTimeout(function(){ document.getElementById('bdPasteBox').focus(); },100);
 }
 
 function parseBreakdownPaste(){
