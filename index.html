@@ -875,9 +875,13 @@ window.addEventListener('appinstalled', function(){
     <!-- 3. ETD -->
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">ETD — EXPECTED TIME OF RESOLUTION</label>
-      <div style="display:flex;gap:8px">
+      <div id="bdEtdEditable" style="display:flex;gap:8px">
         <input type="date" id="bdEditETDDate" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
         <input type="time" id="bdEditETDTime" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+      </div>
+      <div id="bdEtdLocked" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px">
+        <div style="font-size:13px;font-weight:700;color:var(--dispatch-green)">🔒 ETD locked — <span id="bdEtdLockedValue"></span>. Cannot be changed.</div>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="requestResetBdEtd()">🔓 Reset ETD</button>
       </div>
     </div>
 
@@ -11619,19 +11623,27 @@ function deleteBreakdown(id){
   overlay.innerHTML=`
     <div style="background:var(--surface1);border-radius:12px;padding:20px;max-width:380px;width:100%;border-top:4px solid var(--red)">
       <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--red)">⚠️ Delete this breakdown?</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">
         <b>${b.truckNo}</b> — ${b.remarks||'—'}<br><br>
         This permanently removes the entry, including its status timeline and any updates logged. This cannot be undone.
       </div>
+      <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">TYPE MANAGER NAME TO CONFIRM — same protection as Job Card Edit</label>
+      <input type="text" id="deleteBdNameInput" placeholder="Manager name" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;text-transform:uppercase">
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('deleteBdConfirmOverlay').remove()">Cancel</button>
         <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none" onclick="confirmDeleteBreakdown('${id}')">Yes, Delete</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  setTimeout(function(){ document.getElementById('deleteBdNameInput').focus(); },150);
 }
 
 function confirmDeleteBreakdown(id){
+  const entered=(document.getElementById('deleteBdNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — deletion blocked','warn');
+    return;
+  }
   const overlay=document.getElementById('deleteBdConfirmOverlay');
   if(overlay) overlay.remove();
   S.breakdowns=S.breakdowns.filter(b=>b.id!=id);
@@ -12028,6 +12040,8 @@ function editBreakdownDetails(id){
     localInput.value='';
     localInput.style.display='none';
   }
+  const etdEditableEl=document.getElementById('bdEtdEditable');
+  const etdLockedEl=document.getElementById('bdEtdLocked');
   if(b.etd){
     const etdD=new Date(b.etd);
     document.getElementById('bdEditETDDate').value=etdD.toISOString().slice(0,10);
@@ -12035,6 +12049,17 @@ function editBreakdownDetails(id){
   } else {
     document.getElementById('bdEditETDDate').value='';
     document.getElementById('bdEditETDTime').value='';
+  }
+  // ETD auto-locks the moment it's saved with a value — same protection
+  // pattern as Job Card Edit / Data Control (type the manager's name to
+  // unlock), so an ETD commitment can't be casually changed after the fact.
+  if(b.etd && b.etdLocked){
+    etdEditableEl.style.display='none';
+    etdLockedEl.style.display='block';
+    document.getElementById('bdEtdLockedValue').textContent=new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  } else {
+    etdEditableEl.style.display='flex';
+    etdLockedEl.style.display='none';
   }
   document.getElementById('bdEditWorkDone').value=b.workDone||'';
   document.getElementById('bdEditSparesSent').value=b.sparesSent||'';
@@ -12116,6 +12141,42 @@ function markBdStage(field){
   refreshBreakdown();
 }
 
+function requestResetBdEtd(){
+  if(!_bdEditId) return;
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  const overlay=document.createElement('div');
+  overlay.id='resetEtdConfirmOverlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML=`
+    <div style="background:var(--surface1);border-radius:12px;padding:20px;max-width:380px;width:100%;border-top:4px solid var(--dispatch-amber)">
+      <div style="font-weight:700;font-size:15px;margin-bottom:10px;color:var(--dispatch-amber)">🔓 Reset ETD for ${b.truckNo}?</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.5">Current ETD: <b>${new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}</b><br>This unlocks it for editing again.</div>
+      <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">TYPE MANAGER NAME TO CONFIRM</label>
+      <input type="text" id="resetEtdNameInput" placeholder="Manager name" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:14px;text-transform:uppercase">
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('resetEtdConfirmOverlay').remove()">Cancel</button>
+        <button class="btn btn-sm" style="background:var(--dispatch-amber);color:#fff;border:none" onclick="confirmResetBdEtd()">Unlock ETD</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(function(){ document.getElementById('resetEtdNameInput').focus(); },150);
+}
+
+function confirmResetBdEtd(){
+  const entered=(document.getElementById('resetEtdNameInput').value||'').trim().toUpperCase();
+  if(entered !== MANAGER_NAME.toUpperCase()){
+    toast('❌ Name does not match — ETD stays locked','warn');
+    return;
+  }
+  const overlay=document.getElementById('resetEtdConfirmOverlay');
+  if(overlay) overlay.remove();
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  b.etdLocked=false;
+  save();
+  editBreakdownDetails(_bdEditId);
+  toast('🔓 ETD unlocked — you can now change it','ok');
+}
+
 function saveBdEdit(){
   if(!_bdEditId) return;
   const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
@@ -12125,7 +12186,17 @@ function saveBdEdit(){
     : (mechSelVal||'');
   const etdDate=document.getElementById('bdEditETDDate').value;
   const etdTime=document.getElementById('bdEditETDTime').value;
-  b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
+  // Only touch ETD if it's actually editable right now — when locked, the
+  // input fields are hidden but still present in the DOM with their last
+  // values, so without this guard a save would silently re-write the same
+  // ETD (harmless) but skip the auto-lock step, since it'd look unchanged.
+  const etdIsEditable = document.getElementById('bdEtdEditable').style.display!=='none';
+  if(etdIsEditable){
+    b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
+    // Auto-lock the moment an ETD is actually set and saved — matches "should
+    // auto lock once done". No lock if the field was left blank.
+    if(b.etd) b.etdLocked=true;
+  }
   const delaySelVal=document.getElementById('bdEditDelayReason').value;
   b.delayReason = delaySelVal==='__other__'
     ? (document.getElementById('bdEditDelayReasonOther').value||'').trim()
