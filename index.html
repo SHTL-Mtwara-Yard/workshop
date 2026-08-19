@@ -852,6 +852,14 @@ window.addEventListener('appinstalled', function(){
   <div class="modal-box" style="max-width:460px">
     <div class="modal-title">✏️ Edit Breakdown — <span id="bdEditTruckNo"></span></div>
     <div id="bdEditTimeline" style="background:var(--dispatch-bg);border-radius:10px;padding:14px 16px;margin-bottom:16px"></div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">STATUS REMARK — add a timestamped update so anyone monitoring can see what's happening</label>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" id="bdEditStatusUpdate" placeholder="e.g. Mechanic arrived, assessing the issue" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+        <button class="btn btn-sm" onclick="addBdStatusUpdate()" style="background:var(--dispatch-cyan);color:#fff;border:none;padding:0 16px">➕ Add</button>
+      </div>
+      <div id="bdStatusLogList" style="max-height:160px;overflow-y:auto"></div>
+    </div>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">MECHANIC NAME</label>
       <select id="bdEditMechanic" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px" onchange="toggleBdLocalMechanic()">
@@ -11690,6 +11698,7 @@ function refreshBreakdown(){
         <div id="bdCardDetails_${b.id}" style="display:none;margin-top:10px">
           <div style="font-size:13px;color:var(--text);margin-bottom:10px">${b.remarks||'—'}</div>
           ${renderBdMiniTimeline(b)}
+          ${b.statusLog&&b.statusLog.length?(function(){var last=b.statusLog[b.statusLog.length-1];return '<div style="margin-bottom:10px;padding:8px 10px;background:#e0f2fe;border-left:3px solid var(--dispatch-cyan);border-radius:0 8px 8px 0"><div style="font-size:12px;color:var(--text)">'+last.text+'</div><div style="font-size:10px;color:var(--text2);margin-top:2px">'+new Date(last.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'</div></div>';})():''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
             <div><span style="color:var(--text2)">Contact</span><br>${b.contact||'—'}</div>
             <div><span style="color:var(--text2)">Mechanic</span><br>${b.mechanic?`<span style="color:var(--dispatch-amber);font-weight:600">${b.mechanic}</span>`:'Not assigned'}</div>
@@ -11718,6 +11727,7 @@ function refreshBreakdown(){
       </div>
       <div style="font-size:13px;color:var(--text);margin-bottom:10px">${b.remarks||'—'}</div>
       ${renderBdMiniTimeline(b)}
+      ${b.statusLog&&b.statusLog.length?(function(){var last=b.statusLog[b.statusLog.length-1];return '<div style="margin-bottom:10px;padding:8px 10px;background:#e0f2fe;border-left:3px solid var(--dispatch-cyan);border-radius:0 8px 8px 0"><div style="font-size:12px;color:var(--text)">'+last.text+'</div><div style="font-size:10px;color:var(--text2);margin-top:2px">'+new Date(last.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'</div></div>';})():''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
         <div><span style="color:var(--text2)">Contact</span><br>${b.contact||'—'}</div>
         <div><span style="color:var(--text2)">Mechanic</span><br>${b.mechanic?`<span style="color:var(--dispatch-amber);font-weight:600">${b.mechanic}</span>`:'Not assigned'}</div>
@@ -11880,11 +11890,41 @@ function toggleBdLocalMechanic(){
   if(sel.value==='__local__') setTimeout(function(){ localInput.focus(); },100);
 }
 
+function renderBdStatusLog(b){
+  const el=document.getElementById('bdStatusLogList');
+  if(!el) return;
+  const log=b.statusLog||[];
+  if(!log.length){ el.innerHTML='<div class="text-xs text2" style="padding:6px 0">No updates yet — be the first to add one.</div>'; return; }
+  el.innerHTML=[...log].reverse().map(function(entry){
+    return '<div style="padding:8px 10px;background:var(--surface3);border-radius:8px;margin-bottom:6px">'
+      +'<div style="font-size:13px;color:var(--text)">'+entry.text+'</div>'
+      +'<div style="font-size:10px;color:var(--text2);margin-top:2px">'+new Date(entry.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+(entry.by?' · '+entry.by:'')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function addBdStatusUpdate(){
+  if(!_bdEditId) return;
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  const input=document.getElementById('bdEditStatusUpdate');
+  const text=(input.value||'').trim();
+  if(!text){ toast('⚠️ Type an update first','warn'); return; }
+  if(!b.statusLog) b.statusLog=[];
+  b.statusLog.push({text: text.toUpperCase(), at: new Date().toISOString()});
+  input.value='';
+  save();
+  renderBdStatusLog(b);
+  refreshBreakdown();
+  toast('✅ Status update added','ok');
+}
+
 function editBreakdownDetails(id){
   const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
   _bdEditId=id;
   document.getElementById('bdEditTruckNo').textContent=b.truckNo;
   document.getElementById('bdEditTimeline').innerHTML=renderBdTimeline(b);
+  document.getElementById('bdEditStatusUpdate').value='';
+  renderBdStatusLog(b);
   const mechSel=document.getElementById('bdEditMechanic');
   if(mechSel.options.length<=2){
     ALL_STAFF.forEach(function(n){ mechSel.innerHTML+='<option value="'+n+'">'+n+'</option>'; });
