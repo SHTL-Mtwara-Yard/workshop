@@ -1,5 +1,5 @@
 {
-  "v": "v382",
+  "v": "v383",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Fix: Box 2 (Truck & Issue Details) on Log Breakdown had a border but no background tint, so against the white card it barely read as a separate box from Box 1 -- it just looked like one continuous form. Added a shaded background (matching Box 1's treatment) and a header label so the two boxes are now clearly, visibly distinct."
+  "change": "Box 2 (Truck & Issue Details) on Log Breakdown is now its own independent collapsible toggle, matching the Paste WhatsApp box -- previously it always showed automatically as soon as 'Report a New Breakdown' was opened. Now tapping 'Report a New Breakdown' only reveals Box 1 (Paste toggle + Date/Time); Box 2's fields stay hidden until its own header is tapped. Both Box 2 and the outer form auto-collapse again after a successful submit."
 }
