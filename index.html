@@ -11697,7 +11697,7 @@ function refreshBreakdown(){
         </div>
         <div id="bdCardDetails_${b.id}" style="display:none;margin-top:10px">
           <div style="font-size:13px;color:var(--text);margin-bottom:10px">${b.remarks||'—'}</div>
-          ${renderBdMiniTimeline(b)}
+          <div style="background:var(--dispatch-bg);border-radius:10px;padding:12px 14px;margin-bottom:10px">${renderBdTimeline(b)}</div>
           ${b.statusLog&&b.statusLog.length?(function(){var last=b.statusLog[b.statusLog.length-1];return '<div style="margin-bottom:10px;padding:8px 10px;background:#e0f2fe;border-left:3px solid var(--dispatch-cyan);border-radius:0 8px 8px 0"><div style="font-size:12px;color:var(--text)">'+last.text+'</div><div style="font-size:10px;color:var(--text2);margin-top:2px">'+new Date(last.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'</div></div>';})():''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
             <div><span style="color:var(--text2)">Contact</span><br>${b.contact||'—'}</div>
@@ -11726,7 +11726,7 @@ function refreshBreakdown(){
         <span style="flex-shrink:0;background:${statusColor}22;color:${statusColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${b.status||'—'}</span>
       </div>
       <div style="font-size:13px;color:var(--text);margin-bottom:10px">${b.remarks||'—'}</div>
-      ${renderBdMiniTimeline(b)}
+      <div style="background:var(--dispatch-bg);border-radius:10px;padding:12px 14px;margin-bottom:10px">${renderBdTimeline(b)}</div>
       ${b.statusLog&&b.statusLog.length?(function(){var last=b.statusLog[b.statusLog.length-1];return '<div style="margin-bottom:10px;padding:8px 10px;background:#e0f2fe;border-left:3px solid var(--dispatch-cyan);border-radius:0 8px 8px 0"><div style="font-size:12px;color:var(--text)">'+last.text+'</div><div style="font-size:10px;color:var(--text2);margin-top:2px">'+new Date(last.at).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'</div></div>';})():''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">
         <div><span style="color:var(--text2)">Contact</span><br>${b.contact||'—'}</div>
