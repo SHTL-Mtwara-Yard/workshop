@@ -1,5 +1,5 @@
 {
-  "v": "v375",
+  "v": "v376",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Visual redesign of the Breakdown section (Log Breakdown + Breakdown Register) with a 'dispatch console' theme: dark navy gradient header bands with colored icon badges on both cards, colored eyebrow-pill field labels grouped by category (cyan=identity/contact, violet=location/status, red=issue, amber=dispatch/mechanic, green=progress updates), and a dark header row on the register table. Rest of the app is unchanged -- this is scoped to just the Breakdown section per request, not a full app theme change."
+  "change": "Two additions from the ChatGPT mockup, adapted to fit the real app: (1) Vertical status timeline (Reported -> Attended -> In Progress -> Resolved) at the top of the Edit Breakdown modal, dark dispatch-console styled with checkmarks and timestamps. Attended/In Progress are auto-stamped the first time a mechanic gets assigned / Work Done gets filled in, never overwritten once set. (2) A 4-card colorful stat strip (Total Jobs Today / In Progress Active / Resolved Today / Avg Resolution Today) above the Breakdown Register, computed live from breakdown data."
 }
