@@ -1,5 +1,5 @@
 {
-  "v": "v393",
+  "v": "v394",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Rebuilt Edit Breakdown modal following the specified workflow: Status Remark -> Mechanic -> ETD -> Spares Sent -> Spares Reached -> Attended -> Work Done -> Delay Reason. Spares Sent/Reached/Attended are now auto-timestamped confirm buttons (tap once to stamp with the current time, tap again to undo a mis-tap) instead of anything manually typed. Delay Reason is now a dropdown with predefined options (Waiting for spares approval, Transport delay, Mechanic busy, etc, plus Other-specify), and the whole block only appears when actually delayed (ETD passed while open, or resolved after ETD), showing the auto-calculated delay duration next to the label. Timeline (on cards and everywhere else) updated to the new 5-stage model: Reported -> Spares Sent -> Spares Reached -> Attended -> Completed."
+  "change": "Added confirmation before deleting a breakdown -- the red X button previously deleted the entry (including its full timeline and status log) with a single tap and zero confirmation. Now shows a warning with the truck number and issue before permanently removing it."
 }
