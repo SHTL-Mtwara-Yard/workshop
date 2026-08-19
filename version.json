@@ -1,5 +1,5 @@
 {
-  "v": "v395",
+  "v": "v396",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Two protections added, matching the manager-name verification already used for Job Card Edit / Data Control: (1) Deleting a breakdown now requires typing the manager's name to confirm, not just a Yes/No tap. (2) ETD auto-locks the moment it's set and saved -- shows as read-only with a lock icon, and requires typing the manager's name via a 'Reset ETD' button to unlock and change it again."
+  "change": "ETD now has its own dedicated 'Lock ETD' button that appears as soon as both date and time are filled in -- tapping it locks immediately (same behavior as Ground Team's department ETD), instead of only locking after the whole Edit Breakdown form is saved at the bottom. Unlocking still requires the manager-name confirmation via Reset ETD."
 }
