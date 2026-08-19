@@ -850,6 +850,7 @@ window.addEventListener('appinstalled', function(){
 <div class="modal-overlay" id="bdEditModal">
   <div class="modal-box" style="max-width:460px">
     <div class="modal-title">✏️ Edit Breakdown — <span id="bdEditTruckNo"></span></div>
+    <div id="bdEditTimeline" style="background:var(--dispatch-bg);border-radius:10px;padding:14px 16px;margin-bottom:16px"></div>
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">MECHANIC NAME</label>
       <select id="bdEditMechanic" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px" onchange="toggleBdLocalMechanic()">
@@ -2419,6 +2420,8 @@ window.addEventListener('appinstalled', function(){
       </div>
       <button class="btn btn-primary" onclick="logBreakdown()" style="background:var(--dispatch-red);border-color:var(--dispatch-red)">+ Log Breakdown</button>
     </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px" id="bdQuickStats"></div>
 
     <div class="card">
       <div class="dispatch-header">
@@ -11473,7 +11476,39 @@ function deleteBreakdown(id){
   toast('🗑️ Entry removed','info');
 }
 
+function renderBdQuickStats(){
+  const el=document.getElementById('bdQuickStats');
+  if(!el) return;
+  const now=new Date();
+  const todayStr=now.toDateString();
+  const todayAll=S.breakdowns.filter(b=>new Date(b.reportedAt).toDateString()===todayStr);
+  const inProgress=S.breakdowns.filter(b=>b.resolution!=='Resolved');
+  const resolvedToday=S.breakdowns.filter(b=>b.resolvedAt && new Date(b.resolvedAt).toDateString()===todayStr);
+  let avgHrs='—';
+  if(resolvedToday.length){
+    const totalMs=resolvedToday.reduce((sum,b)=>sum+(new Date(b.resolvedAt)-new Date(b.reportedAt)),0);
+    avgHrs=(totalMs/resolvedToday.length/3600000).toFixed(1)+'h';
+  }
+  const cards=[
+    {icon:'📋',label:'Total Jobs',sub:'Today',val:todayAll.length,color:'var(--dispatch-cyan)'},
+    {icon:'🔧',label:'In Progress',sub:'Active Jobs',val:inProgress.length,color:'var(--dispatch-amber)'},
+    {icon:'✅',label:'Resolved',sub:'Today',val:resolvedToday.length,color:'var(--dispatch-green)'},
+    {icon:'⏱️',label:'Avg Resolution',sub:'Today',val:avgHrs,color:'var(--dispatch-violet)'}
+  ];
+  el.innerHTML=cards.map(c=>
+    '<div style="background:'+c.color+'12;border:1px solid '+c.color+'30;border-radius:var(--radius2);padding:14px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+    +'<div style="width:28px;height:28px;border-radius:8px;background:'+c.color+'22;display:flex;align-items:center;justify-content:center;font-size:14px">'+c.icon+'</div>'
+    +'<div style="font-size:10px;font-weight:800;letter-spacing:.4px;color:var(--text2);text-transform:uppercase">'+c.label+'</div>'
+    +'</div>'
+    +'<div style="font-size:24px;font-weight:800;color:'+c.color+'">'+c.val+'</div>'
+    +'<div style="font-size:11px;color:var(--text2)">'+c.sub+'</div>'
+    +'</div>'
+  ).join('');
+}
+
 function refreshBreakdown(){
+  renderBdQuickStats();
   const search=(document.getElementById('bdSearch').value||'').toUpperCase();
   const monthF=document.getElementById('bdMonthFilter').value;
   const now=new Date();
@@ -11623,6 +11658,32 @@ function shareBulkPendingBreakdowns(){
 
 
 var _bdEditId=null;
+function renderBdTimeline(b){
+  const isResolved=b.resolution==='Resolved';
+  const stages=[
+    {key:'reported', label:'Reported', at:b.reportedAt, done:true},
+    {key:'attended', label:'Attended', at:b.attendedAt, done:!!b.attendedAt},
+    {key:'inprogress', label:'In Progress', at:b.inProgressAt, done:!!b.inProgressAt},
+    {key:'resolved', label:'Resolved', at:b.resolvedAt, done:isResolved}
+  ];
+  const fmt=d=>new Date(d).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  return '<div style="font-size:10px;color:#93a0c4;font-weight:800;letter-spacing:.6px;margin-bottom:10px">JOB STATUS</div>'
+    + stages.map(function(s,i){
+        const isLast=i===stages.length-1;
+        const dotColor=s.done?'var(--dispatch-green)':'#3a4570';
+        const lineColor=stages[i+1]&&stages[i+1].done?'var(--dispatch-green)':'#3a4570';
+        return '<div style="display:flex;gap:10px">'
+          +'<div style="display:flex;flex-direction:column;align-items:center">'
+          +'<div style="width:16px;height:16px;border-radius:50%;background:'+dotColor+';display:flex;align-items:center;justify-content:center;font-size:9px;color:#0f1530;font-weight:900">'+(s.done?'✓':'')+'</div>'
+          +(!isLast?'<div style="width:2px;flex:1;min-height:20px;background:'+lineColor+'"></div>':'')
+          +'</div>'
+          +'<div style="padding-bottom:'+(isLast?'0':'16')+'px">'
+          +'<div style="font-size:13px;font-weight:700;color:'+(s.done?'#fff':'#6b7699')+'">'+s.label+'</div>'
+          +(s.at?'<div style="font-size:11px;color:#93a0c4">'+fmt(s.at)+'</div>':'<div style="font-size:11px;color:#4b5578">pending</div>')
+          +'</div></div>';
+      }).join('');
+}
+
 function toggleBdLocalMechanic(){
   const sel=document.getElementById('bdEditMechanic');
   const localInput=document.getElementById('bdEditMechanicLocal');
@@ -11634,6 +11695,7 @@ function editBreakdownDetails(id){
   const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
   _bdEditId=id;
   document.getElementById('bdEditTruckNo').textContent=b.truckNo;
+  document.getElementById('bdEditTimeline').innerHTML=renderBdTimeline(b);
   const mechSel=document.getElementById('bdEditMechanic');
   if(mechSel.options.length<=2){
     ALL_STAFF.forEach(function(n){ mechSel.innerHTML+='<option value="'+n+'">'+n+'</option>'; });
@@ -11672,14 +11734,20 @@ function saveBdEdit(){
   if(!_bdEditId) return;
   const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
   const mechSelVal=document.getElementById('bdEditMechanic').value;
-  b.mechanic = mechSelVal==='__local__'
+  const newMechanic = mechSelVal==='__local__'
     ? (document.getElementById('bdEditMechanicLocal').value||'').trim().toUpperCase()
     : (mechSelVal||'');
+  // Auto-stamp timeline stages the FIRST time each condition becomes true —
+  // never overwritten once set, so re-editing later doesn't shift history.
+  if(newMechanic && !b.attendedAt) b.attendedAt=new Date().toISOString();
+  b.mechanic=newMechanic;
   const etdDate=document.getElementById('bdEditETDDate').value;
   const etdTime=document.getElementById('bdEditETDTime').value;
   b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
   b.delayReason=(document.getElementById('bdEditDelayReason').value||'').toUpperCase().trim();
-  b.workDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
+  const newWorkDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
+  if(newWorkDone && !b.inProgressAt) b.inProgressAt=new Date().toISOString();
+  b.workDone=newWorkDone;
   b.sparesSent=(document.getElementById('bdEditSparesSent').value||'').toUpperCase().trim();
   save();
   refreshBreakdown();
