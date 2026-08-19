@@ -875,10 +875,11 @@ window.addEventListener('appinstalled', function(){
     <!-- 3. ETD -->
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">ETD — EXPECTED TIME OF RESOLUTION</label>
-      <div id="bdEtdEditable" style="display:flex;gap:8px">
-        <input type="date" id="bdEditETDDate" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
-        <input type="time" id="bdEditETDTime" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+      <div id="bdEtdEditable" style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="date" id="bdEditETDDate" oninput="updateBdLockEtdBtnVisibility()" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
+        <input type="time" id="bdEditETDTime" oninput="updateBdLockEtdBtnVisibility()" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
       </div>
+      <button type="button" id="bdLockEtdBtn" class="btn btn-sm btn-block" onclick="lockBdEtdNow()" style="display:none;background:var(--dispatch-cyan);color:#fff;border:none;margin-bottom:8px">🔒 Lock ETD</button>
       <div id="bdEtdLocked" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 12px">
         <div style="font-size:13px;font-weight:700;color:var(--dispatch-green)">🔒 ETD locked — <span id="bdEtdLockedValue"></span>. Cannot be changed.</div>
         <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="requestResetBdEtd()">🔓 Reset ETD</button>
@@ -12056,10 +12057,12 @@ function editBreakdownDetails(id){
   if(b.etd && b.etdLocked){
     etdEditableEl.style.display='none';
     etdLockedEl.style.display='block';
+    document.getElementById('bdLockEtdBtn').style.display='none';
     document.getElementById('bdEtdLockedValue').textContent=new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
   } else {
     etdEditableEl.style.display='flex';
     etdLockedEl.style.display='none';
+    updateBdLockEtdBtnVisibility();
   }
   document.getElementById('bdEditWorkDone').value=b.workDone||'';
   document.getElementById('bdEditSparesSent').value=b.sparesSent||'';
@@ -12141,6 +12144,31 @@ function markBdStage(field){
   refreshBreakdown();
 }
 
+function updateBdLockEtdBtnVisibility(){
+  const btn=document.getElementById('bdLockEtdBtn');
+  if(!btn) return;
+  const hasDate=document.getElementById('bdEditETDDate').value;
+  const hasTime=document.getElementById('bdEditETDTime').value;
+  btn.style.display=(hasDate&&hasTime)?'block':'none';
+}
+
+// Locks ETD immediately when confirmed — same "set it and it locks right
+// away" behavior as Ground Team's department ETD, instead of waiting for
+// the whole Edit modal to be saved at the bottom.
+function lockBdEtdNow(){
+  if(!_bdEditId) return;
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  const etdDate=document.getElementById('bdEditETDDate').value;
+  const etdTime=document.getElementById('bdEditETDTime').value;
+  if(!etdDate||!etdTime){ toast('⚠️ Set both date and time first','warn'); return; }
+  b.etd=new Date(etdDate+'T'+etdTime).toISOString();
+  b.etdLocked=true;
+  save();
+  editBreakdownDetails(_bdEditId);
+  refreshBreakdown();
+  toast('🔒 ETD locked — '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'}),'ok');
+}
+
 function requestResetBdEtd(){
   if(!_bdEditId) return;
   const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
@@ -12186,16 +12214,13 @@ function saveBdEdit(){
     : (mechSelVal||'');
   const etdDate=document.getElementById('bdEditETDDate').value;
   const etdTime=document.getElementById('bdEditETDTime').value;
-  // Only touch ETD if it's actually editable right now — when locked, the
-  // input fields are hidden but still present in the DOM with their last
-  // values, so without this guard a save would silently re-write the same
-  // ETD (harmless) but skip the auto-lock step, since it'd look unchanged.
+  // ETD has its own dedicated "Lock ETD" button now (locks immediately on
+  // tap, matching Ground Team's behavior) — only touch it here if it's
+  // still in the editable, unlocked state, and don't auto-lock from this
+  // general Save button since that's the dedicated button's job now.
   const etdIsEditable = document.getElementById('bdEtdEditable').style.display!=='none';
-  if(etdIsEditable){
-    b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
-    // Auto-lock the moment an ETD is actually set and saved — matches "should
-    // auto lock once done". No lock if the field was left blank.
-    if(b.etd) b.etdLocked=true;
+  if(etdIsEditable && etdDate && etdTime){
+    b.etd=new Date(etdDate+'T'+etdTime).toISOString();
   }
   const delaySelVal=document.getElementById('bdEditDelayReason').value;
   b.delayReason = delaySelVal==='__other__'
