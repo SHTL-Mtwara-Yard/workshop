@@ -1,5 +1,5 @@
 {
-  "v": "v392",
+  "v": "v393",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a Total Delay / Running Delay summary at the bottom of the timeline box on Breakdown Register cards -- compares ETD against actual resolution time (or now, if still open). Shows green 'On Time' if resolved at/before ETD, or red with the overrun duration (e.g. '2h 15m over ETD') if it ran late. Only shows when an ETD has been set."
+  "change": "Rebuilt Edit Breakdown modal following the specified workflow: Status Remark -> Mechanic -> ETD -> Spares Sent -> Spares Reached -> Attended -> Work Done -> Delay Reason. Spares Sent/Reached/Attended are now auto-timestamped confirm buttons (tap once to stamp with the current time, tap again to undo a mis-tap) instead of anything manually typed. Delay Reason is now a dropdown with predefined options (Waiting for spares approval, Transport delay, Mechanic busy, etc, plus Other-specify), and the whole block only appears when actually delayed (ETD passed while open, or resolved after ETD), showing the auto-calculated delay duration next to the label. Timeline (on cards and everywhere else) updated to the new 5-stage model: Reported -> Spares Sent -> Spares Reached -> Attended -> Completed."
 }
