@@ -1,5 +1,5 @@
 {
-  "v": "v389",
+  "v": "v390",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a 'Status Remark' log to Breakdown Register -- a running, timestamped feed of updates (e.g. 'Mechanic arrived, assessing', 'Waiting for spare part') that anyone can add to via the Edit modal, distinct from Work Done which is a single overwritable field. Each entry is stamped with date/time and shown newest-first in the Edit modal, and the latest update also surfaces directly on the card (blue-accented note) so anyone monitoring the register can see what's currently happening without opening Edit."
+  "change": "Breakdown Register cards now show the full vertical status timeline (Reported/Attended/In Progress/Resolved stacked with checkmarks and timestamps, same as the Edit modal) instead of the compact horizontal dots version -- matches exactly what was requested, consistent look between card and modal."
 }
