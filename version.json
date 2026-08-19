@@ -1,5 +1,5 @@
 {
-  "v": "v391",
+  "v": "v392",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Removed the duplicate JOB STATUS timeline from the Edit Breakdown modal -- it's now redundant since the card itself already shows the full vertical timeline (v390). Edit modal now jumps straight to Status Remark and the editable fields."
+  "change": "Added a Total Delay / Running Delay summary at the bottom of the timeline box on Breakdown Register cards -- compares ETD against actual resolution time (or now, if still open). Shows green 'On Time' if resolved at/before ETD, or red with the overrun duration (e.g. '2h 15m over ETD') if it ran late. Only shows when an ETD has been set."
 }
