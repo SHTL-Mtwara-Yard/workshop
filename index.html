@@ -466,6 +466,7 @@ tr:hover td { background: var(--surface2); }
 
 /* MODAL */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding:16px; }
+.modal-box { background: var(--surface); border-radius: var(--radius2); padding: 20px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
 /* Keeps a form's primary action (Save/Submit) reachable at the bottom of the
    viewport on long scrolling forms, instead of requiring a scroll-to-bottom.
    Sits above the bottom safe-area on phones/tablets. */
@@ -11695,6 +11696,8 @@ function buildBreakdownWhatsApp(b){
     +(b.etd?('ETD: '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'\n'):'')
     +'\nRemarks: '+(b.remarks||'—')+'\n'
     +(b.delayReason?('\nDelay Reason: '+b.delayReason+'\n'):'')
+    +(b.workDone?('\nWork Done: '+b.workDone+'\n'):'')
+    +(b.sparesSent?('\nSpares Sent: '+b.sparesSent+'\n'):'')
     +'\nSHTL Mtwara Workshop — Breakdown Register';
   return 'https://wa.me/?text='+encodeURIComponent(msg);
 }
@@ -11738,7 +11741,9 @@ function shareBulkPendingBreakdowns(){
       +'   '+(b.contact||'—')+' · '+reportedStr+'\n'
       +'   '+(b.mechanic||'Not assigned')+(b.etd?(' · ETD '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})):'')+'\n'
       +'   '+(b.remarks||'—')+'\n'
-      +(b.delayReason?('   Delay: '+b.delayReason+'\n'):'');
+      +(b.delayReason?('   Delay: '+b.delayReason+'\n'):'')
+      +(b.workDone?('   Work Done: '+b.workDone+'\n'):'')
+      +(b.sparesSent?('   Spares Sent: '+b.sparesSent+'\n'):'');
   }).join('');
   // window.open() silently fails in iOS PWA standalone mode — same issue
   // already fixed elsewhere in this app. A real <a href target="_blank">,
