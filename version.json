@@ -1,5 +1,5 @@
 {
-  "v": "v387",
+  "v": "v388",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Breakdown Register: (1) resolved breakdowns now sort to the bottom of the list, unresolved ones at top sorted oldest-waiting-first (most urgent), instead of being interleaved by report time regardless of status; (2) resolved cards are now minimized by default (just truck/date/status), tap the card to expand full details -- keeping the pending ones that actually need attention front and center."
+  "change": "Restyled the mini status timeline on each Breakdown Register card to match the dark 'JOB STATUS' box from the Edit modal (dark navy background, white text) instead of the plain light-gray bar it had before -- same info, more visually prominent."
 }
