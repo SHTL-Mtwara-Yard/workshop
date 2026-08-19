@@ -1,5 +1,5 @@
 {
-  "v": "v376",
+  "v": "v377",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Two additions from the ChatGPT mockup, adapted to fit the real app: (1) Vertical status timeline (Reported -> Attended -> In Progress -> Resolved) at the top of the Edit Breakdown modal, dark dispatch-console styled with checkmarks and timestamps. Attended/In Progress are auto-stamped the first time a mechanic gets assigned / Work Done gets filled in, never overwritten once set. (2) A 4-card colorful stat strip (Total Jobs Today / In Progress Active / Resolved Today / Avg Resolution Today) above the Breakdown Register, computed live from breakdown data."
+  "change": "Breakdown Register switched from a 14-column table (needed horizontal sliding to see anything past Location) to a card layout, matching the approved demo. Each breakdown is now a card: Truck No + Date/Location + Status badge at top, Issue text, a 2-column detail grid (Contact, Mechanic, ETD, Work Done, plus Delay Reason/Spares Sent/Closing Remarks when present), and action buttons -- no horizontal scrolling needed at all, just scroll down. Search, filters, CSV export, and bulk WhatsApp share all still work exactly the same against the same underlying data."
 }
