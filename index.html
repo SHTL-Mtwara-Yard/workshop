@@ -11687,14 +11687,14 @@ function refreshBreakdown(){
 // not a single fixed recipient).
 function buildBreakdownWhatsApp(b){
   var reportedStr=new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
-  var msg='🔴 *BREAKDOWN — '+b.truckNo+'*\n\n'
-    +'📍 Location: *'+(b.location||'—')+'*\n'
-    +'📞 Driver Contact: '+(b.contact||'—')+'\n'
-    +'🕐 Reported: '+reportedStr+'\n'
-    +'🛠️ Mechanic: '+(b.mechanic||'Not yet assigned')+'\n'
-    +(b.etd?('⏱️ ETD: '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'\n'):'')
-    +'\n📝 Remarks: '+(b.remarks||'—')+'\n'
-    +(b.delayReason?('\n⚠️ Delay Reason: '+b.delayReason+'\n'):'')
+  var msg='*BREAKDOWN — '+b.truckNo+'*\n\n'
+    +'Location: *'+(b.location||'—')+'*\n'
+    +'Driver Contact: '+(b.contact||'—')+'\n'
+    +'Reported: '+reportedStr+'\n'
+    +'Mechanic: '+(b.mechanic||'Not yet assigned')+'\n'
+    +(b.etd?('ETD: '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})+'\n'):'')
+    +'\nRemarks: '+(b.remarks||'—')+'\n'
+    +(b.delayReason?('\nDelay Reason: '+b.delayReason+'\n'):'')
     +'\nSHTL Mtwara Workshop — Breakdown Register';
   return 'https://wa.me/?text='+encodeURIComponent(msg);
 }
@@ -11725,16 +11725,20 @@ function shareBulkPendingBreakdowns(){
 
   if(!pending.length){ toast('✅ No pending breakdowns to share — all clear','ok'); return; }
 
-  var msg='🔴 *PENDING BREAKDOWNS — '+pending.length+'*\n'
+  // No emoji in the shared text — on some phones/WhatsApp versions,
+  // multi-codepoint emoji (clock, wrench, warning, etc.) render as the
+  // Unicode replacement character (a garbled box) instead of the actual
+  // glyph. Plain labels are guaranteed to display correctly on every device.
+  var msg='*PENDING BREAKDOWNS — '+pending.length+'*\n'
     +'SHTL Mtwara Workshop\n'
     +new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+'\n';
   msg+= pending.map(function(b,i){
     var reportedStr=new Date(b.reportedAt).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
     return '\n'+(i+1)+'. *'+b.truckNo+'* — '+(b.location||'—')+'\n'
-      +'   📞 '+(b.contact||'—')+' · 🕐 '+reportedStr+'\n'
-      +'   🛠️ '+(b.mechanic||'Not assigned')+(b.etd?(' · ⏱️ ETD '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})):'')+'\n'
-      +'   📝 '+(b.remarks||'—')+'\n'
-      +(b.delayReason?('   ⚠️ Delay: '+b.delayReason+'\n'):'');
+      +'   '+(b.contact||'—')+' · '+reportedStr+'\n'
+      +'   '+(b.mechanic||'Not assigned')+(b.etd?(' · ETD '+new Date(b.etd).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})):'')+'\n'
+      +'   '+(b.remarks||'—')+'\n'
+      +(b.delayReason?('   Delay: '+b.delayReason+'\n'):'');
   }).join('');
   // window.open() silently fails in iOS PWA standalone mode — same issue
   // already fixed elsewhere in this app. A real <a href target="_blank">,
