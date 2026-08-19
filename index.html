@@ -851,7 +851,8 @@ window.addEventListener('appinstalled', function(){
 <div class="modal-overlay" id="bdEditModal">
   <div class="modal-box" style="max-width:460px">
     <div class="modal-title">✏️ Edit Breakdown — <span id="bdEditTruckNo"></span></div>
-    <div id="bdEditTimeline" style="display:none"></div>
+
+    <!-- 1. STATUS REMARK -->
     <div style="margin-bottom:16px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">STATUS REMARK — add a timestamped update so anyone monitoring can see what's happening</label>
       <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -860,14 +861,18 @@ window.addEventListener('appinstalled', function(){
       </div>
       <div id="bdStatusLogList" style="max-height:160px;overflow-y:auto"></div>
     </div>
+
+    <!-- 2. MECHANIC NAME -->
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">MECHANIC NAME</label>
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">🔧 MECHANIC NAME</label>
       <select id="bdEditMechanic" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px" onchange="toggleBdLocalMechanic()">
         <option value="">-- Not yet assigned --</option>
         <option value="__local__">🔧 Local Mechanic (type name below)</option>
       </select>
       <input type="text" id="bdEditMechanicLocal" placeholder="e.g. Local Fundie — Mnazi Mmoja" style="display:none;width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;margin-top:8px" oninput="this.value=this.value.toUpperCase()">
     </div>
+
+    <!-- 3. ETD -->
     <div style="margin-bottom:14px">
       <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">ETD — EXPECTED TIME OF RESOLUTION</label>
       <div style="display:flex;gap:8px">
@@ -875,18 +880,53 @@ window.addEventListener('appinstalled', function(){
         <input type="time" id="bdEditETDTime" style="flex:1;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px">
       </div>
     </div>
+
+    <!-- 4. SPARES SENT -->
+    <div style="margin-bottom:14px;padding:12px;background:var(--surface3);border-radius:10px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">📦 SPARES SENT — parts dispatched to site</label>
+      <textarea id="bdEditSparesSent" rows="2" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical;margin-bottom:8px" placeholder="e.g. Oil seal x2, Air hose x1, U-bolt x2"></textarea>
+      <div id="bdSparesSentStamp" style="font-size:11px;color:var(--dispatch-green);font-weight:700;margin-bottom:6px;display:none"></div>
+      <button type="button" id="bdSparesSentBtn" class="btn btn-sm btn-block" onclick="markBdStage('sparesSentAt')" style="background:var(--dispatch-cyan);color:#fff;border:none">✓ Confirm Spares Sent</button>
+    </div>
+
+    <!-- 5. SPARES REACHED -->
+    <div style="margin-bottom:14px;padding:12px;background:var(--surface3);border-radius:10px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">📍 SPARES REACHED SITE</label>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">A separate event from Spares Sent — dispatch and arrival at site rarely happen at the same time.</div>
+      <div id="bdSparesReachedStamp" style="font-size:11px;color:var(--dispatch-green);font-weight:700;margin-bottom:6px;display:none"></div>
+      <button type="button" id="bdSparesReachedBtn" class="btn btn-sm btn-block" onclick="markBdStage('sparesReachedAt')" style="background:var(--dispatch-cyan);color:#fff;border:none">✓ Confirm Spares Reached</button>
+    </div>
+
+    <!-- 6. ATTENDED -->
+    <div style="margin-bottom:14px;padding:12px;background:var(--surface3);border-radius:10px">
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">🔧 ATTENDED</label>
+      <div id="bdAttendedStamp" style="font-size:11px;color:var(--dispatch-green);font-weight:700;margin-bottom:6px;display:none"></div>
+      <button type="button" id="bdAttendedBtn" class="btn btn-sm btn-block" onclick="markBdStage('attendedAt')" style="background:var(--dispatch-amber);color:#fff;border:none">✓ Mark Attended</button>
+    </div>
+
+    <!-- 7. WORK DONE -->
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">DELAY REASON (if past ETD or taking longer than expected)</label>
-      <textarea id="bdEditDelayReason" rows="2" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Waiting for spare part from Mtwara yard, bad road access"></textarea>
+      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">🛠️ WORK DONE — what was repaired at site</label>
+      <textarea id="bdEditWorkDone" rows="3" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Oil leakage repaired and air tank mounting tightened"></textarea>
     </div>
-    <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">WORK DONE (what was repaired at site)</label>
-      <textarea id="bdEditWorkDone" rows="3" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. Changed wheel stud, fitted spare tyre, tightened loose bolts"></textarea>
+
+    <!-- 8. DELAY REASON — only shown when actually delayed -->
+    <div id="bdDelayReasonBlock" style="margin-bottom:18px;display:none">
+      <label style="font-size:12px;font-weight:700;color:var(--dispatch-red);display:block;margin-bottom:6px">⚠️ DELAY REASON <span id="bdDelayDuration" style="font-weight:800"></span></label>
+      <select id="bdEditDelayReason" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" onchange="toggleBdDelayOther()">
+        <option value="">-- Select Delay Reason --</option>
+        <option>Waiting for spares approval</option>
+        <option>Spares not available</option>
+        <option>Transport delay</option>
+        <option>Mechanic busy with another job</option>
+        <option>Waiting for driver</option>
+        <option>Additional repair required</option>
+        <option>Breakdown location inaccessible</option>
+        <option value="__other__">Other — specify</option>
+      </select>
+      <textarea id="bdEditDelayReasonOther" rows="2" style="display:none;width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="Describe the delay reason"></textarea>
     </div>
-    <div style="margin-bottom:18px">
-      <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px">SPARES SENT (parts dispatched to site)</label>
-      <textarea id="bdEditSparesSent" rows="2" style="width:100%;padding:10px;font-size:14px;border:1px solid var(--border);border-radius:8px;resize:vertical" placeholder="e.g. 1x Spare tyre, 2x Wheel stud, 5L Engine oil"></textarea>
-    </div>
+
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost btn-block" onclick="closeModal('bdEditModal')">Cancel</button>
       <button class="btn btn-primary btn-block" onclick="saveBdEdit()" style="background:var(--green);border-color:var(--green)">✅ Save</button>
@@ -11861,9 +11901,10 @@ function renderBdTimeline(b){
   const isResolved=b.resolution==='Resolved';
   const stages=[
     {key:'reported', label:'Reported', at:b.reportedAt, done:true},
+    {key:'sparesSent', label:'Spares Sent', at:b.sparesSentAt, done:!!b.sparesSentAt},
+    {key:'sparesReached', label:'Spares Reached', at:b.sparesReachedAt, done:!!b.sparesReachedAt},
     {key:'attended', label:'Attended', at:b.attendedAt, done:!!b.attendedAt},
-    {key:'inprogress', label:'In Progress', at:b.inProgressAt, done:!!b.inProgressAt},
-    {key:'resolved', label:'Resolved', at:b.resolvedAt, done:isResolved}
+    {key:'completed', label:'Completed', at:b.resolvedAt, done:isResolved}
   ];
   const fmt=d=>new Date(d).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
   return '<div style="font-size:10px;color:#93a0c4;font-weight:800;letter-spacing:.6px;margin-bottom:10px">JOB STATUS</div>'
@@ -11947,7 +11988,6 @@ function editBreakdownDetails(id){
   const b=S.breakdowns.find(x=>x.id==id); if(!b) return;
   _bdEditId=id;
   document.getElementById('bdEditTruckNo').textContent=b.truckNo;
-  document.getElementById('bdEditTimeline').innerHTML=renderBdTimeline(b);
   document.getElementById('bdEditStatusUpdate').value='';
   renderBdStatusLog(b);
   const mechSel=document.getElementById('bdEditMechanic');
@@ -11955,10 +11995,6 @@ function editBreakdownDetails(id){
     ALL_STAFF.forEach(function(n){ mechSel.innerHTML+='<option value="'+n+'">'+n+'</option>'; });
   }
   const localInput=document.getElementById('bdEditMechanicLocal');
-  // If this breakdown's mechanic isn't in the staff list (a local/external
-  // mechanic typed in previously), select the "Local Mechanic" option and
-  // pre-fill their name in the text box, instead of it just silently not
-  // matching any dropdown option.
   const isStaffName = b.mechanic && ALL_STAFF.includes(b.mechanic);
   if(b.mechanic && !isStaffName){
     mechSel.value='__local__';
@@ -11977,31 +12013,101 @@ function editBreakdownDetails(id){
     document.getElementById('bdEditETDDate').value='';
     document.getElementById('bdEditETDTime').value='';
   }
-  document.getElementById('bdEditDelayReason').value=b.delayReason||'';
   document.getElementById('bdEditWorkDone').value=b.workDone||'';
   document.getElementById('bdEditSparesSent').value=b.sparesSent||'';
+
+  // Stage buttons — show the timestamp once confirmed, and disable so it
+  // can't be re-stamped (matches "system captures time when pressed, never
+  // manually typed"). Each stage still works even without the previous one
+  // done — order isn't enforced since real breakdowns don't always follow
+  // it exactly, but the workflow buttons are laid out in the ideal order.
+  const fmt=d=>new Date(d).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
+  [['sparesSentAt','bdSparesSentStamp','bdSparesSentBtn','Spares sent'],
+   ['sparesReachedAt','bdSparesReachedStamp','bdSparesReachedBtn','Spares reached site'],
+   ['attendedAt','bdAttendedStamp','bdAttendedBtn','Attended']
+  ].forEach(function(cfg){
+    const at=b[cfg[0]];
+    const stampEl=document.getElementById(cfg[1]);
+    const btnEl=document.getElementById(cfg[2]);
+    if(at){
+      stampEl.style.display='block';
+      stampEl.textContent='✓ '+cfg[3]+' — '+fmt(at);
+      btnEl.textContent='↺ Undo (recorded '+fmt(at)+')';
+      btnEl.style.background='var(--text2)';
+    } else {
+      stampEl.style.display='none';
+      btnEl.textContent='✓ Confirm '+(cfg[0]==='attendedAt'?'Attended':cfg[3]);
+      btnEl.style.background=cfg[0]==='attendedAt'?'var(--dispatch-amber)':'var(--dispatch-cyan)';
+    }
+  });
+
+  // Delay Reason — only shown when there's actually a delay: ETD set AND
+  // (already past ETD while still open, OR resolved after ETD).
+  const delayBlock=document.getElementById('bdDelayReasonBlock');
+  const delaySel=document.getElementById('bdEditDelayReason');
+  const delayOther=document.getElementById('bdEditDelayReasonOther');
+  const delayDurEl=document.getElementById('bdDelayDuration');
+  let isDelayed=false, delayMs=0;
+  if(b.etd){
+    const etdD=new Date(b.etd);
+    const compareAt = b.resolution==='Resolved' ? new Date(b.resolvedAt||Date.now()) : new Date();
+    if(compareAt>etdD){ isDelayed=true; delayMs=compareAt-etdD; }
+  }
+  if(isDelayed || b.delayReason){
+    delayBlock.style.display='block';
+    if(delayMs>0){
+      const totalMin=Math.round(delayMs/60000);
+      const h=Math.floor(totalMin/60), m=totalMin%60;
+      delayDurEl.textContent='('+(h>0?h+'h ':'')+m+'m over ETD)';
+    } else { delayDurEl.textContent=''; }
+    const knownReasons=['Waiting for spares approval','Spares not available','Transport delay','Mechanic busy with another job','Waiting for driver','Additional repair required','Breakdown location inaccessible'];
+    if(b.delayReason && knownReasons.includes(b.delayReason)){
+      delaySel.value=b.delayReason; delayOther.style.display='none'; delayOther.value='';
+    } else if(b.delayReason){
+      delaySel.value='__other__'; delayOther.style.display='block'; delayOther.value=b.delayReason;
+    } else {
+      delaySel.value=''; delayOther.style.display='none'; delayOther.value='';
+    }
+  } else {
+    delayBlock.style.display='none';
+  }
+
   document.getElementById('bdEditModal').classList.add('open');
   setTimeout(function(){ document.getElementById('bdEditWorkDone').focus(); },200);
+}
+
+function toggleBdDelayOther(){
+  const sel=document.getElementById('bdEditDelayReason');
+  document.getElementById('bdEditDelayReasonOther').style.display = sel.value==='__other__' ? 'block' : 'none';
+}
+
+// Auto-stamps (or un-stamps, for correcting a mis-tap) a workflow stage with
+// the current time — the whole point being the supervisor never types a
+// timestamp by hand for these events.
+function markBdStage(field){
+  if(!_bdEditId) return;
+  const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
+  b[field] = b[field] ? '' : new Date().toISOString();
+  save();
+  editBreakdownDetails(_bdEditId); // re-render the stage buttons/stamps
+  refreshBreakdown();
 }
 
 function saveBdEdit(){
   if(!_bdEditId) return;
   const b=S.breakdowns.find(x=>x.id==_bdEditId); if(!b) return;
   const mechSelVal=document.getElementById('bdEditMechanic').value;
-  const newMechanic = mechSelVal==='__local__'
+  b.mechanic = mechSelVal==='__local__'
     ? (document.getElementById('bdEditMechanicLocal').value||'').trim().toUpperCase()
     : (mechSelVal||'');
-  // Auto-stamp timeline stages the FIRST time each condition becomes true —
-  // never overwritten once set, so re-editing later doesn't shift history.
-  if(newMechanic && !b.attendedAt) b.attendedAt=new Date().toISOString();
-  b.mechanic=newMechanic;
   const etdDate=document.getElementById('bdEditETDDate').value;
   const etdTime=document.getElementById('bdEditETDTime').value;
   b.etd=(etdDate&&etdTime) ? new Date(etdDate+'T'+etdTime).toISOString() : '';
-  b.delayReason=(document.getElementById('bdEditDelayReason').value||'').toUpperCase().trim();
-  const newWorkDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
-  if(newWorkDone && !b.inProgressAt) b.inProgressAt=new Date().toISOString();
-  b.workDone=newWorkDone;
+  const delaySelVal=document.getElementById('bdEditDelayReason').value;
+  b.delayReason = delaySelVal==='__other__'
+    ? (document.getElementById('bdEditDelayReasonOther').value||'').trim()
+    : (delaySelVal||'');
+  b.workDone=(document.getElementById('bdEditWorkDone').value||'').toUpperCase().trim();
   b.sparesSent=(document.getElementById('bdEditSparesSent').value||'').toUpperCase().trim();
   save();
   refreshBreakdown();
