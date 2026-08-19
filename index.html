@@ -165,7 +165,40 @@ window.addEventListener('load', initFormAutoSave);
   --yellow: #ca8a04;
   --radius: 8px;
   --radius2: 12px;
+  /* Breakdown Register "dispatch console" theme — dark header bands +
+     signal-color system, scoped to just this section since the rest of the
+     app is light-themed and this is still a dense operational data table,
+     not a marketing layout. */
+  --dispatch-bg: #0f1530;
+  --dispatch-bg2: #1a2248;
+  --dispatch-red: #ef4444;
+  --dispatch-amber: #f59e0b;
+  --dispatch-green: #22c55e;
+  --dispatch-cyan: #38bdf8;
+  --dispatch-violet: #a78bfa;
 }
+.dispatch-header{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(135deg,var(--dispatch-bg),var(--dispatch-bg2));
+  border-radius:var(--radius2) var(--radius2) 0 0;
+  padding:16px 18px;margin:-16px -16px 16px -16px;
+}
+.dispatch-icon{
+  width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+.dispatch-header-text{color:#fff}
+.dispatch-header-title{font-size:15px;font-weight:800;letter-spacing:.3px}
+.dispatch-header-sub{font-size:11px;color:#93a0c4;margin-top:2px}
+.dispatch-eyebrow{
+  display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:800;letter-spacing:.6px;
+  padding:3px 8px;border-radius:20px;margin-bottom:6px;
+}
+.dispatch-eyebrow.c-cyan{background:rgba(56,189,248,.12);color:#0284c7}
+.dispatch-eyebrow.c-violet{background:rgba(167,139,250,.15);color:#7c3aed}
+.dispatch-eyebrow.c-red{background:rgba(239,68,68,.12);color:#dc2626}
+.dispatch-eyebrow.c-amber{background:rgba(245,158,11,.14);color:#b45309}
+.dispatch-eyebrow.c-green{background:rgba(34,197,94,.13);color:#15803d}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; overflow-x: hidden; }
@@ -260,6 +293,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', syste
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .page { padding: 10px; }
   .card { padding: 13px; }
+  .dispatch-header { margin: -13px -13px 16px -13px; }
 }
 
 /* FORMS */
@@ -2306,7 +2340,13 @@ window.addEventListener('appinstalled', function(){
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Log Breakdown <span class="text2 text-xs" style="text-transform:none;font-weight:400">— enter the time the message actually came in, even if logging it later</span></div>
+      <div class="dispatch-header">
+        <div class="dispatch-icon" style="background:rgba(239,68,68,.18)">🚨</div>
+        <div class="dispatch-header-text">
+          <div class="dispatch-header-title">Log Breakdown</div>
+          <div class="dispatch-header-sub">Enter the time the message actually came in, even if logging it later</div>
+        </div>
+      </div>
       <!-- Paste & Parse -->
       <div style="background:var(--surface2);border:2px dashed var(--accent);border-radius:10px;padding:12px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:6px">📋 PASTE WHATSAPP MESSAGE — AUTO FILL</div>
@@ -2332,56 +2372,62 @@ window.addEventListener('appinstalled', function(){
       <!-- Redesigned form fields in WhatsApp format -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🚛 TRUCK NO / TRAILER NO</label>
+          <div class="dispatch-eyebrow c-cyan">🚛 TRUCK / TRAILER NO</div>
           <input type="text" id="bdTruckNo" placeholder="e.g. T130DYT / 675ECS" oninput="this.value=this.value.toUpperCase()" style="font-weight:700;font-size:14px">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">👤 DRIVER NAME</label>
+          <div class="dispatch-eyebrow c-cyan">👤 DRIVER NAME</div>
           <input type="text" id="bdDriver" placeholder="e.g. YOHANA BAKARI" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📞 PHONE</label>
+          <div class="dispatch-eyebrow c-cyan">📞 PHONE</div>
           <input type="text" id="bdContact" placeholder="e.g. 0676983913" inputmode="tel">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📍 LOCATION</label>
+          <div class="dispatch-eyebrow c-violet">📍 LOCATION</div>
           <input type="text" id="bdLocation" placeholder="e.g. LAKE OIL MNAZI MMOJA" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📦 STATUS</label>
+          <div class="dispatch-eyebrow c-violet">📦 STATUS</div>
           <input type="text" id="bdStatus" placeholder="e.g. LOADED / EMPTY" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">⚠️ ISSUE</label>
+          <div class="dispatch-eyebrow c-red">⚠️ ISSUE</div>
           <input type="text" id="bdRemarks" placeholder="e.g. TRUCK MISS" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🎯 IC (INCHARGE)</label>
+          <div class="dispatch-eyebrow c-amber">🎯 IC (INCHARGE)</div>
           <input type="text" id="bdIC" placeholder="e.g. MARIE" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:800;letter-spacing:.5px">🔧 ATTENDED BY (SHTL MECHANIC)</label>
+          <div class="dispatch-eyebrow c-amber">🔧 ATTENDED BY (SHTL MECHANIC)</div>
           <input type="text" id="bdMechanic" placeholder="Type mechanic name..." oninput="this.value=this.value.toUpperCase()">
         </div>
       </div>
       <div style="border-top:2px dashed var(--border);padding-top:10px;margin-bottom:10px">
-        <div style="font-size:10px;color:var(--text2);margin-bottom:8px;font-weight:700">PROGRESS / WORK UPDATE (update any time — "on the way", "WIP", or final fix)</div>
+        <div class="dispatch-eyebrow c-green" style="margin-bottom:10px">📶 PROGRESS / WORK UPDATE — update any time: "on the way", "WIP", or final fix</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
-            <label style="font-size:11px;font-weight:800;letter-spacing:.5px">✅ WORK DONE</label>
+            <div class="dispatch-eyebrow c-green">✅ WORK DONE</div>
             <input type="text" id="bdWorkDone" placeholder="e.g. Changed wheel stud, fitted spare tyre" oninput="this.value=this.value.toUpperCase()">
           </div>
           <div>
-            <label style="font-size:11px;font-weight:800;letter-spacing:.5px">📦 SPARES SENT</label>
+            <div class="dispatch-eyebrow c-green">📦 SPARES SENT</div>
             <input type="text" id="bdSparesSent" placeholder="e.g. 1x Spare tyre, 2x Wheel stud" oninput="this.value=this.value.toUpperCase()">
           </div>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="logBreakdown()">+ Log Breakdown</button>
+      <button class="btn btn-primary" onclick="logBreakdown()" style="background:var(--dispatch-red);border-color:var(--dispatch-red)">+ Log Breakdown</button>
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--red)"></span>Breakdown Register</div>
+      <div class="dispatch-header">
+        <div class="dispatch-icon" style="background:rgba(56,189,248,.18)">📋</div>
+        <div class="dispatch-header-text">
+          <div class="dispatch-header-title">Breakdown Register</div>
+          <div class="dispatch-header-sub">Live status of every truck down in the field</div>
+        </div>
+      </div>
       <div class="flex gap-8 mb-12 items-center flex-wrap">
         <input type="text" id="bdSearch" placeholder="Search truck / location / mechanic..." style="flex:1;min-width:160px" oninput="refreshBreakdown()">
         <select id="bdMonthFilter" style="min-width:140px" onchange="refreshBreakdown()">
@@ -2395,8 +2441,8 @@ window.addEventListener('appinstalled', function(){
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr>
-            <th>S.No</th><th>Date/Time</th><th>Truck No</th><th>Contact No</th><th>Location</th><th>Mechanic</th><th>ETD</th><th>Delay Reason</th><th>Status</th><th>Remarks</th><th>Work Done</th><th>Spares Sent</th><th>Resolution</th><th></th>
+          <thead style="background:var(--dispatch-bg)"><tr style="color:#fff">
+            <th style="color:#fff">S.No</th><th style="color:#fff">Date/Time</th><th style="color:#fff">Truck No</th><th style="color:#fff">Contact No</th><th style="color:#fff">Location</th><th style="color:#fff">Mechanic</th><th style="color:#fff">ETD</th><th style="color:#fff">Delay Reason</th><th style="color:#fff">Status</th><th style="color:#fff">Remarks</th><th style="color:#fff">Work Done</th><th style="color:#fff">Spares Sent</th><th style="color:#fff">Resolution</th><th style="color:#fff"></th>
           </tr></thead>
           <tbody id="bdTable"><tr><td colspan="14" style="text-align:center;color:var(--text2);padding:20px">No breakdowns logged yet</td></tr></tbody>
         </table>
