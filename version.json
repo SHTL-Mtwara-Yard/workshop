@@ -1,5 +1,5 @@
 {
-  "v": "v377",
+  "v": "v378",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Breakdown Register switched from a 14-column table (needed horizontal sliding to see anything past Location) to a card layout, matching the approved demo. Each breakdown is now a card: Truck No + Date/Location + Status badge at top, Issue text, a 2-column detail grid (Contact, Mechanic, ETD, Work Done, plus Delay Reason/Spares Sent/Closing Remarks when present), and action buttons -- no horizontal scrolling needed at all, just scroll down. Search, filters, CSV export, and bulk WhatsApp share all still work exactly the same against the same underlying data."
+  "change": "Paste WhatsApp Message - Auto Fill section on Log Breakdown is now collapsed by default (was always taking up space at the top of the form). Tap the header bar to expand it and paste/parse a message, or leave it collapsed and just fill the fields normally."
 }
