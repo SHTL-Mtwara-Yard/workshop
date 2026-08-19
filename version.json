@@ -1,5 +1,5 @@
 {
-  "v": "v372",
+  "v": "v373",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Fixed 'Share All Pending' doing nothing on iPhone. window.open() silently fails in iOS PWA standalone mode -- the same class of bug already fixed elsewhere in this app for alert/confirm/prompt. Switched to building a real anchor element and clicking it programmatically, matching the pattern the individual per-truck WhatsApp button already used successfully."
+  "change": "Breakdown Register: added 'Pending + Today' filter option (now the default) -- shows every still-unresolved breakdown regardless of age, PLUS anything reported or resolved today. The moment a breakdown gets marked Resolved on a past day it drops out of this view automatically; nothing extra to clean up. Applied consistently to the on-screen table, CSV export, and bulk WhatsApp share."
 }
