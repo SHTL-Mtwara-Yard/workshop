@@ -1,5 +1,5 @@
 {
-  "v": "v394",
+  "v": "v395",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added confirmation before deleting a breakdown -- the red X button previously deleted the entry (including its full timeline and status log) with a single tap and zero confirmation. Now shows a warning with the truck number and issue before permanently removing it."
+  "change": "Two protections added, matching the manager-name verification already used for Job Card Edit / Data Control: (1) Deleting a breakdown now requires typing the manager's name to confirm, not just a Yes/No tap. (2) ETD auto-locks the moment it's set and saved -- shows as read-only with a lock icon, and requires typing the manager's name via a 'Reset ETD' button to unlock and change it again."
 }
