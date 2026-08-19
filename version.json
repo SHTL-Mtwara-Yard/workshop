@@ -1,5 +1,5 @@
 {
-  "v": "v379",
+  "v": "v380",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Log Breakdown: added a big readable date/time summary line (e.g. '19 Aug 2026, 10:35') above the Date & Time dropdowns, updating live as they change, so the current setting is obvious without reading five separate selects. Also extended Paste WhatsApp Message - Auto Fill to detect a time (HH:MM) and date (DD/MM or DD/MM/YYYY) in the pasted message and fill the Date & Time fields automatically -- previously it left them untouched, always defaulting to 'Now' and forcing a manual edit every time."
+  "change": "Log Breakdown: the entire form (Paste box, Date/Time, all fields, Log Breakdown button) is now collapsed by default behind a single '\u2795 Report a New Breakdown' button, instead of always showing every field. Tap it to expand and log one; it auto-collapses again after a successful submit, so the page stays clean unless you're actively reporting something."
 }
