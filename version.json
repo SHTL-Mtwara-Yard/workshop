@@ -1,5 +1,5 @@
 {
-  "v": "v381",
+  "v": "v382",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Split the Log Breakdown form into two visually separate bordered boxes: Box 1 (Paste WhatsApp + Date/Time of Report) and Box 2 (Truck/Driver/Phone/Location/Status/Issue/IC/Mechanic + Progress/Work Update fields). Also fixed an unclosed div from the previous collapse changes that could have caused layout drift."
+  "change": "Fix: Box 2 (Truck & Issue Details) on Log Breakdown had a border but no background tint, so against the white card it barely read as a separate box from Box 1 -- it just looked like one continuous form. Added a shaded background (matching Box 1's treatment) and a header label so the two boxes are now clearly, visibly distinct."
 }
