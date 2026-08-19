@@ -1,5 +1,5 @@
 {
-  "v": "v371",
+  "v": "v372",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added a 'Share All Pending' WhatsApp button next to Export CSV on the Breakdown Register -- compiles every currently unresolved breakdown (respecting the active search/date filter) into a single numbered WhatsApp message instead of sharing one at a time per truck."
+  "change": "Fixed 'Share All Pending' doing nothing on iPhone. window.open() silently fails in iOS PWA standalone mode -- the same class of bug already fixed elsewhere in this app for alert/confirm/prompt. Switched to building a real anchor element and clicking it programmatically, matching the pattern the individual per-truck WhatsApp button already used successfully."
 }
