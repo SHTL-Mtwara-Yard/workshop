@@ -1,5 +1,5 @@
 {
-  "v": "v385",
+  "v": "v386",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "Removed emoji from both WhatsApp share messages (individual breakdown share + bulk 'Share All Pending') -- on some phones/WhatsApp versions, emoji were rendering as the Unicode replacement character (garbled box symbol) instead of the actual glyph, making the shared message hard to read. Replaced with plain text labels (Location:, Mechanic:, ETD:, etc.) which are guaranteed to render correctly on every device."
+  "change": "CRITICAL FIX: .modal-box was used throughout the app's HTML (Edit Breakdown and 4+ other modals) but was never actually defined in CSS -- meaning every one of these modals had zero background, letting the page content behind it show through and visually overlap with the modal's own fields (exactly the illegible Edit Breakdown screenshot). Added the missing CSS rule with a proper opaque background, padding, and shadow. Also added Work Done and Spares Sent to both WhatsApp share messages (individual and bulk), which were missing entirely before."
 }
