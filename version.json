@@ -1,5 +1,5 @@
 {
-  "v": "v396",
+  "v": "v397",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "ETD now has its own dedicated 'Lock ETD' button that appears as soon as both date and time are filled in -- tapping it locks immediately (same behavior as Ground Team's department ETD), instead of only locking after the whole Edit Breakdown form is saved at the bottom. Unlocking still requires the manager-name confirmation via Reset ETD."
+  "change": "CRITICAL FIX: S.breakdowns had never been given the transaction-based sync protection entries/inspections/appointments/etc already have -- it was falling into the plain wholesale restWrite, so a device saving with a stale local copy could silently revert a just-Resolved breakdown back to its old state on its next save, with nobody having tapped Reopen. This is the root cause of resolved breakdowns (e.g. T288DZT, T569ETA, T299EAD) appearing to reopen themselves. Now uses the same atomic transaction-merge pattern as appointments, plus the periodic self-healing resync and offline-write recovery now also cover breakdowns."
 }
