@@ -2406,6 +2406,21 @@ window.addEventListener('appinstalled', function(){
         <span>➕ Report a New Breakdown</span>
         <span id="bdFormToggleIcon">▾</span>
       </button>
+      <!-- BULK TABLE IMPORT — pastes multiple rows from Excel/Sheets at once,
+           independent of the single-breakdown form below (works even
+           without "Report a New Breakdown" expanded). -->
+      <div style="margin-bottom:14px">
+        <button type="button" onclick="toggleBdBulkPasteBox()" id="bdBulkPasteToggle" style="width:100%;text-align:left;background:var(--surface2);border:2px dashed var(--dispatch-cyan);border-radius:10px;padding:10px 12px;font-size:11px;font-weight:700;color:var(--dispatch-cyan);cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+          <span>📊 PASTE TABLE — BULK IMPORT MULTIPLE BREAKDOWNS</span>
+          <span id="bdBulkPasteToggleIcon">▾</span>
+        </button>
+        <div id="bdBulkPasteBoxWrap" style="display:none;background:var(--surface2);border:2px dashed var(--dispatch-cyan);border-top:none;border-radius:0 0 10px 10px;padding:12px">
+          <div class="text-xs text2" style="margin-bottom:8px">Copy rows straight from Excel/Sheets (including the header row) and paste below — columns like Date, Truck, Location, Reasons get matched automatically regardless of order.</div>
+          <textarea id="bdBulkPasteBox" rows="6" placeholder="Paste table rows here (copied from Excel/Sheets)..." style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:11px;font-family:monospace;resize:vertical"></textarea>
+          <button onclick="parseBulkBreakdownPaste()" style="margin-top:8px;background:var(--dispatch-cyan);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">📥 Import All Rows</button>
+          <div id="bdBulkPastePreview" style="margin-top:10px"></div>
+        </div>
+      </div>
       <div id="bdFormBody" style="display:none;margin-top:14px">
       <!-- Paste & Parse — collapsed by default, tap to expand when actually needed -->
       <div style="margin-bottom:14px">
@@ -11520,6 +11535,110 @@ function toggleBdBox2(){
   body.style.display=isOpen?'none':'block';
   icon.textContent=isOpen?'▾':'▴';
   if(!isOpen) setTimeout(function(){ document.getElementById('bdTruckNo').focus(); },150);
+}
+
+function toggleBdBulkPasteBox(){
+  const wrap=document.getElementById('bdBulkPasteBoxWrap');
+  const icon=document.getElementById('bdBulkPasteToggleIcon');
+  const isOpen=wrap.style.display!=='none';
+  wrap.style.display=isOpen?'none':'block';
+  icon.textContent=isOpen?'▾':'▴';
+  if(!isOpen) setTimeout(function(){ document.getElementById('bdBulkPasteBox').focus(); },100);
+}
+
+// Bulk-imports multiple breakdown rows pasted straight from Excel/Sheets.
+// Matches columns by HEADER NAME (case-insensitive, flexible keyword match)
+// rather than fixed position, so column order in the source sheet doesn't
+// matter. Fields with no direct match in the breakdown data model (Branch,
+// Route, S-Track Issue) get folded into Remarks as context rather than
+// silently dropped.
+function parseBulkBreakdownPaste(){
+  const raw=document.getElementById('bdBulkPasteBox').value;
+  if(!raw.trim()){ toast('⚠️ Paste some rows first','warn'); return; }
+
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  if(lines.length<2){ toast('⚠️ Need a header row plus at least one data row','warn'); return; }
+
+  // Excel/Sheets copy-paste uses tabs between columns; fall back to 2+ spaces if no tabs found.
+  function splitRow(line){
+    if(line.indexOf('\t')>=0) return line.split('\t').map(c=>c.trim());
+    return line.split(/\s{2,}/).map(c=>c.trim());
+  }
+
+  const headerCells=splitRow(lines[0]).map(h=>h.toLowerCase());
+  function findCol(keywords){
+    for(let i=0;i<headerCells.length;i++){
+      if(keywords.some(k=>headerCells[i].includes(k))) return i;
+    }
+    return -1;
+  }
+  const colMap={
+    date: findCol(['date']),
+    truck: findCol(['truck']),
+    location: findCol(['location','current location']),
+    branch: findCol(['branch']),
+    route: findCol(['route']),
+    issue: findCol(['s-track','s track','track issue']),
+    time: findCol(['reported time','time']),
+    reason: findCol(['reason'])
+  };
+  if(colMap.truck===-1){ toast('⚠️ Could not find a "Truck" column — check the header row was included','warn'); return; }
+
+  let imported=0;
+  const importedTrucks=[];
+  lines.slice(1).forEach(function(line){
+    const cells=splitRow(line);
+    const truckNo=(colMap.truck>=0?cells[colMap.truck]:'').toUpperCase().trim();
+    if(!truckNo) return; // skip blank/malformed rows
+
+    // Combine date + time into a real timestamp; fall back to now if unparseable.
+    let reportedAt=new Date().toISOString();
+    const dateStr=colMap.date>=0?cells[colMap.date]:'';
+    const timeStr=colMap.time>=0?cells[colMap.time]:'';
+    if(dateStr){
+      // Handles DD/MM/YYYY and DD/MM/YYYY HH:MM formats
+      const dm=dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if(dm){
+        const dd=parseInt(dm[1],10), mm=parseInt(dm[2],10)-1, yy=dm[3].length===2?2000+parseInt(dm[3],10):parseInt(dm[3],10);
+        let hh=0, min=0;
+        const tm=(timeStr||dateStr).match(/(\d{1,2}):(\d{2})/);
+        if(tm){ hh=parseInt(tm[1],10); min=parseInt(tm[2],10); }
+        const d=new Date(yy,mm,dd,hh,min);
+        if(!isNaN(d)) reportedAt=d.toISOString();
+      }
+    }
+
+    const location=colMap.location>=0?(cells[colMap.location]||'').toUpperCase():'';
+    const reasonText=colMap.reason>=0?(cells[colMap.reason]||''):'';
+    // Branch/Route/S-Track Issue have no dedicated fields in the data model
+    // — fold them into Remarks as context so nothing pasted gets silently lost.
+    const contextParts=[];
+    if(colMap.branch>=0 && cells[colMap.branch]) contextParts.push('Branch: '+cells[colMap.branch]);
+    if(colMap.route>=0 && cells[colMap.route]) contextParts.push('Route: '+cells[colMap.route]);
+    if(colMap.issue>=0 && cells[colMap.issue] && cells[colMap.issue].toLowerCase()!==reasonText.toLowerCase()) contextParts.push('S-Track: '+cells[colMap.issue]);
+    const remarks=[reasonText, contextParts.join(' · ')].filter(Boolean).join(' — ').toUpperCase();
+
+    if(!S.breakdowns) S.breakdowns=[];
+    S.breakdowns.push({
+      id: Date.now()+Math.random(),
+      truckNo, location, remarks,
+      contact:'', status:'', mechanic:'',
+      reportedAt, resolution:'Open',
+      workDone:'', sparesSent:'', delayReason:'', etd:'', etdLocked:false,
+      statusLog:[]
+    });
+    imported++;
+    importedTrucks.push(truckNo);
+  });
+
+  if(!imported){ toast('⚠️ No valid rows found to import','warn'); return; }
+
+  save();
+  refreshBreakdown();
+  document.getElementById('bdBulkPastePreview').innerHTML =
+    '<div style="font-size:12px;color:var(--dispatch-green);font-weight:700">✅ Imported '+imported+' breakdowns: '+importedTrucks.join(', ')+'</div>';
+  document.getElementById('bdBulkPasteBox').value='';
+  toast('✅ Imported '+imported+' breakdowns','ok');
 }
 
 function toggleBdPasteBox(){
