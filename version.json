@@ -1,5 +1,5 @@
 {
-  "v": "v397",
+  "v": "v398",
   "deployed": "2026-08-06T00:00:00Z",
-  "change": "CRITICAL FIX: S.breakdowns had never been given the transaction-based sync protection entries/inspections/appointments/etc already have -- it was falling into the plain wholesale restWrite, so a device saving with a stale local copy could silently revert a just-Resolved breakdown back to its old state on its next save, with nobody having tapped Reopen. This is the root cause of resolved breakdowns (e.g. T288DZT, T569ETA, T299EAD) appearing to reopen themselves. Now uses the same atomic transaction-merge pattern as appointments, plus the periodic self-healing resync and offline-write recovery now also cover breakdowns."
+  "change": "Added 'Paste Table - Bulk Import Multiple Breakdowns' to the Breakdown Register -- a separate box from the single-message paste, for pasting multiple rows straight from Excel/Sheets at once (with header row). Columns are matched by name (Date, Truck, Current Location, Branch, Route, S-Track Issue, Reported Time, Reasons) regardless of order, and each row becomes its own breakdown entry. Verified against the exact table format shared: correctly parsed Truck, Location, combined Date+Time into a real timestamp, and folded Branch/Route/S-Track Issue into Remarks since there's no dedicated field for those in the data model."
 }
