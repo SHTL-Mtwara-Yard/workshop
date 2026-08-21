@@ -4432,6 +4432,24 @@ try {
 const fbRoot = fbDb.ref('shtl_v3');
 // keepSynced removed — was causing excessive Firebase downloads
 
+// ── GENUINE-OFFLINE TRACKING ──────────────────────────────────
+// The offline-write-recovery block below used to trigger any time this
+// device's local cache differed from its own last-synced snapshot — which
+// can also happen on a normal reload (version-check hard reload, a PWA
+// resume) that lands in the brief window between a save's transaction
+// resolving and the live listener catching up, even though the device was
+// connected the whole time and nothing was ever actually at risk of being
+// lost. That falsely "recovered" a STALE cached record and pushed it back
+// to Firebase, reverting a just-made change for every device (e.g. a truck
+// reappearing in a bay right after being freed). Recovery should only ever
+// fire for a genuinely disconnected session, so gate it on Firebase's own
+// connection state instead of inferring it from cache timing.
+fbDb.ref('.info/connected').on('value', function(snap){
+  if(snap.val()===false){
+    try{ localStorage.setItem('shtl_v3_wasOffline','1'); }catch(e){}
+  }
+});
+
 function setConnIndicator(status){
   const el=document.getElementById('connIndicator');
   if(!el)return;
@@ -4478,10 +4496,15 @@ function loadLocalCache(){
 // of it. Compared against fresh server data and reapplied further down.
 var _recoveredLocalS = null, _recoveredSyncSnapshot = null;
 try {
-  var _rc = localStorage.getItem('shtl_v3_cache');
-  var _rs = localStorage.getItem('shtl_v3_lastSynced');
-  if(_rc) _recoveredLocalS = JSON.parse(_rc);
-  if(_rs) _recoveredSyncSnapshot = JSON.parse(_rs);
+  // Only even look at the cached candidates if this device actually went
+  // offline at some point — see the connection listener above for why.
+  var _wasOfflineLastSession = localStorage.getItem('shtl_v3_wasOffline')==='1';
+  if(_wasOfflineLastSession){
+    var _rc = localStorage.getItem('shtl_v3_cache');
+    var _rs = localStorage.getItem('shtl_v3_lastSynced');
+    if(_rc) _recoveredLocalS = JSON.parse(_rc);
+    if(_rs) _recoveredSyncSnapshot = JSON.parse(_rs);
+  }
 } catch(e){}
 
 // Compact workshop-wide summary shown on every page (see #liveSummaryBar).
@@ -5140,6 +5163,7 @@ fbRoot.on('value', snapshot=>{
         });
       });
       _recoveredLocalS = null; _recoveredSyncSnapshot = null;
+      try{ localStorage.setItem('shtl_v3_wasOffline','0'); }catch(e){}
       if(_recovered){
         setTimeout(function(){
           toast('🔄 Recovered an update from before reconnect — resyncing…','warn');
