@@ -1,5 +1,1 @@
-{
-  "v": "v398",
-  "deployed": "2026-08-06T00:00:00Z",
-  "change": "Added 'Paste Table - Bulk Import Multiple Breakdowns' to the Breakdown Register -- a separate box from the single-message paste, for pasting multiple rows straight from Excel/Sheets at once (with header row). Columns are matched by name (Date, Truck, Current Location, Branch, Route, S-Track Issue, Reported Time, Reasons) regardless of order, and each row becomes its own breakdown entry. Verified against the exact table format shared: correctly parsed Truck, Location, combined Date+Time into a real timestamp, and folded Branch/Route/S-Track Issue into Remarks since there's no dedicated field for those in the data model."
-}
+{"v": "399"}
