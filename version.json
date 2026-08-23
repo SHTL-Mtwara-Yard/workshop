@@ -1,1 +1,5 @@
-{"v": "401"}
+{
+  "v": "v399",
+  "deployed": "2026-08-21T00:00:00Z",
+  "change": "Fixed 'Devices With Unsynced Updates' Clear/Clear All buttons appearing to do nothing -- they wrote to Firebase correctly but never updated the screen immediately, waiting on the round-trip through the live listener instead. Now updates instantly on click."
+}
