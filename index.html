@@ -10960,6 +10960,21 @@ function updateGroundETDBanners(){
 // Runs every 2 minutes — checks all depts for 30min warning + breach
 function checkETDAlerts(){
   var now=new Date();
+
+  // Workshop closed for today — S.workshopClosedDate is shared via Firebase,
+  // so this silences ETD nagging on every device the moment Manager closes,
+  // not just the device that punched it.
+  if(S.workshopClosedDate===now.toDateString()) return;
+
+  // Lunch break, 13:00–14:00 daily — stop ETD warning/breach checks for the
+  // hour and announce lunch instead (repeats every 15min through the hour,
+  // same cadence as the ETD warnings it's replacing, so Ground Team actually
+  // hears it and goes).
+  if(now.getHours()===13){
+    announceLunchBreak(now);
+    return;
+  }
+
   var min2bucket=Math.floor(now.getTime()/120000); // 2-min bucket for dedup
 
   S.inspections.forEach(function(ins){
@@ -11042,6 +11057,29 @@ function checkETDAlerts(){
 
   // Update live banners on Ground Team screen
   updateGroundETDBanners();
+}
+
+// Speaks/announces lunch break to Ground Team, repeating every 15min through
+// the 13:00–14:00 hour (in-memory dedup, per device — matches how every other
+// spoken alert here already works per device rather than being a single
+// workshop-wide event).
+function announceLunchBreak(now){
+  var lunchBucket=now.toDateString()+'_'+Math.floor(now.getMinutes()/15);
+  if(_lastAnnounced['lunch']===lunchBucket) return;
+  _lastAnnounced['lunch']=lunchBucket;
+  if(_etdAnnouncementsEnabled&&window.speechSynthesis){
+    speakAnnouncement('Lunch break. All Ground Team, please go for lunch now. Work resumes at 2 PM.');
+  }
+  showFloatingETDAlert('🍽️ LUNCH BREAK','All Ground Team','Please go for lunch now — work resumes at 2:00 PM','celebrate');
+  if(!S.notifications) S.notifications=[];
+  S.notifications.push({
+    id: Date.now()+Math.floor(Math.random()*1000),
+    message: '🍽️ Lunch break — all Ground Team please go for lunch now. Work resumes at 2:00 PM.',
+    truckLink: null,
+    sentAt: new Date().toISOString(),
+    read: false, readAt: null, reply: null
+  });
+  save();
 }
 
 var _alertToastQueue=[];
