@@ -4592,7 +4592,8 @@ function _computePendingSummary(){
     (S[c.key]||[]).forEach(function(item){
       var key=item[c.idField];
       var wasSynced=syncedMap[key];
-      var unchanged = wasSynced!==undefined && stableStringify(c.key==='inspections'?normalizeInspectionShape(item):item)===wasSynced;
+      var clean=c.key==='inspections'?normalizeInspectionShape(item):item;
+      var unchanged = wasSynced!==undefined && stableStringify(stripTransientFields(clean))===wasSynced;
       if(!unchanged) pending.push(c.label(item));
     });
   });
@@ -4710,6 +4711,20 @@ function normalizeInspectionShape(ins){
     weld:jobs.weld||[], pneumatic:jobs.pneumatic||[], suspension:jobs.suspension||[]
   }});
 }
+// Safety net for the class of bug fixed in renderBayGrid(): a render helper
+// mutating a shared S.entries/S.inspections object in place with a
+// throwaway computed field (e.g. `ins._overallEtd` for local sorting only).
+// No real field in this app's data model starts with "_", so stripping
+// them here — right before anything is compared against last-synced or
+// actually written to Firebase — means a future instance of that same
+// mistake can no longer inflate the "pending" count or leak junk fields
+// into the database, even before anyone notices and fixes the render code.
+function stripTransientFields(obj){
+  if(!obj || typeof obj!=='object') return obj;
+  var out={};
+  Object.keys(obj).forEach(function(k){ if(k.charAt(0)!=='_') out[k]=obj[k]; });
+  return out;
+}
 function stableStringify(obj){
   if(obj===null || typeof obj!=='object') return JSON.stringify(obj);
   if(Array.isArray(obj)) return '['+obj.map(stableStringify).join(',')+']';
@@ -4742,7 +4757,7 @@ const _doSave=()=>{
     (S.entries||[]).forEach(e=>{
       const lastSynced=_lastSyncedEntries[e.id];
       const localUnchanged = lastSynced!==undefined && stableStringify(e)===lastSynced;
-      if(!localUnchanged) merged[e.id]=e;
+      if(!localUnchanged) merged[e.id]=stripTransientFields(e);
     });
     // Honor deletions this device made since its last sync (Manager delete,
     // recycle bin move, etc.) — a key that was synced before but is missing
@@ -4761,7 +4776,7 @@ const _doSave=()=>{
     (S.inspections||[]).forEach(ins=>{
       const lastSynced=_lastSyncedInspections[ins.entryId];
       const localUnchanged = lastSynced!==undefined && stableStringify(normalizeInspectionShape(ins))===lastSynced;
-      if(!localUnchanged) merged[ins.entryId]=ins;
+      if(!localUnchanged) merged[ins.entryId]=stripTransientFields(ins);
     });
     Object.keys(_lastSyncedInspections).forEach(key=>{
       const stillLocal=(S.inspections||[]).some(ins=>String(ins.entryId)===String(key));
@@ -8684,6 +8699,20 @@ function renderBayGrid(){
   // Build priority order: rank every occupied bay by its truck's overall ETD
   // (the LONGEST department ETD, matching the confirmed rule that truck ETD =
   // the last department to finish), soonest ETD = highest priority = #1.
+  //
+  // IMPORTANT: this used to write `ins._overallEtd` directly onto the
+  // S.inspections objects for convenience. Since `activeIns` is just a
+  // filter() over S.inspections (same object references, not copies), that
+  // silently contaminated the live records every time this ran — a field
+  // the server never sent and _lastSyncedInspections never accounted for.
+  // Every subsequent "does this record match what's synced?" check then
+  // permanently disagreed (this is what caused the Manager device to show
+  // ~1000 records as "pending" — nearly every inspection had been touched
+  // by a bay grid render at some point). Worse, the next save() would
+  // happily write that stray field into Firebase along with everything
+  // else. Fixed by keeping the computed value in a local map instead of
+  // touching the shared objects at all.
+  var overallEtdById={};
   var activeIns=S.inspections.filter(function(i){
     var e=S.entries.find(function(x){ return x.id==i.entryId && !x.exitTime; });
     return e && !i.parked;
@@ -8694,9 +8723,9 @@ function renderBayGrid(){
       var dk=S.deptETDs[ins.id+'_'+dd];
       if(dk && (!etdVal || new Date(dk)>new Date(etdVal))) etdVal=dk;
     });
-    ins._overallEtd=etdVal?new Date(etdVal):null;
+    overallEtdById[ins.id]=etdVal?new Date(etdVal):null;
   });
-  var ranked=activeIns.filter(function(i){ return i._overallEtd; }).sort(function(a,b){ return a._overallEtd-b._overallEtd; });
+  var ranked=activeIns.filter(function(i){ return overallEtdById[i.id]; }).sort(function(a,b){ return overallEtdById[a.id]-overallEtdById[b.id]; });
   var priorityByBay={};
   ranked.forEach(function(ins,idx){ priorityByBay[ins.bayNo]=idx+1; });
 
