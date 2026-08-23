@@ -4669,10 +4669,17 @@ function refreshDeviceSyncStatus(){
 // it turns out something genuinely was pending.
 function clearDeviceSyncStatus(deviceId){
   fbRoot.child('deviceSyncStatus/'+deviceId).set(null).catch(function(){});
+  // Update the screen immediately instead of waiting for the round-trip
+  // through the live listener — previously this button appeared to do
+  // nothing because the row didn't disappear until that echoed back.
+  if(S.deviceSyncStatus) delete S.deviceSyncStatus[deviceId];
+  refreshDeviceSyncStatus();
   toast('🧹 Cleared','ok');
 }
 function clearAllDeviceSyncStatus(){
   fbRoot.child('deviceSyncStatus').set(null).catch(function(){});
+  S.deviceSyncStatus={};
+  refreshDeviceSyncStatus();
   toast('🧹 Cleared all — devices will re-report their real status if anything is genuinely pending','ok');
 }
 
