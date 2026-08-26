@@ -1,5 +1,1 @@
-{
-  "v": "v400",
-  "deployed": "2026-08-06T00:00:00Z",
-  "change": "Parking Area -- Awaiting Exit cards now also show the truck's original Gate In date/time (when it entered the yard), alongside the existing 'Waiting Xh Xm since parked' info -- so both the arrival time and how long it's sat parked-and-ready are visible together."
-}
+{"v": "402"}
