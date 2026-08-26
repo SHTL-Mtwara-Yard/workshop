@@ -2561,6 +2561,25 @@ window.addEventListener('appinstalled', function(){
       </div>
     </div>
 
+    <!-- Several-months-at-once export: one CSV covering a whole range, each
+         mechanic's row repeated per month with a Month column, instead of
+         downloading one file per month by hand. -->
+    <div class="card mb-16" style="border-left:3px solid var(--accent)">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Export Several Months at Once</div>
+      <div class="text-xs text2 mb-12">Pick a From and To month — one CSV comes out covering every month in between, month-wise (each mechanic's row repeated per month so you can filter or pivot it in Excel).</div>
+      <div class="flex items-end gap-12 flex-wrap">
+        <div>
+          <label style="margin-bottom:6px">From Month</label>
+          <input type="month" id="perfFromMonth">
+        </div>
+        <div>
+          <label style="margin-bottom:6px">To Month</label>
+          <input type="month" id="perfToMonth">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportMechPerfCSVRange()">📥 Export Range (CSV)</button>
+      </div>
+    </div>
+
     <div class="grid-4 mb-16">
       <div class="stat-box stat-blue"><div class="stat-label">Mechanics Active</div><div class="stat-val" id="mp-count" style="color:var(--blue)">0</div></div>
       <div class="stat-box stat-green"><div class="stat-label">Total Jobs Completed</div><div class="stat-val" id="mp-total" style="color:var(--green)">0</div></div>
@@ -4669,17 +4688,10 @@ function refreshDeviceSyncStatus(){
 // it turns out something genuinely was pending.
 function clearDeviceSyncStatus(deviceId){
   fbRoot.child('deviceSyncStatus/'+deviceId).set(null).catch(function(){});
-  // Update the screen immediately instead of waiting for the round-trip
-  // through the live listener — previously this button appeared to do
-  // nothing because the row didn't disappear until that echoed back.
-  if(S.deviceSyncStatus) delete S.deviceSyncStatus[deviceId];
-  refreshDeviceSyncStatus();
   toast('🧹 Cleared','ok');
 }
 function clearAllDeviceSyncStatus(){
   fbRoot.child('deviceSyncStatus').set(null).catch(function(){});
-  S.deviceSyncStatus={};
-  refreshDeviceSyncStatus();
   toast('🧹 Cleared all — devices will re-report their real status if anything is genuinely pending','ok');
 }
 
@@ -7178,7 +7190,6 @@ function refreshSecurityPanel(){
         </div>
         <div style="font-size:12px;color:var(--text2);margin-bottom:8px">
           Driver on arrival: <strong>${ins.driverName||'—'}</strong> · ${ins.driverMobile||'—'}
-          ${e&&e.entryTime?`<br>Gate In: <strong>${new Date(e.entryTime).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</strong>`:''}
           ${remark?`<br>Supervisor: ${remark.reason}${remark.note?' — '+remark.note:''}` : ''}
           ${eodToday?`<br><span style="color:var(--amber);font-weight:600">EOD: ${eodToday.reason}</span>` : ''}
         </div>
@@ -17608,22 +17619,17 @@ function exportBreakdownCSV(){
 }
 
 // ═══ EXPORT: MECHANIC PERFORMANCE ═══
-function exportMechPerfCSV(){
-  const monthVal=document.getElementById('perfMonthSelect').value;
-  let mStart, mEnd;
-  if(monthVal){
-    const [y,m]=monthVal.split('-').map(Number);
-    mStart=new Date(y,m-1,1); mEnd=new Date(y,m,1);
-  } else {
-    const n=new Date();
-    mStart=new Date(n.getFullYear(),n.getMonth(),1); mEnd=new Date(n.getFullYear(),n.getMonth()+1,1);
-  }
-
+// Shared aggregation for one month's mechanic performance — used by the
+// single-month CSV export and the multi-month range export below, so both
+// always compute numbers exactly the same way (no risk of the two drifting
+// apart over time).
+function _computeMechPerfRowsForMonth(mStart, mEnd, deptFilter){
   const perf={};
   function ensure(name){ if(!perf[name]) perf[name]={depts:new Set(),workshopDone:0,breakdownCount:0,totalTimeHrs:0,timedJobs:0,originalAssigned:0,extraFound:0,onTimeJobs:0,lateJobs:0}; return perf[name]; }
 
   S.inspections.forEach(ins=>{
     ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(d=>{
+      if(deptFilter && deptFilter!=='all' && deptFilter!==d) return;
       const jobs=(ins.jobs||{})[d]||[];
       if(!jobs.length) return;
       const assignedMechanic=(ins.deptStaff||{})[d];
@@ -17671,7 +17677,6 @@ function exportMechPerfCSV(){
   daysElapsedCSV=Math.max(1,daysElapsedCSV);
 
   const dLabel={mech:'Mech',elec:'Elec',tyre:'Tyre',weld:'Weld',pneumatic:'Pneu',suspension:'Susp'};
-  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Elapsed Time/Job Hrs (ETD->Done)','Active Hours (Month)','Avg Active Hrs/Job','Utilization %','Jobs/Day','On-Time %','Originally Assigned','Extra Found (Ground)','Extra %'];
   const rows=Object.keys(perf).map(n=>{
     const p=perf[n];
     const totalForPct=p.originalAssigned+p.extraFound;
@@ -17686,7 +17691,53 @@ function exportMechPerfCSV(){
     const onTimePctCSV = onTimeTotalCSV>0 ? Math.round((p.onTimeJobs/onTimeTotalCSV)*100)+'%' : '';
     return [n, [...p.depts].map(d=>dLabel[d]).join('/'), p.workshopDone, p.breakdownCount, totalCompletedCSV, avgTime, activeHrs.toFixed(2), avgActiveHrsPerJobCSV, utilizationPctCSV, jobsPerDayCSV, onTimePctCSV, p.originalAssigned, p.extraFound, totalForPct?extraPct+'%':''];
   });
+  return rows;
+}
+
+function exportMechPerfCSV(){
+  const monthVal=document.getElementById('perfMonthSelect').value;
+  const deptFilter=document.getElementById('perfDeptFilter').value;
+  let mStart, mEnd;
+  if(monthVal){
+    const [y,m]=monthVal.split('-').map(Number);
+    mStart=new Date(y,m-1,1); mEnd=new Date(y,m,1);
+  } else {
+    const n=new Date();
+    mStart=new Date(n.getFullYear(),n.getMonth(),1); mEnd=new Date(n.getFullYear(),n.getMonth()+1,1);
+  }
+  const headers=['Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Elapsed Time/Job Hrs (ETD->Done)','Active Hours (Month)','Avg Active Hrs/Job','Utilization %','Jobs/Day','On-Time %','Originally Assigned','Extra Found (Ground)','Extra %'];
+  const rows=_computeMechPerfRowsForMonth(mStart, mEnd, deptFilter);
   exportCSV('SHTL_MechanicPerformance_'+dateStamp()+'.csv', headers, rows);
+}
+
+// Multi-month export — one CSV covering every month from perfFromMonth to
+// perfToMonth (inclusive), each mechanic's row repeated per month with a
+// leading Month column, so it can be filtered/pivoted in Excel across the
+// whole range instead of downloading one file per month by hand.
+function exportMechPerfCSVRange(){
+  const fromVal=document.getElementById('perfFromMonth').value;
+  const toVal=document.getElementById('perfToMonth').value;
+  const deptFilter=document.getElementById('perfDeptFilter').value;
+  if(!fromVal||!toVal) return toast('⚠️ Pick both a From and To month','warn');
+  const [fy,fm]=fromVal.split('-').map(Number);
+  const [ty,tm]=toVal.split('-').map(Number);
+  const start=new Date(fy,fm-1,1);
+  const end=new Date(ty,tm-1,1);
+  if(start>end) return toast('⚠️ "From" month must be on or before "To" month','warn');
+  const monthCount=(end.getFullYear()-start.getFullYear())*12 + (end.getMonth()-start.getMonth()) + 1;
+  if(monthCount>36) return toast('⚠️ That range is '+monthCount+' months — please pick 36 months or fewer at a time','warn');
+
+  const headers=['Month','Mechanic','Dept(s)','Workshop Jobs Done','Breakdown Call-outs','Total Completed','Avg Elapsed Time/Job Hrs (ETD->Done)','Active Hours (Month)','Avg Active Hrs/Job','Utilization %','Jobs/Day','On-Time %','Originally Assigned','Extra Found (Ground)','Extra %'];
+  const allRows=[];
+  const cursor=new Date(start);
+  while(cursor<=end){
+    const mStart=new Date(cursor.getFullYear(),cursor.getMonth(),1);
+    const mEnd=new Date(cursor.getFullYear(),cursor.getMonth()+1,1);
+    const monthLabel=mStart.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    _computeMechPerfRowsForMonth(mStart, mEnd, deptFilter).forEach(r=>allRows.push([monthLabel,...r]));
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  exportCSV('SHTL_MechanicPerformance_'+fromVal+'_to_'+toVal+'.csv', headers, allRows);
 }
 
 // ═══ HOURS WORKED PER DAY (from Punch Status activity log) ═══
