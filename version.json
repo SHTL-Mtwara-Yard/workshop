@@ -1,5 +1,5 @@
 {
-  "v": "v399",
-  "deployed": "2026-08-21T00:00:00Z",
-  "change": "Fixed 'Devices With Unsynced Updates' Clear/Clear All buttons appearing to do nothing -- they wrote to Firebase correctly but never updated the screen immediately, waiting on the round-trip through the live listener instead. Now updates instantly on click."
+  "v": "v400",
+  "deployed": "2026-08-06T00:00:00Z",
+  "change": "Parking Area -- Awaiting Exit cards now also show the truck's original Gate In date/time (when it entered the yard), alongside the existing 'Waiting Xh Xm since parked' info -- so both the arrival time and how long it's sat parked-and-ready are visible together."
 }
