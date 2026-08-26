@@ -9357,6 +9357,35 @@ var _completionAlertQueue=[];
 var _completionAlertCurrentId=null;
 
 function checkCompletionAlertQueue(){
+  // Self-heal: a job can be marked done through several different code
+  // paths (checkbox toggle, attribution modal, known-issue add, job-card
+  // edit, etc.) and at least one of them can update S.jobUpdates without
+  // re-running checkAutoCompletion — the function that actually flags a
+  // truck ready and frees its bay. Result: every job is genuinely done,
+  // but Supervisor is never notified and the bay never frees ("punched
+  // everything, it never posted to Supervisor"). This runs on every live
+  // data update on every device, so catch and fix that gap here instead of
+  // it sitting stuck until someone happens to reopen that exact job.
+  var healedAny=false;
+  S.inspections.forEach(function(ins){
+    if(ins.parked || ins.completedAt) return;
+    var e=S.entries.find(function(x){ return x.id==ins.entryId && !x.exitTime; });
+    if(!e) return;
+    var total=0, done=0;
+    ['mech','elec','tyre','weld','pneumatic','suspension'].forEach(function(d){
+      ((ins.jobs||{})[d]||[]).forEach(function(j,ji){
+        total++;
+        var upd=S.jobUpdates[ins.id+'_'+d+'_'+ji]||{};
+        if(upd.done||j.done) done++;
+      });
+    });
+    if(total>0 && done===total){
+      checkAutoCompletion(ins.id);
+      healedAny=true;
+    }
+  });
+  if(healedAny) save();
+
   _completionAlertQueue = S.inspections.filter(ins=>{
     if(!ins.parked || ins.supervisorRemark) return false;
     const e=S.entries.find(x=>x.id==ins.entryId);
