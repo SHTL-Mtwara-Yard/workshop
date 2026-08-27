@@ -2831,6 +2831,7 @@ window.addEventListener('appinstalled', function(){
         <button class="btn btn-ghost btn-sm" id="dc-tab-recycle" onclick="showDcTab('recycle',this)">♻️ Recycle Bin</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-audit" onclick="showDcTab('audit',this)">📜 Audit Trail</button>
         <button class="btn btn-ghost btn-sm" id="dc-tab-usage" onclick="showDcTab('usage',this)" style="color:var(--green);border-color:var(--green)">📊 Feature Usage</button>
+        <button class="btn btn-ghost btn-sm" id="dc-tab-fixexit" onclick="showDcTab('fixexit',this)" style="color:var(--green);border-color:var(--green)">🛠️ Restore Aug 26 Exits</button>
         
       </div>
 
@@ -2921,6 +2922,19 @@ window.addEventListener('appinstalled', function(){
         <div class="card-title"><span class="dot" style="background:var(--green)"></span>📊 Feature Usage — What's Actually Being Used</div>
         <div class="text-xs text2 mb-12">Real record counts straight from your live data, not a guess — shows exactly which parts of the system are getting used and which are sitting empty.</div>
         <div id="dcUsageReport"></div>
+      </div>
+
+      <!-- RESTORE AUG 26 EXITS (one-time recovery for the _doFreshResync
+           revert bug fixed in v404 — 14 trucks that genuinely exited on
+           26/08/2026 evening had their exit record reverted back to
+           "awaiting exit" by a stale-cache bug. Times below are taken
+           directly from that day's Daily Report, generated before the
+           revert happened, so they're the real recorded exit times. ) -->
+      <div id="dc-section-fixexit" class="card" style="display:none">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>🛠️ Restore Aug 26 Exits</div>
+        <div class="text-xs text2 mb-12">A sync bug (fixed in v404) reverted 14 trucks that genuinely exited on the evening of 26/08/2026 back to "Awaiting Exit". This restores their real exit times, taken from that day's Daily Report — same effect as running Manual Exit on each one, done in a single action. Safe to run more than once: any truck that already has an exit time recorded is skipped.</div>
+        <div id="dcFixExitList" class="mb-12"></div>
+        <button class="btn btn-primary btn-block" onclick="restoreAug26Exits()">🛠️ Restore All 14 Exits</button>
       </div>
 
       <!-- CHANGE PIN -->
@@ -15419,7 +15433,7 @@ function lockDataControl(){
 }
 
 function showDcTab(tab,btn){
-  ['truck','datetruck','date','type','bayclean','recycle','audit','usage','pin'].forEach(t=>{
+  ['truck','datetruck','date','type','bayclean','recycle','audit','usage','fixexit','pin'].forEach(t=>{
     const s=document.getElementById('dc-section-'+t);
     if(s) s.style.display=t===tab?'block':'none';
     const b=document.getElementById('dc-tab-'+t);
@@ -15429,6 +15443,7 @@ function showDcTab(tab,btn){
   if(tab==='audit') refreshAuditTrail();
   if(tab==='bayclean') refreshStaleBaysList();
   if(tab==='usage') refreshFeatureUsageReport();
+  if(tab==='fixexit') refreshFixExitList();
   if(tab==='type'){
     const grid=document.getElementById('dcTypeGrid');
     if(grid && !grid.children.length){
@@ -15789,6 +15804,59 @@ function refreshAuditTrail(){
       <td style="padding:6px 8px">${l.count}</td>
     </tr>`).join('')}</tbody>
   </table>`;
+}
+
+// ── RESTORE AUG 26 EXITS — one-time recovery, see comment on the HTML section ──
+// Truck number + real exit time, taken directly from SHTL_DailyReport_2026-08-26.xlsx
+// (generated before the _doFreshResync revert bug — fixed in v404 — reopened these).
+var _aug26ExitFixList=[
+  {truck:'T808 EAN', time:'18:51'},
+  {truck:'T569 ETA', time:'18:03'},
+  {truck:'T807 DZU', time:'17:57'},
+  {truck:'T293 EAD', time:'18:02'},
+  {truck:'T917 DYX', time:'20:07'},
+  {truck:'T241 ECZ', time:'21:00'},
+  {truck:'T304 EAD', time:'20:54'},
+  {truck:'T221 DZT', time:'19:30'},
+  {truck:'T781 EAV', time:'17:47'},
+  {truck:'T567 ETA', time:'16:20'},
+  {truck:'T288 DZT', time:'20:35'},
+  {truck:'T408 EAD', time:'20:30'},
+  {truck:'T119 DYY', time:'20:13'},
+  {truck:'T151 ECZ', time:'19:34'}
+];
+function refreshFixExitList(){
+  var div=document.getElementById('dcFixExitList');
+  if(!div) return;
+  var rows=_aug26ExitFixList.map(function(r){
+    var e=S.entries.find(function(x){ return fmtTruck(x.truckNo)===fmtTruck(r.truck) && !x.exitTime; });
+    var status = e ? '<span style="color:var(--amber);font-weight:700">Still awaiting exit — will restore</span>' : '<span style="color:var(--green)">Already has an exit time — will skip</span>';
+    return '<tr style="border-bottom:0.5px solid var(--border)"><td style="padding:6px 8px;font-weight:700">'+r.truck+'</td><td style="padding:6px 8px">26/08/2026, '+r.time+'</td><td style="padding:6px 8px;font-size:11px">'+status+'</td></tr>';
+  }).join('');
+  div.innerHTML='<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:var(--surface3)"><th style="padding:6px 8px;text-align:left">Truck</th><th style="padding:6px 8px;text-align:left">Real Exit Time</th><th style="padding:6px 8px;text-align:left">Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function restoreAug26Exits(){
+  if(!confirm('Restore the real 26/08/2026 exit time for each of these 14 trucks? Any truck that already has an exit time recorded will be left untouched.')) return;
+  var fixedCount=0, fixedNames=[];
+  _aug26ExitFixList.forEach(function(r){
+    var e=S.entries.find(function(x){ return fmtTruck(x.truckNo)===fmtTruck(r.truck) && !x.exitTime; });
+    if(!e) return; // already has an exit time (or truck not found) — skip, safe to re-run
+    var exitDateTime=new Date('2026-08-26T'+r.time+':00');
+    e.exitTime=exitDateTime.toISOString();
+    e.status='exited';
+    e.manualExit=true;
+    e.manualExitRemark='Restored — real exit reverted by sync bug, fixed v404';
+    e.verifiedBy=MANAGER_NAME||'Manager (Data Control)';
+    e.verifiedAt=new Date().toISOString();
+    fixedCount++;
+    fixedNames.push(r.truck);
+  });
+  if(!fixedCount){ toast('✅ Nothing to restore — all 14 already have an exit time','ok'); refreshFixExitList(); return; }
+  if(!S.deletionLog) S.deletionLog=[];
+  S.deletionLog.push({deletedAt:new Date().toISOString(), label:'Restored Aug 26 exits: '+fixedNames.join(', '), count:fixedCount});
+  save();
+  toast('✅ Restored '+fixedCount+' truck'+(fixedCount===1?'':'s')+' to their real exit time','ok');
+  refreshFixExitList();
 }
 
 // ── CHANGE PIN ──
