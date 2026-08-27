@@ -5014,46 +5014,31 @@ function _doFreshResync(){
     fbRoot.child('appointments').once('value'),
     fbRoot.child('breakdowns').once('value')
   ]).then(function(results){
-    var freshEntries = results[0].val() || [];
-    var freshInspections = results[1].val() || [];
-    var freshAppointments = results[2].val() || [];
-    var freshBreakdowns = results[3].val() || [];
-    var mergedEntries={};
-    freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
-    (S.entries||[]).forEach(function(e){
-      var existing=mergedEntries[e.id];
-      var lastSynced=_lastSyncedEntries[e.id];
-      var localUnchanged = lastSynced!==undefined && stableStringify(e)===lastSynced;
-      if(!existing || !localUnchanged) mergedEntries[e.id]=e;
-    });
-    var mergedInspections={};
-    freshInspections.forEach(function(ins){ if(ins) mergedInspections[ins.entryId]=ins; });
-    (S.inspections||[]).forEach(function(ins){
-      var existing=mergedInspections[ins.entryId];
-      var lastSynced=_lastSyncedInspections[ins.entryId];
-      var localUnchanged = lastSynced!==undefined && stableStringify(normalizeInspectionShape(ins))===lastSynced;
-      if(!existing || !localUnchanged) mergedInspections[ins.entryId]=ins;
-    });
-    var mergedAppointments={};
-    freshAppointments.forEach(function(a){ if(a) mergedAppointments[a.id]=a; });
-    (S.appointments||[]).forEach(function(a){
-      var existing=mergedAppointments[a.id];
-      var lastSynced=_lastSyncedAppointments[a.id];
-      var localUnchanged = lastSynced!==undefined && stableStringify(a)===lastSynced;
-      if(!existing || !localUnchanged) mergedAppointments[a.id]=a;
-    });
-    var mergedBreakdowns={};
-    freshBreakdowns.forEach(function(b){ if(b) mergedBreakdowns[b.id]=b; });
-    (S.breakdowns||[]).forEach(function(b){
-      var existing=mergedBreakdowns[b.id];
-      var lastSynced=_lastSyncedBreakdowns[b.id];
-      var localUnchanged = lastSynced!==undefined && stableStringify(b)===lastSynced;
-      if(!existing || !localUnchanged) mergedBreakdowns[b.id]=b;
-    });
-    S.entries=Object.values(mergedEntries);
-    S.inspections=Object.values(mergedInspections);
-    S.appointments=Object.values(mergedAppointments);
-    S.breakdowns=Object.values(mergedBreakdowns);
+    var freshEntries = (results[0].val() || []).filter(function(e){ return e; });
+    var freshInspections = (results[1].val() || []).filter(function(ins){ return ins; });
+    var freshAppointments = (results[2].val() || []).filter(function(a){ return a; });
+    var freshBreakdowns = (results[3].val() || []).filter(function(b){ return b; });
+    // This function exists purely to fix a stale local view (a tab left
+    // backgrounded/asleep for a while) by re-pulling the current truth from
+    // Firebase — it is NOT the offline-edit-recovery path (that's the
+    // separate, genuinely-offline-gated block near page load). Any real
+    // in-flight local edit is already excluded by the `_saving` guard
+    // above, so there is no legitimate case here where local data should
+    // ever win over fresh server data. It used to merge "keep local if it
+    // differs from what I last recorded as synced" — but a long-stale tab's
+    // own synced-bookkeeping can drift for the same reasons its data does,
+    // so that comparison isn't a reliable signal of a real unsaved edit. In
+    // practice it could resurrect old local state (e.g. a truck exited
+    // hours earlier reappearing as "awaiting exit") well after the fact.
+    // Trusting fresh data outright removes that risk entirely.
+    S.entries=freshEntries;
+    S.inspections=freshInspections;
+    S.appointments=freshAppointments;
+    S.breakdowns=freshBreakdowns;
+    _lastSyncedEntries={}; freshEntries.forEach(function(e){ _lastSyncedEntries[e.id]=stableStringify(e); });
+    _lastSyncedInspections={}; freshInspections.forEach(function(ins){ _lastSyncedInspections[ins.entryId]=stableStringify(normalizeInspectionShape(ins)); });
+    _lastSyncedAppointments={}; freshAppointments.forEach(function(a){ _lastSyncedAppointments[a.id]=stableStringify(a); });
+    _lastSyncedBreakdowns={}; freshBreakdowns.forEach(function(b){ _lastSyncedBreakdowns[b.id]=stableStringify(b); });
     if(typeof runInitialRender==='function') runInitialRender();
   }).catch(function(err){
     console.warn('Resync failed, live listener will catch up', err);
