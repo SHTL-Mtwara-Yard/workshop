@@ -1218,6 +1218,40 @@ window.addEventListener('appinstalled', function(){
   </div>
 </div>
 
+<!-- RETURN TO BAY — for a truck already in Parking that needs to go back in
+     (e.g. moved to parking by mistake, or something needs another look
+     before it can actually leave). Undoes the parked state and puts it back
+     into a bay, same as Supervisor's own "Send Back to Bay" but reachable
+     from Security's Parking Area card, without requiring a recheck-job note. -->
+<div class="modal-overlay" id="returnToBayModal">
+  <div class="modal" style="max-width:420px;border-top:4px solid var(--accent)">
+    <div class="modal-title">🔙 Return to Bay <button class="modal-close" onclick="closeModal('returnToBayModal')">✕</button></div>
+    <input type="hidden" id="rtb_insId">
+    <div id="rtb_truckInfo" style="background:var(--surface3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div>
+        <label>Send Back To Bay</label>
+        <select id="rtb_bay">
+          <option value="">-- Select Bay --</option>
+          <optgroup label="Team A (Bays 1–10)">
+            <option>Bay 1</option><option>Bay 2</option><option>Bay 3</option><option>Bay 4</option><option>Bay 5</option>
+            <option>Bay 6</option><option>Bay 7</option><option>Bay 8</option><option>Bay 9</option><option>Bay 10</option>
+          </optgroup>
+          <optgroup label="Team B (Bays 11–21)">
+            <option>Bay 11</option><option>Bay 12</option><option>Bay 13</option><option>Bay 14</option><option>Bay 15</option>
+            <option>Bay 16</option><option>Bay 17</option><option>Bay 18</option><option>Bay 19</option><option>Bay 20</option><option>Bay 21</option>
+          </optgroup>
+          <optgroup label="Special"><option>Express Bay</option><option>Free Bay</option></optgroup>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><label>Reason <span style="color:var(--text-muted);font-weight:400">(optional)</span></label><input type="text" id="rtb_reason" placeholder="e.g. Moved to parking by mistake, still needs work"></div>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="confirmReturnToBay()"><i class="ti ti-check" aria-hidden="true"></i> Confirm Return to Bay</button>
+  </div>
+</div>
+
 <!-- MANAGER: CLOSE INCHARGE REQUEST WITH REMARK -->
 <div class="modal-overlay" id="closeAptRemarkModal">
   <div class="modal" style="max-width:420px;border-top:4px solid #dc2626">
@@ -7196,6 +7230,7 @@ function refreshSecurityPanel(){
           <button class="btn btn-primary btn-sm" onclick="openDriverVerify('${ins.id}',null)"><i class="ti ti-id" aria-hidden="true"></i> Check License & Exit</button>
           <button class="btn btn-ghost btn-sm" onclick="printGatePass('${ins.id}')">🖨️ Gate Pass</button>
           <button class="btn btn-ghost btn-sm" style="border-color:var(--yellow);color:#92400e" onclick="openManualExit('${ins.id}')">🕐 Manual Exit</button>
+          <button class="btn btn-ghost btn-sm" style="border-color:var(--accent);color:var(--accent)" onclick="openReturnToBay('${ins.id}')">🔙 Return to Bay</button>
         </div>
       </div>`;
     }).join('');
@@ -7395,6 +7430,61 @@ function confirmManualExit(){
   refreshDropdowns();
   updateBadge();
   toast(`🕐 ${e.truckNo} — manual exit recorded for ${exitDateTime.toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'})}`,'ok');
+}
+
+// ── Return to Bay — undo a truck sitting in Parking, send it back into a
+// bay (moved to parking by mistake, or it needs another look before it can
+// actually leave). Reachable from Security's Parking Area card.
+function openReturnToBay(insId){
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  const e = S.entries.find(x => x.id === ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—';
+  document.getElementById('rtb_insId').value = ins.id;
+  document.getElementById('rtb_truckInfo').innerHTML = `<strong>${displayTruck}</strong> currently in Parking`;
+  document.getElementById('rtb_bay').value = ins.lastBayNo || '';
+  document.getElementById('rtb_reason').value = '';
+  document.getElementById('returnToBayModal').classList.add('open');
+}
+function confirmReturnToBay(){
+  const insId = document.getElementById('rtb_insId').value;
+  const bay = document.getElementById('rtb_bay').value;
+  const reason = document.getElementById('rtb_reason').value.trim();
+  if(!bay) return toast('⚠️ Select which bay to send it back to','warn');
+  const ins = S.inspections.find(i => i.id == insId);
+  if(!ins) return;
+  const clash = S.inspections.find(i => i.id != insId && i.bayNo === bay && !i.parked && !S.entries.find(e => e.id === i.entryId && e.exitTime));
+  if(clash) return toast(`⚠️ ${bay} is already occupied by ${clash.truckNo} — choose a different bay`,'warn');
+
+  const e = S.entries.find(x => x.id === ins.entryId);
+  const displayTruck = (e && e.truckNo) || ins.truckNo || '—';
+
+  ins.bayNo = bay;
+  ins.parked = false;
+  ins.completedAt = null;
+  ins.supervisorRemark = null;
+  if(e) e.parkStatus = 'in_bay';
+
+  if(!ins.reworkHistory) ins.reworkHistory = [];
+  ins.reworkHistory.push({reason: reason||'Returned to bay from Security', note: reason||'', dept: '', sentBackAt: new Date().toISOString(), sentBackBy: _securityOfficerName||'Security', bay});
+
+  if(!S.notifications) S.notifications = [];
+  S.notifications.push({
+    id: Date.now(),
+    message: `🔙 ${displayTruck} returned to ${bay} from Parking by ${_securityOfficerName||'Security'}.${reason?' Reason: '+reason:''}`,
+    truckLink: displayTruck,
+    bayLink: bay,
+    sentAt: new Date().toISOString(),
+    read: false, readAt: null, reply: null
+  });
+
+  save();
+  closeModal('returnToBayModal');
+  refreshSecurityPanel();
+  refreshSecurityLog();
+  refreshDropdowns();
+  updateBadge();
+  toast(`🔙 ${displayTruck} sent back to ${bay}`,'ok');
 }
 
 function acknowledgeAlert(alertId){
