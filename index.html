@@ -17285,6 +17285,14 @@ function getDailyReportRows(){
 function renderDailyReport(){
   var picker=document.getElementById('drDatePicker');
   if(picker && !picker.value) picker.value=new Date().toISOString().slice(0,10);
+  var tbody=document.getElementById('dailyReportTable');
+  if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:20px">⏳ Checking for latest data…</td></tr>';
+  _refreshDailyReportData().then(function(){
+    _renderDailyReportTable();
+  });
+}
+function _renderDailyReportTable(){
   var rows=getDailyReportRows();
   var tbody=document.getElementById('dailyReportTable');
   if(!tbody) return;
@@ -17304,25 +17312,24 @@ function renderDailyReport(){
   }).join('');
 }
 
-function exportDailyReportCSV(){
-  toast('⏳ Checking for latest data before generating report...','info');
-  // Pull a FRESH read directly from Firebase before building the report —
-  // this device's in-memory S.entries/S.inspections could be a few syncs
-  // behind (still catching up after a busy period), and this download is
-  // what goes to Boss, so it must reflect the true current state, not
-  // whatever this device happened to have cached at the moment.
-  Promise.all([
+// Pulls a FRESH read of entries/inspections directly from Firebase and
+// merges it into S before resolving — this device's in-memory copy can be a
+// few syncs behind (a newly-created job card that hasn't landed here yet),
+// and this report needs to reflect true current state, not whatever this
+// device happened to have cached. Shared by both the on-screen Daily Report
+// table and the CSV export, so a truck can't show "no job card opened"
+// on-screen just because this particular device's own sync lagged —
+// that used to only get corrected as a side effect of clicking Export.
+function _refreshDailyReportData(){
+  return Promise.all([
     fbRoot.child('entries').once('value'),
     fbRoot.child('inspections').once('value')
   ]).then(function(results){
     var freshEntries = results[0].val() || [];
     var freshInspections = results[1].val() || [];
-    // Use the fresh data for THIS report generation only — merge into S so
-    // getDailyReportRows() (which reads S.entries/S.inspections) sees it,
-    // without disturbing this device's own pending local edits: prefer the
-    // fresher record between local and server for each id, same rule as
-    // the normal save merge, so we don't accidentally roll back a change
-    // this device just made moments ago.
+    // Prefer the fresher record between local and server for each id, same
+    // rule as the normal save merge, so we don't accidentally roll back a
+    // change this device just made moments ago.
     var mergedEntries={};
     freshEntries.forEach(function(e){ if(e) mergedEntries[e.id]=e; });
     (S.entries||[]).forEach(function(e){
@@ -17335,10 +17342,14 @@ function exportDailyReportCSV(){
     S.inspections=Object.values(mergedInspections).concat(
       (S.inspections||[]).filter(function(ins){ return !mergedInspections[ins.entryId]; })
     );
-    _generateDailyReportFile();
   }).catch(function(err){
     console.error('Failed to fetch fresh data for report, using local copy', err);
-    toast('⚠️ Could not verify latest data — using local copy','warn');
+  });
+}
+
+function exportDailyReportCSV(){
+  toast('⏳ Checking for latest data before generating report...','info');
+  _refreshDailyReportData().then(function(){
     _generateDailyReportFile();
   });
 }
@@ -17357,7 +17368,7 @@ function _generateDailyReportFile(){
     var dateStr=picker && picker.value ? picker.value : new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, 'SHTL_DailyReport_'+dateStr+'.xlsx');
     toast('📥 Daily Report downloaded (latest data)','ok');
-    renderDailyReport();
+    _renderDailyReportTable();
   } else {
     exportCSV('SHTL_DailyReport_'+new Date().toISOString().slice(0,10)+'.csv', headers, data);
   }
